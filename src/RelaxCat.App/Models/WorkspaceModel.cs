@@ -19,18 +19,39 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public SettingsModel Settings { get; } = new();
     public CaptureSettings Capture { get; } = new();
     public ObservableCollection<ImageItem> Images { get; } = new();
-    public WorkspaceModel()
+    private readonly SettingsStore store;
+    public WorkspaceModel(SettingsStore? store = null)
     {
         ThemeChoices = new[] { new LocalizedOption(Text, "Dark"), new LocalizedOption(Text, "Light") };
         GapUnitChoices = new[] { new LocalizedOption(Text, "Points"), new LocalizedOption(Text, "Cells") };
         CaptureProviderChoices = new[] { new LocalizedOption(Text, "CaptureOff"), new LocalizedOption(Text, "CaptureFolderOnly"), new LocalizedOption(Text, "CaptureGreenshot") };
+        this.store = store ?? new SettingsStore();
         Message = Text["Ready"];
+        try
+        {
+            if (this.store.Load() is { } saved)
+            {
+                Settings = saved.Settings; Capture = saved.Capture;
+                LanguageIndex = saved.LanguageIndex; ThemeIndex = saved.ThemeIndex;
+            }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+        { Message = Text["SettingsLoadError"] + error.Message; }
+        Settings.PropertyChanged += SaveSettings;
+        Capture.PropertyChanged += SaveSettings;
+        PropertyChanged += (_, e) => { if (e.PropertyName is nameof(LanguageIndex) or nameof(ThemeIndex)) SaveSettings(this, e); };
         Images.CollectionChanged += (_, e) =>
         {
             if (e.OldItems is not null) foreach (ImageItem item in e.OldItems) item.PropertyChanged -= ItemChanged;
             if (e.NewItems is not null) foreach (ImageItem item in e.NewItems) item.PropertyChanged += ItemChanged;
             UpdateCounts();
         };
+    }
+    private void SaveSettings(object? sender, PropertyChangedEventArgs e)
+    {
+        try { store.Save(this); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        { Message = Text["SettingsSaveError"] + error.Message; }
     }
     private void ItemChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(ImageItem.IncludeInExport)) UpdateCounts(); }
     private void UpdateCounts() { Notify(nameof(Summary)); Notify(nameof(NoImages)); Notify(nameof(CanExport)); Notify(nameof(HasPrevious)); Notify(nameof(HasNext)); }

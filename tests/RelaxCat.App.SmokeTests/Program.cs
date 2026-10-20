@@ -16,7 +16,26 @@ using RelaxCat.Core.Layout;
 AppBuilder.Configure<DesktopApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions
     { UseHeadlessDrawing = false }).UseSkia().SetupWithoutStarting();
 Directory.CreateDirectory("artifacts");
-var window = new MainWindow(); window.Show(); Dispatcher.UIThread.RunJobs();
+var settingsPath = Path.GetFullPath("artifacts/settings-" + Guid.NewGuid().ToString("N") + ".json");
+var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
+using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
+{
+    original.Settings.HorizontalGapUnitIndex = 1; original.Settings.VerticalGapUnitIndex = 1;
+    original.Settings.VerticalGap = "3"; original.Settings.Rules = "width > 100 => 0.5";
+    original.ThemeIndex = 1; original.LanguageIndex = 1;
+    original.Capture.ProviderIndex = 2; original.Capture.MoveMouse = true;
+}
+using (var restored = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
+{
+    if (restored.Settings.HorizontalGapUnitIndex != 1 || restored.Settings.VerticalGapUnitIndex != 1 ||
+        restored.Settings.VerticalGap != "3" || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
+        restored.Capture.ProviderIndex != 2 || !restored.Capture.MoveMouse || restored.Settings.Rules != "width > 100 => 0.5")
+        throw new Exception("Settings did not survive restart");
+}
+File.Delete(settingsPath);
+Console.WriteLine("PASS: settings persistence across workspace restart.");
+if (args.Contains("--settings-only")) return;
+var window = new MainWindow(settingsStore); window.Show(); Dispatcher.UIThread.RunJobs();
 static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 static void PumpUntil(Func<bool> done)
 {

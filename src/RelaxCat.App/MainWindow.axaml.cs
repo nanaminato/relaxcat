@@ -12,7 +12,7 @@ namespace RelaxCat.App;
 
 public sealed partial class MainWindow : Window
 {
-    internal WorkspaceModel Workspace { get; } = new();
+    internal WorkspaceModel Workspace { get; }
     private readonly ExcelSession excel = new();
     private readonly ImageExporter exporter = new();
     private CancellationTokenSource? operation;
@@ -21,10 +21,13 @@ public sealed partial class MainWindow : Window
     private Control? previewInvoker;
     private bool closed;
 
-    public MainWindow()
+    public MainWindow() : this(null) { }
+    internal MainWindow(SettingsStore? store)
     {
+        Workspace = new WorkspaceModel(store);
         InitializeComponent();
         DataContext = Workspace;
+        Opened += async (_, _) => { if (Workspace.Capture.ProviderIndex != 0) await ApplyCaptureAsync(); };
         Closing += WindowClosing;
         Closed += (_, _) =>
         {

@@ -169,3 +169,19 @@ Status: Confirmed
 Statement: Export preserves the source image's aspect ratio; RelaxCat must not stretch pictures during sizing, insertion or worksheet normalization.
 
 Confirmation basis: Human correction, 2026-10-20: “为什么现在导出的图片的比例会发生变化，这个不应该”。This reinforces S-SIZE-003 without removing S-EXCEL-003.
+
+## S-SETTINGS-001
+
+Status: Confirmed
+
+Statement: RelaxCat settings persist across application restarts, including cell gap units and capture provider selection.
+
+Confirmation basis: Human correction, 2026-10-20: settings appear not to persist.
+
+## S-CAPTURE-004
+
+Status: Confirmed
+
+Statement: Greenshot owns its settings; RelaxCat may read selected values but must preserve them on subsequent launches. When integration is selected, application startup launches Greenshot and starts monitoring automatically.
+
+Confirmation basis: Human instruction, 2026-10-20.

@@ -27,7 +27,12 @@ public sealed partial class MainWindow
     {
         if (!Workspace.CanApplyCapture || closed) return;
         CaptureOptions options;
-        try { options = Workspace.Capture.CreateOptions(Workspace.Text); }
+        try
+        {
+            if (Workspace.Capture.IsGreenshot && GreenshotProvider.ReadOutputFolder(CaptureStateRoot) is { } folder)
+                Workspace.Capture.Folder = folder;
+            options = Workspace.Capture.CreateOptions(Workspace.Text);
+        }
         catch (Exception error) { Workspace.Message = Workspace.Text["CaptureError"] + error.Message; return; }
         Workspace.CaptureBusy = true; captureStartup = new CancellationTokenSource();
         try

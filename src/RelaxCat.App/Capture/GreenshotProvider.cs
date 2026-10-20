@@ -30,9 +30,10 @@ public sealed class GreenshotProvider : IAsyncDisposable
         }
         finally { foreach (var process in existing) process.Dispose(); }
         ExecutablePath = await GreenshotBundle.EnsureAsync(stateRoot, token);
-        var profile = Path.Combine(Path.GetFullPath(stateRoot), "GreenshotProfile", Environment.ProcessId.ToString());
+        var profile = Path.Combine(Path.GetFullPath(stateRoot), "GreenshotProfile");
         Directory.CreateDirectory(profile); Directory.CreateDirectory(options.Folder);
-        await File.WriteAllTextAsync(Path.Combine(profile, "greenshot.ini"), BuildConfiguration(options), new UTF8Encoding(false), token);
+        if (!File.Exists(Path.Combine(profile, "greenshot.ini")))
+            await File.WriteAllTextAsync(Path.Combine(profile, "greenshot.ini"), BuildConfiguration(options), new UTF8Encoding(false), token);
         var start = new ProcessStartInfo(ExecutablePath)
         {
             UseShellExecute = false, CreateNoWindow = true, WindowStyle = ProcessWindowStyle.Hidden,
@@ -71,6 +72,24 @@ public sealed class GreenshotProvider : IAsyncDisposable
             if (owned.HasExited) throw new IOException("Greenshot exited during startup.");
         }
         catch { await DisposeAsync(); throw; }
+    }
+
+    public static string? ReadOutputFolder(string stateRoot)
+    {
+        var ini = Path.Combine(Path.GetFullPath(stateRoot), "GreenshotProfile", "greenshot.ini");
+        if (!File.Exists(ini)) return null;
+        var core = false;
+        foreach (var line in File.ReadLines(ini))
+        {
+            var value = line.Trim();
+            if (value.StartsWith('[')) core = value.Equals("[Core]", StringComparison.OrdinalIgnoreCase);
+            if (core && value.StartsWith("OutputFilePath=", StringComparison.OrdinalIgnoreCase))
+            {
+                var folder = Environment.ExpandEnvironmentVariables(value[(value.IndexOf('=') + 1)..].Trim());
+                if (Path.IsPathFullyQualified(folder)) return folder;
+            }
+        }
+        return null;
     }
 
     internal static string BuildConfiguration(CaptureOptions options) => $$"""
