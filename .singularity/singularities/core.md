@@ -193,3 +193,27 @@ Status: Confirmed
 Statement: Provide a persistent setting controlling whether the exported worksheet displays gridlines.
 
 Confirmation basis: Human instruction, 2026-10-20.
+
+## S-IMPORT-003
+
+Status: Confirmed
+
+Statement: Provide a clear-all action that removes all images from the workspace. Source files and previously exported Excel content are retained.
+
+Confirmation basis: Human instruction, 2026-10-20: add an all-remove button to remove images from the workspace.
+
+## S-IMPORT-004
+
+Status: Confirmed
+
+Statement: Support automatic chronological sorting, including automatically ordering images after import.
+
+Confirmation basis: Human instruction, 2026-10-20.
+
+## S-WORKFLOW-001
+
+Status: Confirmed
+
+Statement: Preserve the current workflow for this improvement pass. Do not add project saving, export-only-unexported behavior or automatic export.
+
+Confirmation basis: Human clarification, 2026-10-20.

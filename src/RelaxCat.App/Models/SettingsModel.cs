@@ -8,6 +8,8 @@ public sealed class SettingsModel : ObservableModel
 {
     private string designWidth = "1920", designHeight = "1080", designScale = "0.5", maximumEnlargement = "1.5";
     private string horizontalGap = "12", verticalGap = "12", rowHeight = "18", columnWidth = "10", templatePath = "", rules = "";
+    private int sortOrderIndex = 1;
+    public int SortOrderIndex { get => sortOrderIndex; set { if (value is >= 0 and <= 2) Set(ref sortOrderIndex, value); } }
     private bool compact;
     private bool showGridlines = true;
     private bool selectAllPicturesAfterExport;

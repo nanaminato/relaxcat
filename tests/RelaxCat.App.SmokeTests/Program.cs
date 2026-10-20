@@ -21,6 +21,7 @@ var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
 using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     original.Settings.HorizontalGapUnitIndex = 1; original.Settings.VerticalGapUnitIndex = 1;
+    original.Settings.SortOrderIndex = 2;
     original.Settings.ShowGridlines = false;
     original.Settings.VerticalGap = "3"; original.Settings.Rules = "width > 100 => 0.5";
     original.ThemeIndex = 1; original.LanguageIndex = 1;
@@ -29,11 +30,27 @@ using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 using (var restored = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     if (restored.Settings.HorizontalGapUnitIndex != 1 || restored.Settings.VerticalGapUnitIndex != 1 ||
-        restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
+        restored.Settings.SortOrderIndex != 2 || restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
         restored.Capture.ProviderIndex != 2 || !restored.Capture.MoveMouse || restored.Settings.Rules != "width > 100 => 0.5")
         throw new Exception("Settings did not survive restart");
 }
-File.Delete(settingsPath);
+using (var recovery = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
+{
+    recovery.Settings.SortOrderIndex = 1;
+    recovery.FlushSettings(); // Preserve the previous healthy settings as a backup.
+    File.WriteAllText(settingsPath, "{broken");
+    using var recovered = new RelaxCat.App.Models.WorkspaceModel(settingsStore);
+    if (!settingsStore.RecoveredFromBackup || recovered.Settings.SortOrderIndex != 2)
+        throw new Exception("Settings backup was not recovered");
+    recovered.Settings.HorizontalGap = "25";
+    recovered.FlushSettings();
+    if (settingsStore.Load()!.Settings.HorizontalGap != "25") throw new Exception("Recovered settings could not be saved");
+}
+File.WriteAllText(settingsPath, "null"); File.WriteAllText(settingsPath + ".bak", "null");
+using (var defaults = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
+    if (defaults.Settings.SortOrderIndex != 1 || defaults.Capture.ProviderIndex != 0)
+        throw new Exception("Invalid settings did not fall back to defaults");
+File.Delete(settingsPath); File.Delete(settingsPath + ".bak");
 Console.WriteLine("PASS: settings persistence across workspace restart.");
 if (args.Contains("--settings-only")) return;
 var window = new MainWindow(settingsStore); window.Show(); Dispatcher.UIThread.RunJobs();
@@ -60,7 +77,7 @@ void Capture(string file)
 T Control<T>(string name) where T : Control => window.FindControl<T>(name) ?? throw new Exception("Missing " + name);
 
 Check(Equals(Control<Button>("ImportButton").Content, "导入图片"), "Chinese UI missing");
-Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Count() == 1, "Home contains detailed settings");
+Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "QuickScale") && !Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "RulesEditor"), "Home is missing quick settings or contains detailed settings");
 Capture("desktop-empty-dark.png");
 Click(Control<Button>("SettingsButton"));
 var settings = Control<SettingsView>("SettingsPage");
@@ -98,7 +115,31 @@ Check(window.Workspace.ThemeIndex == 1 && theme.SelectedIndex == 1 && window.Act
 horizontalUnit.SelectedIndex = 0; verticalUnit.SelectedIndex = 0; selectAllPictures.IsChecked = false;
 Click(Control<Button>("HomeButton")); Capture("desktop-empty-light.png");
 
-var paths = TestImages.Create(); Complete(window.ImportPathsAsync(paths));
+var paths = TestImages.Create();
+var sortFolder = Path.GetFullPath("artifacts/sort-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(sortFolder);
+var sortPaths = new[] { "new.png", "old.png", "middle.png", "tie.png" }.Select(name => Path.Combine(sortFolder, name)).ToArray();
+var epoch = new DateTime(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+for (var i = 0; i < sortPaths.Length; i++) { File.Copy(paths[0], sortPaths[i]); File.SetLastWriteTimeUtc(sortPaths[i], epoch.AddDays(new[] { 3, 1, 2, 2 }[i])); }
+Complete(window.ImportPathsAsync(sortPaths.Take(2).ToArray()));
+Check(window.Workspace.Images.Select(i => i.Name).SequenceEqual(new[] { "old.png", "new.png" }), "Initial import not sorted by file time");
+Complete(window.ImportPathsAsync(sortPaths.Skip(2).ToArray()));
+Check(window.Workspace.Images.Select(i => i.Name).SequenceEqual(new[] { "old.png", "middle.png", "tie.png", "new.png" }), "Late imports or tied timestamps not stable");
+var sortSelector = Control<ComboBox>("SortOrderSelector"); sortSelector.SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
+Check(window.Workspace.Images.Select(i => i.Name).SequenceEqual(new[] { "new.png", "middle.png", "tie.png", "old.png" }), "Descending time sort failed");
+var selectedItem = window.Workspace.Images[1]; selectedItem.IncludeInExport = false;
+Complete(window.ShowPreviewAsync(selectedItem));
+sortSelector.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
+Check(window.Workspace.Images.Select(i => i.Name).SequenceEqual(new[] { "new.png", "old.png", "middle.png", "tie.png" }) && window.Workspace.PreviewItem == selectedItem && !selectedItem.IncludeInExport, "Sorting changed item identity or selection");
+window.Workspace.IsBusy = true; window.Workspace.RemoveAll(); Check(window.Workspace.Images.Count == 4, "Clear ran during busy operation"); window.Workspace.IsBusy = false;
+window.Workspace.RemoveAll();
+Check(!window.Workspace.PreviewOpen && window.Workspace.PreviewBitmap is null, "Clear left preview resources alive");
+Complete(window.ImportPathsAsync(sortPaths));
+Click(Control<Button>("RemoveAllButton"));
+Check(window.Workspace.Images.Count == 0 && !window.Workspace.CanExport && !window.Workspace.CanRemoveAll && window.Workspace.PreviewBitmap is null && sortPaths.All(File.Exists), "Clear failed or deleted source files");
+Click(Control<Button>("RemoveAllButton"));
+sortSelector.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
+Console.WriteLine("PASS: automatic time sorting across imports, stable ties, import order, retained selection and safe clear-all.");
+Complete(window.ImportPathsAsync(paths));
 Check(window.Workspace.Images.Count == paths.Length, "Image import failed");
 var gallery = Control<ItemsControl>("Gallery");
 Check(gallery.GetVisualDescendants().OfType<Image>().Count() == paths.Length, "Not every image is rendered");
@@ -169,7 +210,7 @@ if (ownedGreenshot.HasValue)
     Console.WriteLine("PASS: closing RelaxCat stops the owned Greenshot process.");
 }
 Console.WriteLine("PASS: XAML startup, separate settings pages, both themes/languages, gallery import, per-image export filtering, source-image clipboard copy, removal, zoom/navigation/Esc preview, corrupt image and rule validation.");
-var closingImport = new MainWindow(); closingImport.Show();
+var closingImport = new MainWindow(new RelaxCat.App.Models.SettingsStore(Path.Combine(sortFolder, "closing-settings.json"))); closingImport.Show();
 var activeImport = closingImport.ImportPathsAsync(paths);
 closingImport.Close(); PumpUntil(() => !closingImport.IsVisible);
 Check(activeImport.IsCompleted && !closingImport.Workspace.IsBusy, "Closing during import did not cancel and finish cleanly");

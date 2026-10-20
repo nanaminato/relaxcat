@@ -229,3 +229,13 @@ Decision: When cursor movement is enabled for Greenshot, install a WH_KEYBOARD_L
 Reason: The same key must reach Greenshot after movement, so neither RegisterHotKey interception nor asynchronously moving the pointer is suitable. Latest-hook-first ordering and the short synchronous callback implement the required sequence.
 
 Evidence: `src/RelaxCat.App/Capture/KeyboardMouseMonitor.cs`, `src/RelaxCat.Core/Capture/CaptureShortcut.cs`, `tests/RelaxCat.App.SmokeTests/CaptureChecks.cs`. A real F24 key test moved the cursor and still produced a Greenshot capture that reached the gallery.
+
+## D-WORKSPACE-ORDER-001
+
+Status: Active
+
+Upstream: S-IMPORT-003, S-IMPORT-004, S-WORKFLOW-001
+
+Decision: Snapshot file last-write UTC at import, default to oldest first, and support newest first and original import order. Use a monotonic per-item import sequence for ties. Insert new items into the current order and move existing item objects when sorting, preserving selection and preview identity. Export uses stable image IDs for source mapping. Clear-all releases item resources and clears the collection without deleting files or touching Excel; it is disabled while busy and does not stop monitoring.
+
+Reason: File last-write time is available consistently for screenshots and manual imports; UTC comparisons avoid local-time ambiguity. Retaining item objects keeps per-image state intact. No export tracking or automatic export is introduced.

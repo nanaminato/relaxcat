@@ -45,11 +45,18 @@
             </Border>
           </Grid>
           <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="16,10" Margin="8,0,12,16">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" IsEnabled="{Binding IsIdle}">
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,Auto,*,Auto" IsEnabled="{Binding IsIdle}">
               <TextBlock Text="{Binding Text[DesignScale]}" VerticalAlignment="Center" Margin="0,0,12,0" />
               <TextBox x:Name="QuickScale" Grid.Column="1" Width="80" Text="{Binding Settings.DesignScale, Mode=TwoWay}" />
               <CheckBox Grid.Column="2" Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" Margin="24,0,0,0" />
               <Button Grid.Column="4" Classes="quiet" Content="{Binding Text[MoreSettings]}" Click="SettingsClicked" />
+              <Grid Grid.Row="1" Grid.ColumnSpan="5" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,10,0,0">
+                <TextBlock Text="{Binding Text[SortOrder]}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <ComboBox x:Name="SortOrderSelector" Grid.Column="1" ItemsSource="{Binding SortOrderChoices}" SelectedIndex="{Binding Settings.SortOrderIndex, Mode=TwoWay}" MinWidth="180" ToolTip.Tip="{Binding Text[SortTimeHint]}">
+                  <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button x:Name="RemoveAllButton" Grid.Column="3" Classes="quiet" Content="{Binding Text[RemoveAll]}" ToolTip.Tip="{Binding Text[RemoveAllHint]}" IsEnabled="{Binding CanRemoveAll}" Click="RemoveAllClicked" />
+              </Grid>
             </Grid>
           </Border>
           <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">

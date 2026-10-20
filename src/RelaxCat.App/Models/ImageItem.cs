@@ -6,8 +6,11 @@ namespace RelaxCat.App.Models;
 public sealed class ImageItem : ObservableModel, IDisposable
 {
     private bool includeInExport = true;
+    private static long nextImportOrder;
+    public long ImportOrder { get; } = Interlocked.Increment(ref nextImportOrder);
+    public DateTime FileTimeUtc { get; }
     public ImageItem(ImportedImage image, Bitmap thumbnail, UiText text)
-    { Image = image; Thumbnail = thumbnail; Text = text; }
+    { Image = image; Thumbnail = thumbnail; Text = text; FileTimeUtc = File.GetLastWriteTimeUtc(image.Path); }
     public ImportedImage Image { get; }
     public Bitmap Thumbnail { get; }
     public UiText Text { get; }

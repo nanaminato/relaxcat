@@ -3,7 +3,10 @@ using RelaxCat.Core.Layout;
 
 namespace RelaxCat.Core.Export;
 
-public sealed record ImportedImage(string Path, ImageMetadata Metadata);
+public sealed record ImportedImage(string Path, ImageMetadata Metadata)
+{
+    public string Id { get; init; } = Guid.NewGuid().ToString("N");
+}
 public enum GapUnit { Points, Cells }
 public readonly record struct ExcelCellSize(double WidthPoints, double HeightPoints);
 public sealed record ExportOptions(SizingOptions Sizing, bool SpaceSaving = false,
@@ -33,11 +36,12 @@ public sealed class ImageExporter
     {
         if (images.Count == 0) return 0;
         // Validate source sizes/configuration first; cell dimensions require a normalized worksheet.
-        var sizes = images.Select((image, index) =>
+        var sources = images.ToDictionary(image => image.Id, StringComparer.Ordinal);
+        var sizes = images.Select(image =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             var size = cache.GetOrCalculate(image.Metadata, options.Sizing, rules);
-            return new LayoutImage(index.ToString(), size.DisplayWidth * .75, size.DisplayHeight * .75);
+            return new LayoutImage(image.Id, size.DisplayWidth * .75, size.DisplayHeight * .75);
         }).ToArray();
         var layoutOptions = new LayoutOptions(12, 12, options.HorizontalGap, options.VerticalGap,
             options.Sizing.DesignWidth * options.Sizing.DesignScale * .75, options.SpaceSaving);
@@ -58,7 +62,7 @@ public sealed class ImageExporter
         foreach (var placement in placements)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            target.Insert(images[completed].Path, placement);
+            target.Insert(sources[placement.Id].Path, placement);
             progress?.Report(++completed);
         }
         cancellationToken.ThrowIfCancellationRequested();

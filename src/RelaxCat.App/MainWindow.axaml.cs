@@ -74,7 +74,7 @@ public sealed partial class MainWindow : Window
                 {
                     loaded = await Task.Run(() => LoadImage(path), token);
                     token.ThrowIfCancellationRequested();
-                    Workspace.Images.Add(loaded); loaded = null;
+                    Workspace.AddImage(loaded); loaded = null;
                 }
                 catch (Exception error) when (error is not OperationCanceledException) { errors.Add(Path.GetFileName(path) + ": " + error.Message); }
                 finally { loaded?.Dispose(); }
@@ -121,6 +121,8 @@ public sealed partial class MainWindow : Window
         catch (Exception error) { Workspace.Message = Workspace.Text["ExportError"] + error.Message; }
         finally { operation?.Dispose(); operation = null; Workspace.IsBusy = false; }
     }
+
+    private void RemoveAllClicked(object? sender, RoutedEventArgs e) { previewGeneration++; Workspace.RemoveAll(); }
 
     private void RemoveImageClicked(object? sender, RoutedEventArgs e)
     {
