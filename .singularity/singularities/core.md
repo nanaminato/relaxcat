@@ -18,6 +18,14 @@ Statement: For configured monitored keys, RelaxCat may move the mouse to a confi
 
 Confirmation basis: Human clarification, 2026-10-20.
 
+## S-CAPTURE-003
+
+Status: Confirmed
+
+Statement: The bundled Greenshot provider targets Windows 10 and later and uses the latest suitable Windows portable pre-release build published by the upstream Greenshot project on GitHub, rather than requiring a machine-wide Greenshot installation. The exact upstream build is a packaging dependency and may be updated independently without changing this intent.
+
+Confirmation basis: Human instruction, 2026-10-20.
+
 ## S-IMPORT-001
 
 Status: Confirmed
@@ -89,3 +97,11 @@ Status: Confirmed
 Statement: Exported Excel images are configured to move and resize with cells (`xlMoveAndSize`).
 
 Confirmation basis: Human project description, 2026-10-20.
+
+## S-EXCEL-004
+
+Status: Confirmed
+
+Statement: Excel automation uses the Microsoft Office/Excel COM interop model and must remain usable with the Office generations already validated by the human: Excel 2007, Excel 2016, and Excel 2024. The implementation must not intentionally bind itself to behavior that only works with Excel 2016.
+
+Confirmation basis: Human compatibility observation and instruction, 2026-10-20.
