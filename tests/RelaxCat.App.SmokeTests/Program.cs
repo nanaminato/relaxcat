@@ -235,5 +235,6 @@ internal sealed class RecordingTarget : IExcelTarget
     public ExcelCellSize CellSize => new(60, 18);
     public void SelectAllPictures() { }
     public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true) { }
+    public void ClearPictures() { }
     public void Insert(string path, ImagePlacement points) => Paths.Add(path);
 }

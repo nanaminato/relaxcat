@@ -170,6 +170,28 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
         }
     }
 
+    public void ClearPictures()
+    {
+        if (Thread.CurrentThread != thread) throw new InvalidOperationException("Excel requires its STA worker.");
+        object? shapes = null;
+        try
+        {
+            shapes = sheet!.Shapes;
+            for (var i = (int)((dynamic)shapes).Count; i >= 1; i--)
+            {
+                object? shape = null;
+                try
+                {
+                    shape = ((dynamic)shapes).Item(i);
+                    if (IsPicture(shape)) ((dynamic)shape).Delete();
+                }
+                finally { Release(shape); }
+            }
+            nextTop = 0;
+        }
+        finally { Release(shapes); }
+    }
+
     public void Insert(string path, ImagePlacement points)
     {
         object? shapes = null, shape = null;

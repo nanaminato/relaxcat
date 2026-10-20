@@ -36,7 +36,7 @@ public class ExportOptionsTests
         var target = new Target { NextTop = 500 };
         new ImageExporter().Export(Images, Options with { SpaceSaving = true, HorizontalGap = .5, VerticalGap = 2,
             HorizontalGapUnit = GapUnit.Cells, VerticalGapUnit = GapUnit.Cells }, target, null, default);
-        Assert.Equal(548, target.Placements[0].Y);
+        Assert.Equal(0, target.Placements[0].Y);
         Assert.Equal(333.75, target.Placements[1].X);
     }
 
@@ -45,7 +45,7 @@ public class ExportOptionsTests
     {
         var target = new Target();
         new ImageExporter().Export(Images, Options with { SelectAllPicturesAfterExport = true }, target, null, default);
-        Assert.Equal(new[] { "prepare", "insert", "insert", "select" }, target.Events);
+        Assert.Equal(new[] { "prepare", "clear", "insert", "insert", "select" }, target.Events);
     }
 
     [Fact]
@@ -118,9 +118,9 @@ public class ExportOptionsTests
     }
 
     [Theory]
-    [InlineData(4, 512)]
+    [InlineData(4, 72)]
     [InlineData(30, 696)]
-    public void Append_respects_both_existing_content_and_start_row(int row, double y)
+    public void Replacement_starts_at_configured_row_despite_existing_content(int row, double y)
     {
         var target = new Target { NextTop = 500 };
         new ImageExporter().Export(Images, Options with { StartRow = row, StartColumn = 3 }, target, null, default);
@@ -163,6 +163,7 @@ public class ExportOptionsTests
         public bool Gridlines { get; private set; }
         public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true)
         { Gridlines = showGridlines; Events.Add("prepare"); }
+        public void ClearPictures() { Events.Add("clear"); Placements.Clear(); }
         public void Insert(string path, ImagePlacement points) { Events.Add("insert"); Placements.Add(points); AfterInsert?.Invoke(); }
         public void SelectAllPictures() => Events.Add("select");
     }
