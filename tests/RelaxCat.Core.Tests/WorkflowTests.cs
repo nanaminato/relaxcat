@@ -85,7 +85,7 @@ public class WorkflowTests
         var target = new FakeTarget();
         new ImageExporter().Export(Images, Options with { SpaceSaving = true }, target, null, default);
         Assert.Equal(target.Placements[0].Y, target.Placements[1].Y);
-        Assert.Equal(324, target.Placements[1].X);
+        Assert.Equal(312, target.Placements[1].X);
     }
 
     private sealed class FakeTarget : IExcelTarget

@@ -17,7 +17,7 @@ internal static class ExcelChecks
         var path = Path.GetFullPath("artifacts/desktop-smoke.png");
         using var bitmap = new Avalonia.Media.Imaging.Bitmap(path);
         var image = new ImportedImage(path, new ImageMetadata(bitmap.PixelSize.Width, bitmap.PixelSize.Height, bitmap.Dpi.X, bitmap.Dpi.Y));
-        var options = new ExportOptions(new SizingOptions(1920, 1080, .5, 1.5));
+        var options = new ExportOptions(new SizingOptions(1920, 1080, .5, 1.5), StartRow: 5, StartColumn: 3);
         try
         {
             await session.Run(() =>
@@ -45,6 +45,10 @@ internal static class ExcelChecks
                 try
                 {
                     shapes = sheet.Shapes; shape = ((dynamic)shapes).Item(1);
+                    var origin = session.GetCellOrigin(5, 3);
+                    Check(Math.Abs((double)((dynamic)shape).Left - origin.Left) < .1 &&
+                        Math.Abs((double)((dynamic)shape).Top - origin.Top) < .1, "Start cell C5 was not used");
+                    Console.WriteLine("PASS: first image starts at actual Excel cell C5.");
                     Console.WriteLine("CHECK: shape obtained");
                     Check((int)((dynamic)shape).Placement == 1, "xlMoveAndSize missing");
                     Check((int)((dynamic)shape).LockAspectRatio == -1, "Image aspect ratio is not locked");

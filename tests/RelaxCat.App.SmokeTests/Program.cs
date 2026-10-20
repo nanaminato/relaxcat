@@ -21,6 +21,7 @@ var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
 using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     original.Settings.HorizontalGapUnitIndex = 1; original.Settings.VerticalGapUnitIndex = 1;
+    original.Settings.StartRow = "5"; original.Settings.StartColumn = "3";
     original.Settings.SortOrderIndex = 2;
     original.Settings.ShowGridlines = false;
     original.Settings.VerticalGap = "3"; original.Settings.Rules = "width > 100 => 0.5";
@@ -30,7 +31,7 @@ using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 using (var restored = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     if (restored.Settings.HorizontalGapUnitIndex != 1 || restored.Settings.VerticalGapUnitIndex != 1 ||
-        restored.Settings.SortOrderIndex != 2 || restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
+        restored.Settings.StartRow != "5" || restored.Settings.StartColumn != "3" || restored.Settings.SortOrderIndex != 2 || restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
         restored.Capture.ProviderIndex != 2 || !restored.Capture.MoveMouse || restored.Settings.Rules != "width > 100 => 0.5")
         throw new Exception("Settings did not survive restart");
 }
@@ -92,7 +93,12 @@ var selectAllPictures = settings.FindControl<CheckBox>("SelectAllPicturesOption"
 selectAllPictures.IsChecked = true; Dispatcher.UIThread.RunJobs();
 var gridlines = settings.FindControl<CheckBox>("ShowGridlinesOption")!;
 gridlines.IsChecked = false; Dispatcher.UIThread.RunJobs();
+settings.FindControl<TextBox>("StartRowInput")!.Text = "5";
+settings.FindControl<TextBox>("StartColumnInput")!.Text = "3"; Dispatcher.UIThread.RunJobs();
 var configured = window.Workspace.Settings.CreateOptions(window.Workspace.Text);
+Check(configured.StartRow == 5 && configured.StartColumn == 3, "Start cell did not reach export options");
+settings.FindControl<TextBox>("StartRowInput")!.Text = "1";
+settings.FindControl<TextBox>("StartColumnInput")!.Text = "1"; Dispatcher.UIThread.RunJobs();
 Check(!configured.ShowGridlines, "Gridline setting did not reach export");
 gridlines.IsChecked = true;
 Check(window.Icon is not null, "Window icon missing");

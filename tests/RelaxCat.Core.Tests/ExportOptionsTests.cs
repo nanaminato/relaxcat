@@ -37,7 +37,7 @@ public class ExportOptionsTests
         new ImageExporter().Export(Images, Options with { SpaceSaving = true, HorizontalGap = .5, VerticalGap = 2,
             HorizontalGapUnit = GapUnit.Cells, VerticalGapUnit = GapUnit.Cells }, target, null, default);
         Assert.Equal(548, target.Placements[0].Y);
-        Assert.Equal(345.75, target.Placements[1].X);
+        Assert.Equal(333.75, target.Placements[1].X);
     }
 
     [Fact]
@@ -103,6 +103,51 @@ public class ExportOptionsTests
         Assert.Equal(visible, target.Gridlines);
         exporter.Export(Images, Options with { ShowGridlines = !visible }, target, null, default);
         Assert.Equal(!visible, target.Gridlines);
+    }
+
+    [Theory]
+    [InlineData(1, 1, 0, 0)]
+    [InlineData(4, 3, 135, 72)]
+    public void First_picture_starts_at_requested_cell(int row, int column, double x, double y)
+    {
+        var target = new Target();
+        new ImageExporter().Export(Images, Options with { StartRow = row, StartColumn = column }, target, null, default);
+        Assert.Equal(x, target.Placements[0].X);
+        Assert.Equal(y, target.Placements[0].Y);
+        Assert.Equal(x, target.Placements[1].X);
+    }
+
+    [Theory]
+    [InlineData(4, 512)]
+    [InlineData(30, 696)]
+    public void Append_respects_both_existing_content_and_start_row(int row, double y)
+    {
+        var target = new Target { NextTop = 500 };
+        new ImageExporter().Export(Images, Options with { StartRow = row, StartColumn = 3 }, target, null, default);
+        Assert.Equal(135, target.Placements[0].X);
+        Assert.Equal(y, target.Placements[0].Y);
+    }
+
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 0)]
+    [InlineData(1048577, 1)]
+    [InlineData(1, 16385)]
+    public void Invalid_start_cells_are_rejected_before_excel_is_modified(int row, int column)
+    {
+        var target = new Target();
+        Assert.Throws<ArgumentOutOfRangeException>(() => new ImageExporter().Export(Images,
+            Options with { StartRow = row, StartColumn = column }, target, null, default));
+        Assert.Empty(target.Events);
+    }
+
+    [Fact]
+    public void Repeated_source_image_can_be_exported_more_than_once()
+    {
+        var target = new Target();
+        new ImageExporter().Export(new[] { Images[0], Images[0] }, Options, target, null, default);
+        Assert.Equal(2, target.Placements.Count);
+        Assert.True(target.Placements[1].Y > target.Placements[0].Y);
     }
 
     private sealed class Target : IExcelTarget

@@ -54,6 +54,14 @@
               <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.ColumnWidth, Mode=TwoWay}" />
             </Grid>
             <TextBlock Classes="muted" Text="{Binding Text[CellGapHint]}" TextWrapping="Wrap" />
+            <TextBlock Classes="section" Text="{Binding Text[StartCellSection]}" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+              <TextBlock Text="{Binding Text[StartRow]}" />
+              <TextBlock Grid.Column="1" Text="{Binding Text[StartColumn]}" />
+              <TextBox x:Name="StartRowInput" Grid.Row="1" Text="{Binding Settings.StartRow, Mode=TwoWay}" />
+              <TextBox x:Name="StartColumnInput" Grid.Row="1" Grid.Column="1" Text="{Binding Settings.StartColumn, Mode=TwoWay}" />
+            </Grid>
+            <TextBlock Classes="muted" Text="{Binding Text[StartCellHint]}" TextWrapping="Wrap" />
             <TextBlock Classes="section" Text="{Binding Text[WorksheetSection]}" />
             <CheckBox x:Name="ShowGridlinesOption" Content="{Binding Text[ShowGridlines]}" IsChecked="{Binding Settings.ShowGridlines, Mode=TwoWay}" />
             <CheckBox x:Name="SelectAllPicturesOption" Content="{Binding Text[SelectAllPictures]}" IsChecked="{Binding Settings.SelectAllPicturesAfterExport, Mode=TwoWay}" />

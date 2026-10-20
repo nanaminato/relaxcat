@@ -10,6 +10,9 @@ public sealed class SettingsModel : ObservableModel
     private string horizontalGap = "12", verticalGap = "12", rowHeight = "18", columnWidth = "10", templatePath = "", rules = "";
     private int sortOrderIndex = 1;
     public int SortOrderIndex { get => sortOrderIndex; set { if (value is >= 0 and <= 2) Set(ref sortOrderIndex, value); } }
+    private string startRow = "1", startColumn = "1";
+    public string StartRow { get => startRow; set => Set(ref startRow, value); }
+    public string StartColumn { get => startColumn; set => Set(ref startColumn, value); }
     private bool compact;
     private bool showGridlines = true;
     private bool selectAllPicturesAfterExport;
@@ -38,9 +41,12 @@ public sealed class SettingsModel : ObservableModel
                 !double.IsFinite(n) || (zero ? n < 0 : n <= 0)) throw new ArgumentException(text["NumberError"]);
             return n;
         }
+        if (!int.TryParse(StartRow, NumberStyles.None, CultureInfo.InvariantCulture, out var row) || row is < 1 or > 1048576 ||
+            !int.TryParse(StartColumn, NumberStyles.None, CultureInfo.InvariantCulture, out var column) || column is < 1 or > 16384)
+            throw new ArgumentException(text["StartCellError"]);
         var sizing = new SizingOptions(Number(DesignWidth), Number(DesignHeight), Number(DesignScale), Number(MaximumEnlargement), Rules);
         var result = new ExportOptions(sizing, Compact, Number(HorizontalGap, true), Number(VerticalGap, true), Number(RowHeight), Number(ColumnWidth), TemplatePath,
-            (GapUnit)HorizontalGapUnitIndex, (GapUnit)VerticalGapUnitIndex, SelectAllPicturesAfterExport, ShowGridlines);
+            (GapUnit)HorizontalGapUnitIndex, (GapUnit)VerticalGapUnitIndex, SelectAllPicturesAfterExport, ShowGridlines, row, column);
         if (result.RowHeight > 409 || result.ColumnWidth > 255) throw new ArgumentException(text["ExcelRangeError"]);
         new ScaleRuleEngine().ParseRules(Rules);
         ImageSizing.Calculate(new ImageMetadata(1, 1), sizing);

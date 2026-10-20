@@ -8,12 +8,13 @@ public sealed record ImportedImage(string Path, ImageMetadata Metadata)
     public string Id { get; init; } = Guid.NewGuid().ToString("N");
 }
 public enum GapUnit { Points, Cells }
+public readonly record struct ExcelCellPosition(double Left, double Top);
 public readonly record struct ExcelCellSize(double WidthPoints, double HeightPoints);
 public sealed record ExportOptions(SizingOptions Sizing, bool SpaceSaving = false,
     double HorizontalGap = 12, double VerticalGap = 12, double RowHeight = 18,
     double ColumnWidth = 10, string? TemplatePath = null,
     GapUnit HorizontalGapUnit = GapUnit.Points, GapUnit VerticalGapUnit = GapUnit.Points,
-    bool SelectAllPicturesAfterExport = false, bool ShowGridlines = true);
+    bool SelectAllPicturesAfterExport = false, bool ShowGridlines = true, int StartRow = 1, int StartColumn = 1);
 
 public interface IExcelTarget
 {
@@ -22,6 +23,7 @@ public interface IExcelTarget
     double NextTop { get; }
     // Actual physical cell dimensions after Prepare, not Excel character units.
     ExcelCellSize CellSize { get; }
+    ExcelCellPosition GetCellOrigin(int row, int column) => new((column - 1) * CellSize.WidthPoints, (row - 1) * CellSize.HeightPoints);
     void Insert(string path, ImagePlacement points);
     void SelectAllPictures();
 }
@@ -35,8 +37,10 @@ public sealed class ImageExporter
         IProgress<int>? progress, CancellationToken cancellationToken)
     {
         if (images.Count == 0) return 0;
+        if (options.StartRow is < 1 or > 1048576 || options.StartColumn is < 1 or > 16384)
+            throw new ArgumentOutOfRangeException(nameof(options));
         // Validate source sizes/configuration first; cell dimensions require a normalized worksheet.
-        var sources = images.ToDictionary(image => image.Id, StringComparer.Ordinal);
+        var sources = images.Distinct().ToDictionary(image => image.Id, StringComparer.Ordinal);
         var sizes = images.Select(image =>
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -51,12 +55,14 @@ public sealed class ImageExporter
             throw new ArgumentOutOfRangeException(nameof(options));
         cancellationToken.ThrowIfCancellationRequested();
         target.Prepare(options.TemplatePath, options.RowHeight, options.ColumnWidth, options.ShowGridlines);
+        var origin = target.GetCellOrigin(options.StartRow, options.StartColumn);
         var horizontalGap = ResolveGap(options.HorizontalGap, options.HorizontalGapUnit, target.CellSize.WidthPoints);
         var verticalGap = ResolveGap(options.VerticalGap, options.VerticalGapUnit, target.CellSize.HeightPoints);
         var placements = layout.Layout(sizes, layoutOptions with
         {
             HorizontalGap = horizontalGap, VerticalGap = verticalGap,
-            StartY = target.NextTop > 0 ? target.NextTop + verticalGap : 12
+            StartX = origin.Left,
+            StartY = target.NextTop > 0 ? Math.Max(origin.Top, target.NextTop + verticalGap) : origin.Top
         });
         var completed = 0;
         foreach (var placement in placements)

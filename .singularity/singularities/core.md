@@ -217,3 +217,11 @@ Status: Confirmed
 Statement: Preserve the current workflow for this improvement pass. Do not add project saving, export-only-unexported behavior or automatic export.
 
 Confirmation basis: Human clarification, 2026-10-20.
+
+## S-EXCEL-007
+
+Status: Confirmed
+
+Statement: Provide persistent settings for the starting row and column of the first exported image.
+
+Confirmation basis: Human instruction, 2026-10-20.

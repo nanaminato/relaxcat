@@ -99,6 +99,21 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
         finally { Release(existing); }
     }
 
+    public ExcelCellPosition GetCellOrigin(int row, int column)
+    {
+        if (Thread.CurrentThread != thread) throw new InvalidOperationException("Excel requires its STA worker.");
+        object? cells = null, cell = null, rows = null, columns = null;
+        try
+        {
+            rows = sheet!.Rows; columns = sheet.Columns;
+            if (row < 1 || row > (int)((dynamic)rows).Count || column < 1 || column > (int)((dynamic)columns).Count)
+                throw new ArgumentOutOfRangeException(nameof(row), "Start cell exceeds the target worksheet limits.");
+            cells = sheet.Cells; cell = ((dynamic)cells)[row, column];
+            return new ExcelCellPosition((double)((dynamic)cell).Left, (double)((dynamic)cell).Top);
+        }
+        finally { Release(cell); Release(cells); Release(rows); Release(columns); }
+    }
+
     private sealed record PictureGeometry(object Shape, double Left, double Top, double Width, double Height, int Placement, int LockAspectRatio);
     private static bool IsPicture(dynamic shape) => (int)shape.Type is 11 or 13; // msoLinkedPicture / msoPicture
 
