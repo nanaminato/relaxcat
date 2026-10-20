@@ -37,13 +37,11 @@ internal static class CaptureChecks
 
     public static int RunGreenshot(MainWindow window, Action<Task> complete, Action<Func<bool>> until)
     {
-        GetCursorPos(out var original);
         var folder = Path.GetFullPath("artifacts/Greenshot 截图-" + Guid.NewGuid().ToString("N"));
-        window.CaptureStateRoot = Path.GetFullPath("artifacts/greenshot-state");
+        window.CaptureStateRoot = Path.GetFullPath("artifacts/greenshot-state-" + Guid.NewGuid().ToString("N"));
         var capture = window.Workspace.Capture;
         capture.ProviderIndex = 2; capture.Folder = folder;
         capture.RegionKey = "F22"; capture.WindowKey = "F23"; capture.FullscreenKey = "F24";
-        capture.MoveMouse = true; capture.MonitoredKeys = "F24"; capture.MouseX = "30"; capture.MouseY = "40";
         try
         {
             var cancelledStart = window.ApplyCaptureAsync();
@@ -63,8 +61,6 @@ internal static class CaptureChecks
             keybd_event(0x87, 0, 0, 0); keybd_event(0x87, 0, 2, 0); // F24 down/up, not the user's PrintScreen binding.
             until(() => window.Workspace.Images.Count == before + 1 || !window.Workspace.CaptureRunning);
             Check(window.Workspace.Images.Count == before + 1, window.Workspace.Message);
-            GetCursorPos(out var moved);
-            Check(moved.X == 30 && moved.Y == 40, "Mouse did not move before key reached Greenshot");
             Check(window.Workspace.Images[^1].Image.Path.StartsWith(folder, StringComparison.OrdinalIgnoreCase), "Greenshot did not save into monitored folder");
             capture.ProviderIndex = 1; complete(window.ApplyCaptureAsync());
             Check(first.HasExited && window.Workspace.CaptureRunning, "Provider switch did not stop only the owned Greenshot");
@@ -74,11 +70,10 @@ internal static class CaptureChecks
             until(() => !window.Workspace.CaptureRunning && window.Workspace.Message == window.Workspace.Text["CaptureGreenshotExited"]);
             complete(window.ApplyCaptureAsync());
             Check(window.GreenshotProcessId.HasValue, window.Workspace.Message);
-            Console.WriteLine("PASS: verified bundled Greenshot startup, own INI, F24 screenshot through pass-through mouse hook, file-to-gallery pipeline, external-instance refusal, provider switch, unexpected-exit recovery.");
+            Console.WriteLine("PASS: verified bundled Greenshot startup, own INI, F24 screenshot using Greenshot hotkeys, file-to-gallery pipeline, external-instance refusal, provider switch, unexpected-exit recovery.");
             return window.GreenshotProcessId!.Value; // Keep running to verify main-window shutdown cleanup.
         }
         catch { complete(window.StopCaptureAsync()); throw; }
-        finally { SetCursorPos(original.X, original.Y); }
     }
     private sealed class AsyncProvider(GreenshotProvider provider) : IDisposable
     {

@@ -106,18 +106,6 @@
               <TextBlock Classes="muted" Text="{Binding Text[CaptureFolderHint]}" TextWrapping="Wrap" />
               <StackPanel Spacing="12" IsVisible="{Binding Capture.IsGreenshot}">
                 <TextBlock Classes="muted" Text="{Binding Text[CaptureGreenshotHint]}" TextWrapping="Wrap" />
-                <Expander Header="{Binding Text[CaptureMouseSettings]}" HorizontalAlignment="Stretch">
-                  <StackPanel Spacing="12" Margin="0,12">
-                    <CheckBox Content="{Binding Text[CaptureMoveMouse]}" IsChecked="{Binding Capture.MoveMouse, Mode=TwoWay}" />
-                    <TextBlock Text="{Binding Text[CaptureMonitoredKeys]}" />
-                    <TextBox Text="{Binding Capture.MonitoredKeys, Mode=TwoWay}" />
-                    <Grid ColumnDefinitions="Auto,*,Auto,*" ColumnSpacing="12">
-                      <TextBlock Text="X" VerticalAlignment="Center" /><TextBox Grid.Column="1" Text="{Binding Capture.MouseX, Mode=TwoWay}" />
-                      <TextBlock Grid.Column="2" Text="Y" VerticalAlignment="Center" /><TextBox Grid.Column="3" Text="{Binding Capture.MouseY, Mode=TwoWay}" />
-                    </Grid>
-                    <TextBlock Classes="muted" Text="{Binding Text[CaptureMouseHint]}" TextWrapping="Wrap" />
-                  </StackPanel>
-                </Expander>
               </StackPanel>
             </StackPanel>
           </StackPanel>

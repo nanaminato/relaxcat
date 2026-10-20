@@ -220,7 +220,7 @@ Evidence: `src/RelaxCat.Core/Capture/CaptureFolderMonitor.cs`, `src/RelaxCat.App
 
 ## D-CAPTURE-KEYBOARD-001
 
-Status: Active
+Status: Retired
 
 Upstream: S-CAPTURE-002, S-CAPTURE-001
 
@@ -229,6 +229,8 @@ Decision: When cursor movement is enabled for Greenshot, install a WH_KEYBOARD_L
 Reason: The same key must reach Greenshot after movement, so neither RegisterHotKey interception nor asynchronously moving the pointer is suitable. Latest-hook-first ordering and the short synchronous callback implement the required sequence.
 
 Evidence: `src/RelaxCat.App/Capture/KeyboardMouseMonitor.cs`, `src/RelaxCat.Core/Capture/CaptureShortcut.cs`, `tests/RelaxCat.App.SmokeTests/CaptureChecks.cs`. A real F24 key test moved the cursor and still produced a Greenshot capture that reached the gallery.
+
+Retirement: S-CAPTURE-002 was retired with human authorization after the combined screenshot/cursor verification failed. The hook and UI have been removed; Greenshot continues to own capture hotkeys.
 
 ## D-WORKSPACE-ORDER-001
 

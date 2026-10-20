@@ -10,7 +10,6 @@ public sealed partial class MainWindow
 {
     private CaptureFolderMonitor? folderMonitor;
     private GreenshotProvider? greenshot;
-    private KeyboardMouseMonitor? keyboardMonitor;
     private CancellationTokenSource? captureStartup;
     private int captureGeneration;
     private bool closeApproved;
@@ -52,8 +51,6 @@ public sealed partial class MainWindow
                     if (closed || generation != captureGeneration) return;
                     await StopCaptureAsync(); Workspace.Message = Workspace.Text["CaptureGreenshotExited"];
                 });
-                // Install last: our callback moves the cursor before forwarding to Greenshot's hook.
-                if (options.MoveMouse) keyboardMonitor = new KeyboardMouseMonitor(options);
             }
             Workspace.CaptureRunning = true;
             Workspace.CaptureStatusKey = options.Provider == CaptureProviderKind.Greenshot ? "CaptureGreenshotRunning" : "CaptureFolderRunning";
@@ -79,7 +76,6 @@ public sealed partial class MainWindow
     private async Task StopCaptureCoreAsync()
     {
         captureGeneration++;
-        keyboardMonitor?.Dispose(); keyboardMonitor = null;
         var monitor = folderMonitor; folderMonitor = null;
         try { if (monitor is not null) await monitor.DisposeAsync(); }
         finally

@@ -26,13 +26,13 @@ using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
     original.Settings.ShowGridlines = false;
     original.Settings.VerticalGap = "3"; original.Settings.Rules = "width > 100 => 0.5";
     original.ThemeIndex = 1; original.LanguageIndex = 1;
-    original.Capture.ProviderIndex = 2; original.Capture.MoveMouse = true;
+    original.Capture.ProviderIndex = 2;
 }
 using (var restored = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     if (restored.Settings.HorizontalGapUnitIndex != 1 || restored.Settings.VerticalGapUnitIndex != 1 ||
         restored.Settings.StartRow != "5" || restored.Settings.StartColumn != "3" || restored.Settings.SortOrderIndex != 2 || restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
-        restored.Capture.ProviderIndex != 2 || !restored.Capture.MoveMouse || restored.Settings.Rules != "width > 100 => 0.5")
+        restored.Capture.ProviderIndex != 2 || restored.Settings.Rules != "width > 100 => 0.5")
         throw new Exception("Settings did not survive restart");
 }
 using (var recovery = new RelaxCat.App.Models.WorkspaceModel(settingsStore))

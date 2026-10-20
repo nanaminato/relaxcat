@@ -12,11 +12,13 @@ Confirmation basis: Human clarification, 2026-10-20.
 
 ## S-CAPTURE-002
 
-Status: Confirmed
+Status: Retired
 
 Statement: For configured monitored keys, RelaxCat may move the mouse to a configured position before the same key continues to Greenshot; RelaxCat's monitoring must not prevent Greenshot from processing that key.
 
 Confirmation basis: Human clarification, 2026-10-20.
+
+Retirement basis: Human permitted removal on 2026-10-20 after reporting unreliability. Standalone F1 movement passed, but the combined Greenshot screenshot/cursor assertion failed; the feature and global keyboard hook were removed.
 
 ## S-CAPTURE-003
 
