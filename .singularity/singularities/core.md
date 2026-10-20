@@ -105,3 +105,19 @@ Status: Confirmed
 Statement: Excel automation uses the Microsoft Office/Excel COM interop model and must remain usable with the Office generations already validated by the human: Excel 2007, Excel 2016, and Excel 2024. The implementation must not intentionally bind itself to behavior that only works with Excel 2016.
 
 Confirmation basis: Human compatibility observation and instruction, 2026-10-20.
+
+## S-UI-001
+
+Status: Confirmed
+
+Statement: RelaxCat's desktop user interface follows an IntelliJ IDEA-style visual and interaction direction. This is a product-level design direction rather than a requirement to reproduce JetBrains UI pixel-for-pixel; implementation details, controls, theming, and platform adaptations may be derived as needed while preserving the recognizable IDEA-style desktop-tool character.
+
+Confirmation basis: Human instruction, 2026-10-20.
+
+## S-I18N-001
+
+Status: Confirmed
+
+Statement: RelaxCat provides both Simplified Chinese and Japanese user-interface localization. User-facing text must be designed so these two languages can be maintained as supported product languages rather than being hard-coded to a single language.
+
+Confirmation basis: Human instruction, 2026-10-20.
