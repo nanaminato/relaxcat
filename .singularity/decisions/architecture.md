@@ -92,9 +92,9 @@ Status: Superseded by D-UI-002
 
 Upstream: S-UI-001, S-I18N-001, S-IMPORT-001
 
-Decision: Use Avalonia with a dark, three-pane desktop-tool layout and an in-session Chinese/Japanese language switch. Maintain paired translations for application labels and status messages; append original exception details as diagnostics. Run image decoding off the UI thread, export on the COM STA worker, and cancel between files/shapes. Completed work remains when cancelled; re-exporting appends the current queue again.
+Decision: Use Avalonia with a dark, three-pane desktop-tool layout and an in-session Chinese/Japanese language switch. Maintain paired translations for application labels and status messages; append original exception details as diagnostics. Run image decoding off the UI thread, export on the COM STA worker, and cancel between files/shapes. Completed work remains when cancelled; under S-EXCEL-008, re-exporting clears pictures from the target worksheet and exports the selected queue again.
 
-Reason: Implements the IDEA-style direction and both languages while keeping the first slice small. Explicit append/cancellation semantics avoid pretending Office mutations are transactional.
+Reason: Implements the IDEA-style direction and both languages while keeping the first slice small. Explicit replacement/cancellation semantics avoid pretending Office mutations are transactional.
 
 Evidence: Original `src/RelaxCat.App/MainWindow.cs` (replaced by `MainWindow.axaml` and `MainWindow.axaml.cs` under D-UI-002). The original full-queue export and three-pane arrangement are superseded by the human's S-UI-002 / S-IMPORT-002 instruction.
 
@@ -140,7 +140,7 @@ Status: Active
 
 Upstream: S-SIZE-001, S-SIZE-002, S-SIZE-003, S-SIZE-004, S-LAYOUT-001, S-LAYOUT-002, S-EXCEL-002
 
-Decision: Retain 96-DPI logical display dimensions and the 72/96 Excel point conversion. Horizontal and vertical gaps independently choose points (existing default) or cell units, including fractions. After worksheet normalization, read one uniform cell's actual Width/Height in points through COM; convert horizontal cell gaps using Width and vertical gaps using Height. Do not approximate Excel character-based ColumnWidth as physical width. Use the configured vertical gap for appending after existing content as well as within a batch, replacing the old hard-coded append padding. Rule scaling, fallback limits and DSL precedence from D-UNITS-001 remain unchanged.
+Decision: Retain 96-DPI logical display dimensions and the 72/96 Excel point conversion. Horizontal and vertical gaps independently choose points (existing default) or cell units, including fractions. After worksheet normalization, read one uniform cell's actual Width/Height in points through COM; convert horizontal cell gaps using Width and vertical gaps using Height. Do not approximate Excel character-based ColumnWidth as physical width. Use the configured vertical gap within a batch. S-EXCEL-008 supersedes appending: after validating layout and the start cell, clear target-sheet pictures and restart from the configured cell origin. Rule scaling, fallback limits and DSL precedence from D-UNITS-001 remain unchanged.
 
 Reason: Cell geometry depends on Excel font/rounding and must be read from the normalized worksheet. Changing units must not change pixel sizing or export order.
 

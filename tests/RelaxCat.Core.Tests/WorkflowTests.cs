@@ -15,11 +15,11 @@ public class WorkflowTests
     {
         var target = new FakeTarget { NextTop = 200 };
         new ImageExporter().Export(Images, Options, target, null, default);
-        Assert.Equal(new[] { "prepare", "insert", "insert" }, target.Events);
+        Assert.Equal(new[] { "prepare", "clear", "insert", "insert" }, target.Events);
         Assert.Equal(300, target.Placements[0].Width);
         Assert.Equal(150, target.Placements[0].Height);
-        Assert.Equal(212, target.Placements[0].Y);
-        Assert.Equal(374, target.Placements[1].Y);
+        Assert.Equal(0, target.Placements[0].Y);
+        Assert.Equal(162, target.Placements[1].Y);
     }
 
     [Fact]
@@ -97,6 +97,7 @@ public class WorkflowTests
         public ExcelCellSize CellSize { get; init; } = new(60, 18);
         public void SelectAllPictures() => Events.Add("select");
         public void Prepare(string? path, double row, double column, bool showGridlines = true) => Events.Add("prepare");
+        public void ClearPictures() { Events.Add("clear"); Placements.Clear(); }
         public void Insert(string path, ImagePlacement placement)
         { Events.Add("insert"); Placements.Add(placement); AfterInsert?.Invoke(); }
     }

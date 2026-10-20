@@ -24,6 +24,7 @@ public interface IExcelTarget
     // Actual physical cell dimensions after Prepare, not Excel character units.
     ExcelCellSize CellSize { get; }
     ExcelCellPosition GetCellOrigin(int row, int column) => new((column - 1) * CellSize.WidthPoints, (row - 1) * CellSize.HeightPoints);
+    void ClearPictures();
     void Insert(string path, ImagePlacement points);
     void SelectAllPictures();
 }
@@ -62,8 +63,10 @@ public sealed class ImageExporter
         {
             HorizontalGap = horizontalGap, VerticalGap = verticalGap,
             StartX = origin.Left,
-            StartY = target.NextTop > 0 ? Math.Max(origin.Top, target.NextTop + verticalGap) : origin.Top
+            StartY = origin.Top
         });
+        cancellationToken.ThrowIfCancellationRequested();
+        target.ClearPictures();
         var completed = 0;
         foreach (var placement in placements)
         {

@@ -225,3 +225,11 @@ Status: Confirmed
 Statement: Provide persistent settings for the starting row and column of the first exported image.
 
 Confirmation basis: Human instruction, 2026-10-20.
+
+## S-EXCEL-008
+
+Status: Confirmed
+
+Statement: Before exporting, clear all pictures from the target worksheet, then export the currently selected workspace images starting at the configured row and column. Preserve cell content, non-picture shapes and other worksheets. This supersedes earlier derived append behavior while retaining document reuse.
+
+Confirmation basis: Human instruction, 2026-10-20: exporting to Excel clears its pictures before export.
