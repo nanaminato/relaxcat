@@ -30,6 +30,9 @@
         <StackPanel Margin="10,22" Spacing="6">
           <Button x:Name="HomeButton" Classes="nav" Classes.active="{Binding HomeOpen}" Content="{Binding Text[Workspace]}" Click="HomeClicked" />
           <Button x:Name="SettingsButton" Classes="nav" Classes.active="{Binding SettingsOpen}" Content="{Binding Text[Settings]}" Click="SettingsClicked" />
+          <Border Height="1" Background="{DynamicResource LineBrush}" Margin="6,20,6,10" />
+          <TextBlock Classes="muted" Text="{Binding CaptureStatus}" TextWrapping="Wrap" Margin="10,0" />
+          <Button x:Name="CaptureSettingsButton" Classes="nav" Content="{Binding Text[CaptureTab]}" Click="CaptureSettingsClicked" />
         </StackPanel>
       </Border>
       <Grid Grid.Column="1">
@@ -92,7 +95,7 @@
             <TextBlock Classes="muted" Text="{Binding Text[EmptyFormats]}" HorizontalAlignment="Center" />
           </StackPanel>
         </Grid>
-        <views:SettingsView x:Name="SettingsPage" IsVisible="{Binding SettingsOpen}" />
+        <views:SettingsView x:Name="SettingsPage" IsVisible="{Binding SettingsOpen}" ApplyCaptureRequested="ApplyCaptureRequested" StopCaptureRequested="StopCaptureRequested" />
       </Grid>
     </Grid>
 

@@ -145,3 +145,27 @@ Status: Confirmed
 Statement: The home page displays each imported image individually. Each image can be removed and copied, and has a checkbox controlling whether it is included in export. Provide an elegant image preview experience.
 
 Confirmation basis: Human instruction, 2026-10-20: “主页时显示的图片，每一个都能显示出来并且对单个的可以进行移除和复制，同时包含一个checkbox，他会决定是否会出现到导出中，预览时提供优雅的预览效果”。
+
+## S-EXCEL-005
+
+Status: Confirmed
+
+Statement: Provide an option to select all pictures in Excel after export.
+
+Confirmation basis: Human instruction, 2026-10-20: “添加选项-导出后选择所有图片”，alongside the Excel settings screenshot.
+
+## S-LAYOUT-002
+
+Status: Confirmed
+
+Statement: Horizontal and vertical image gaps also support cell units.
+
+Confirmation basis: Human instruction, 2026-10-20: “横向和纵向间隔添加 单元格单位”。
+
+## S-SIZE-004
+
+Status: Confirmed
+
+Statement: Export preserves the source image's aspect ratio; RelaxCat must not stretch pictures during sizing, insertion or worksheet normalization.
+
+Confirmation basis: Human correction, 2026-10-20: “为什么现在导出的图片的比例会发生变化，这个不应该”。This reinforces S-SIZE-003 without removing S-EXCEL-003.

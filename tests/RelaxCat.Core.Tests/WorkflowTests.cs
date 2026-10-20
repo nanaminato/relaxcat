@@ -94,6 +94,8 @@ public class WorkflowTests
         public List<ImagePlacement> Placements { get; } = new();
         public Action? AfterInsert { get; init; }
         public double NextTop { get; init; }
+        public ExcelCellSize CellSize { get; init; } = new(60, 18);
+        public void SelectAllPictures() => Events.Add("select");
         public void Prepare(string? path, double row, double column) => Events.Add("prepare");
         public void Insert(string path, ImagePlacement placement)
         { Events.Add("insert"); Placements.Add(placement); AfterInsert?.Invoke(); }

@@ -25,7 +25,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = Workspace;
-        Closing += (_, e) => { if (operation is not null) { e.Cancel = true; operation.Cancel(); } };
+        Closing += WindowClosing;
         Closed += (_, _) =>
         {
             closed = true; previewGeneration++;
@@ -55,10 +55,10 @@ public sealed partial class MainWindow : Window
         catch (Exception error) { Workspace.Message = Workspace.Text["ImportErrors"] + error.Message; }
     }
 
-    internal async Task ImportPathsAsync(IReadOnlyList<string> paths)
+    internal async Task ImportPathsAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken = default)
     {
         if (Workspace.IsBusy || closed || paths.Count == 0) return;
-        operation = new CancellationTokenSource(); var token = operation.Token;
+        operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken); var token = operation.Token;
         Workspace.IsBusy = true; Workspace.Progress = 0;
         var errors = new List<string>(); var count = 0;
         try

@@ -10,6 +10,10 @@
 > `Views/SettingsView.axaml` holds separate sizing, Excel, and appearance pages. Observable models provide
 > shared settings, per-image export selection and localization. See D-UI-002, D-GALLERY-001 and D-PREVIEW-001.
 
+> Capture integration now implements D-PHASE-002: `Core/Capture` contains stable-folder monitoring and shortcut parsing;
+> `App/Capture` contains the pinned portable Greenshot dependency, owned process/job lifecycle, and Win32 keyboard/mouse adapter;
+> `MainWindow.Capture.cs` serializes monitored imports with the existing UI workflow. See `docs/capture-validation.md`.
+
 ## 1. Overview
 
 RelaxCat is a Windows-first screenshot collection and Excel image layout tool. It is intended as a clean, more extensible reimplementation of an earlier internal tool, without reusing the original source code.
@@ -149,6 +153,8 @@ The sizing engine must keep these concepts separate:
 - scale selected by rules or fallback sizing.
 
 DPI normalization affects display sizing; it does not require image resampling.
+
+The current implementation uses one effective DPI (the mean of the validated X/Y metadata) for both dimensions, so unequal DPI axes never distort the source pixel aspect ratio. This corrects the former independent-axis conversion; see S-SIZE-004 and D-ASPECT-001.
 
 ## 7. Design size and fallback scaling
 
@@ -295,6 +301,8 @@ Normalization includes at least:
 A newly created workbook is created from the configured template and then normalized before the first image is inserted.
 
 Normalization and image insertion should be separate operations so normalization behavior can be tested and changed independently.
+
+Before changing cell dimensions, temporarily freeze existing pictures and snapshot their geometry, then restore the geometry, aspect lock and original placement even on failure. Exported pictures finish with `xlMoveAndSize` and locked aspect ratio. Read the normalized cell's physical Width/Height for optional cell-unit gaps, rather than treating ColumnWidth characters as points. After successful export, an optional Shapes.Range selection selects all worksheet pictures, excluding non-picture objects.
 
 ## 12. Excel integration
 

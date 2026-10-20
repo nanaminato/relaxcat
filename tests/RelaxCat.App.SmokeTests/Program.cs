@@ -20,11 +20,11 @@ var window = new MainWindow(); window.Show(); Dispatcher.UIThread.RunJobs();
 static void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
 static void PumpUntil(Func<bool> done)
 {
-    var deadline = DateTime.UtcNow.AddSeconds(20);
+    var deadline = DateTime.UtcNow.AddSeconds(40);
     while (!done())
     {
         if (DateTime.UtcNow > deadline) throw new TimeoutException("Desktop operation timed out");
-        Dispatcher.UIThread.RunJobs(); Thread.Sleep(5);
+        Dispatcher.UIThread.RunJobs(); CaptureChecks.PumpNativeMessages(); Thread.Sleep(5);
     }
     Dispatcher.UIThread.RunJobs();
 }
@@ -47,11 +47,22 @@ var settings = Control<SettingsView>("SettingsPage");
 Check(settings.IsVisible && !Control<Grid>("HomePage").IsVisible, "Settings did not open as a separate page");
 var tabs = settings.GetVisualDescendants().OfType<TabControl>().Single();
 Capture("settings-sizing.png");
-tabs.SelectedIndex = 1; Dispatcher.UIThread.RunJobs(); Capture("settings-excel.png");
+tabs.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
+var horizontalUnit = settings.FindControl<ComboBox>("HorizontalGapUnitSelector")!;
+var verticalUnit = settings.FindControl<ComboBox>("VerticalGapUnitSelector")!;
+horizontalUnit.SelectedIndex = 1; verticalUnit.SelectedIndex = 1;
+var selectAllPictures = settings.FindControl<CheckBox>("SelectAllPicturesOption")!;
+selectAllPictures.IsChecked = true; Dispatcher.UIThread.RunJobs();
+var configured = window.Workspace.Settings.CreateOptions(window.Workspace.Text);
+Check(configured.HorizontalGapUnit == GapUnit.Cells && configured.VerticalGapUnit == GapUnit.Cells && configured.SelectAllPicturesAfterExport,
+    "Export settings did not reach the export options");
+Capture("settings-excel.png");
 tabs.SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
 var language = settings.FindControl<ComboBox>("LanguageSelector")!;
 language.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
 Check(Equals(Control<Button>("ImportButton").Content, "画像を追加"), "Japanese labels did not update");
+Check(horizontalUnit.SelectedIndex == 1 && verticalUnit.SelectedIndex == 1 && window.Workspace.Settings.SelectAllPicturesAfterExport,
+    "Language change reset gap units or export selection option");
 Check(window.Workspace.Text["Remove"] == "削除", "Card translations missing");
 var theme = settings.FindControl<ComboBox>("ThemeSelector")!;
 theme.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
@@ -59,6 +70,7 @@ Check(window.ActualThemeVariant == ThemeVariant.Light, "Light theme did not appl
 Capture("settings-appearance-light-ja.png");
 language.SelectedIndex = 0; Dispatcher.UIThread.RunJobs();
 Check(window.Workspace.ThemeIndex == 1 && theme.SelectedIndex == 1 && window.ActualThemeVariant == ThemeVariant.Light, "Language change reset theme");
+horizontalUnit.SelectedIndex = 0; verticalUnit.SelectedIndex = 0; selectAllPictures.IsChecked = false;
 Click(Control<Button>("HomeButton")); Capture("desktop-empty-light.png");
 
 var paths = TestImages.Create(); Complete(window.ImportPathsAsync(paths));
@@ -117,8 +129,26 @@ var previousCount = window.Workspace.Images.Count; Complete(window.ImportPathsAs
 Check(window.Workspace.Images.Count == previousCount && window.Workspace.Message.StartsWith(window.Workspace.Text["ImportErrors"]), "Corrupt file handling failed");
 window.Workspace.Settings.Rules = "width > 0\nscale = 1\ninvalid\nscale = 2";
 CheckThrows(() => window.Workspace.Settings.CreateOptions(window.Workspace.Text)); window.Workspace.Settings.Rules = "";
-Capture("desktop-smoke.png"); window.Close();
+CaptureChecks.RunFolder(window, Complete, PumpUntil);
+int? ownedGreenshot = args.Contains("--greenshot") ? CaptureChecks.RunGreenshot(window, Complete, PumpUntil) : null;
+settings.OpenCapturePage(); Capture("settings-capture.png");
+window.Width = 1000; window.Height = 680; window.Workspace.LanguageIndex = 1;
+Capture("settings-capture-compact-ja.png");
+Check(settings.FindControl<Button>("ApplyCaptureButton")!.IsEffectivelyVisible, "Capture action disappeared at minimum window size");
+window.Width = 1280; window.Height = 850; window.Workspace.LanguageIndex = 0;
+Capture("desktop-smoke.png"); window.Close(); PumpUntil(() => !window.IsVisible);
+if (ownedGreenshot.HasValue)
+{
+    try { using var process = System.Diagnostics.Process.GetProcessById(ownedGreenshot.Value); Check(process.HasExited, "Greenshot survived RelaxCat shutdown"); }
+    catch (ArgumentException) { }
+    Console.WriteLine("PASS: closing RelaxCat stops the owned Greenshot process.");
+}
 Console.WriteLine("PASS: XAML startup, separate settings pages, both themes/languages, gallery import, per-image export filtering, source-image clipboard copy, removal, zoom/navigation/Esc preview, corrupt image and rule validation.");
+var closingImport = new MainWindow(); closingImport.Show();
+var activeImport = closingImport.ImportPathsAsync(paths);
+closingImport.Close(); PumpUntil(() => !closingImport.IsVisible);
+Check(activeImport.IsCompleted && !closingImport.Workspace.IsBusy, "Closing during import did not cancel and finish cleanly");
+Console.WriteLine("PASS: closing during import waits for cancellation and exits without a second close request.");
 if (args.Contains("--excel")) ExcelChecks.Run().GetAwaiter().GetResult();
 
 static void CheckThrows(Action action)
@@ -130,6 +160,8 @@ internal sealed class RecordingTarget : IExcelTarget
 {
     public List<string> Paths { get; } = new();
     public double NextTop => 0;
+    public ExcelCellSize CellSize => new(60, 18);
+    public void SelectAllPictures() { }
     public void Prepare(string? templatePath, double rowHeight, double columnWidth) { }
     public void Insert(string path, ImagePlacement points) => Paths.Add(path);
 }

@@ -1,0 +1,10 @@
+{
+  "version": "1.4.371-g78211b16d9",
+  "release": "https://github.com/greenshot/greenshot/releases/tag/v1.4.371-g78211b16d9",
+  "asset": "https://github.com/greenshot/greenshot/releases/download/v1.4.371-g78211b16d9/Greenshot-PORTABLE-1.4.371-g78211b16d9-UNSTABLE-UNSIGNED.zip",
+  "sha256": "b915f7bc8dfde4cdfa271f2731bdc1db9c262a3723e6898efe5c8b3e6385103c",
+  "source": "https://github.com/greenshot/greenshot/tree/v1.4.371-g78211b16d9",
+  "sourceArchive": "https://github.com/greenshot/greenshot/archive/refs/tags/v1.4.371-g78211b16d9.zip",
+  "platform": "Windows 10+ x64, .NET Framework 4.8",
+  "checkedAt": "2026-10-20"
+}

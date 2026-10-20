@@ -32,6 +32,16 @@ public class ScaleRuleEngineTests
 
 public class ImageSizingTests
 {
+    [Theory]
+    [InlineData(96, 192, "")]
+    [InlineData(192, 96, "width > 0\nscale = 0.5")]
+    [InlineData(72, 300, "")]
+    public void Different_axis_dpi_does_not_change_pixel_aspect_ratio(double dpiX, double dpiY, string rules)
+    {
+        var result = ImageSizing.Calculate(new ImageMetadata(1200, 800, dpiX, dpiY), new SizingOptions(1920, 1080, .5, 2, rules));
+        Assert.Equal(1.5, result.DisplayWidth / result.DisplayHeight, 9);
+    }
+
     [Fact]
     public void Dpi_is_normalized_before_display_sizing()
     {

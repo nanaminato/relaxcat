@@ -1,5 +1,7 @@
 # 第一阶段验证记录
 
+> 历史范围说明：本文件描述初始纵向切片及其界面迭代。Greenshot、按键监听和目录监控已在后续 D-PHASE-002 实现，最新验证见 `docs/capture-validation.md`；下表中的延期仅指最初阶段。
+
 日期：2026-10-20。协议：Singularity 0.1.0（按 `.singularity/config.md` 固定来源读取）。初始实现未新增 Confirmed Singularity；本次界面迭代按用户明确指令记录 S-UI-002、S-UI-003、S-IMPORT-002，保留原有确认意图。
 
 ## 实现与意图核对

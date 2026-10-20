@@ -10,4 +10,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <ProjectReference Include="../RelaxCat.Core/RelaxCat.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../vendor/greenshot/*" Link="Providers/Greenshot/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

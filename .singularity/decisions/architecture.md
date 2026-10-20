@@ -64,7 +64,7 @@ Evidence: `src/RelaxCat.App/ExcelSession.cs`, `tests/RelaxCat.App.SmokeTests/Exc
 
 ## D-PHASE-001
 
-Status: Active
+Status: Superseded by D-PHASE-002
 
 Upstream: S-IMPORT-001, S-SIZE-001, S-SIZE-002, S-SIZE-003, S-CACHE-001, S-LAYOUT-001, S-EXCEL-001, S-EXCEL-002, S-EXCEL-003, S-EXCEL-004, S-UI-001, S-I18N-001
 
@@ -76,7 +76,7 @@ Evidence: `src/RelaxCat.App/`, `README.md`, `docs/phase-one-validation.md`.
 
 ## D-UNITS-001
 
-Status: Active
+Status: Superseded by D-UNITS-002
 
 Upstream: S-SIZE-001, S-SIZE-002, S-SIZE-003, S-LAYOUT-001
 
@@ -104,7 +104,7 @@ Status: Active
 
 Upstream: S-UI-001, S-UI-002, S-UI-003, S-I18N-001, S-IMPORT-001, S-IMPORT-002, S-EXCEL-001
 
-Decision: Declare the application theme resources, main shell/gallery/lightbox, and settings tabs in Avalonia XAML, with C# code-behind for platform interactions and observable models for state. The home page retains design scale and compact layout only. A separate settings view has sizing/rules, Excel layout, and appearance/language pages. Theme dictionaries supply light/dark semantic brushes; both themes and live language switching also apply to existing cards and preview.
+Decision: Declare the application theme resources, main shell/gallery/lightbox, and settings tabs in Avalonia XAML, with C# code-behind for platform interactions and observable models for state. The home page retains design scale and compact layout only. A separate settings view has sizing/rules, Excel layout, appearance/language, and capture/monitoring pages. Theme dictionaries supply light/dark semantic brushes; both themes and live language switching also apply to existing cards and preview. Capture actions stay visible below scrolling details.
 
 Reason: Preserves the IDEA-style desktop-tool direction while following the human's explicit XAML, simpler-home and theme requirements. Shared setting bindings avoid duplicate values between home and settings.
 
@@ -133,3 +133,99 @@ Decision: Open a themed in-window lightbox with dimmed backdrop, fade-in, metada
 Reason: Provides a focused, responsive preview with predictable navigation and bounded per-image memory, including when users move rapidly between images.
 
 Evidence: `src/RelaxCat.App/MainWindow.axaml`, `src/RelaxCat.App/MainWindow.axaml.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.
+
+## D-UNITS-002
+
+Status: Active
+
+Upstream: S-SIZE-001, S-SIZE-002, S-SIZE-003, S-SIZE-004, S-LAYOUT-001, S-LAYOUT-002, S-EXCEL-002
+
+Decision: Retain 96-DPI logical display dimensions and the 72/96 Excel point conversion. Horizontal and vertical gaps independently choose points (existing default) or cell units, including fractions. After worksheet normalization, read one uniform cell's actual Width/Height in points through COM; convert horizontal cell gaps using Width and vertical gaps using Height. Do not approximate Excel character-based ColumnWidth as physical width. Use the configured vertical gap for appending after existing content as well as within a batch, replacing the old hard-coded append padding. Rule scaling, fallback limits and DSL precedence from D-UNITS-001 remain unchanged.
+
+Reason: Cell geometry depends on Excel font/rounding and must be read from the normalized worksheet. Changing units must not change pixel sizing or export order.
+
+Evidence: `src/RelaxCat.Core/Export/ImageExport.cs`, `src/RelaxCat.App/ExcelSession.cs`, `tests/RelaxCat.Core.Tests/ExportOptionsTests.cs`, `tests/RelaxCat.App.SmokeTests/ExcelChecks.cs`.
+
+## D-ASPECT-001
+
+Status: Active
+
+Upstream: S-SIZE-001, S-SIZE-003, S-SIZE-004, S-EXCEL-002, S-EXCEL-003, S-EXCEL-004
+
+Decision: Use the arithmetic mean of valid per-axis DPI (invalid axes fall back to 96) as a single uniform sizing DPI, retaining the original pixel aspect ratio for rule matches and fallback. Before RelaxCat normalizes worksheet rows/columns, snapshot each picture's geometry, aspect lock and cell placement, temporarily freeze it with xlFreeFloating, then restore geometry and original placement in a finally block. Newly inserted pictures explicitly receive the calculated width/height, LockAspectRatio=true, and xlMoveAndSize. Existing non-picture objects retain ordinary Excel normalization behavior.
+
+Reason: Two actual defects contradicted the user's aspect-ratio requirement: independent axis DPI normalization warped non-square DPI metadata, and Excel resized existing xlMoveAndSize pictures non-uniformly when RelaxCat changed row/column sizes. Temporarily freezing pictures reconciles normalization with aspect preservation without weakening confirmed cell-following placement. This protects RelaxCat's own export operations; it does not retroactively reconstruct pictures already distorted by older versions or override independent user edits in Excel.
+
+Evidence: New DPI regression tests first failed (a 1.5 pixel ratio became 3, 0.75 or 6.25). The live Excel regression first changed approximately 609.88×405.00 pt into 168.13×560.25 pt at 2.38-character columns; after the fix it remains 609.88×405.00 pt with xlMoveAndSize restored. See `tests/RelaxCat.Core.Tests/CoreTests.cs`, `tests/RelaxCat.App.SmokeTests/ExcelChecks.cs`.
+
+## D-EXCEL-SELECTION-001
+
+Status: Active
+
+Upstream: S-EXCEL-005, S-IMPORT-002, S-IMPORT-001, S-I18N-001
+
+Decision: Add an opt-in Excel settings checkbox, off by default. After successful nonempty export, select all picture and linked-picture Shapes on the target worksheet, including previous exports; exclude non-picture objects. Do not select on cancellation/failure and do not change the gallery's inclusion checkboxes. Use the Excel 2007-era Shapes.Range(...).Select API without grouping or modifying pictures.
+
+Reason: In the supplied Excel-settings context, selecting pictures is an Excel editing convenience and is independent of deciding which queue images are exported. Opt-in preserves existing behavior.
+
+Evidence: `src/RelaxCat.App/Views/SettingsView.axaml`, `src/RelaxCat.App/Models/SettingsModel.cs`, `src/RelaxCat.Core/Export/ImageExport.cs`, `src/RelaxCat.App/ExcelSession.cs`, `tests/RelaxCat.Core.Tests/ExportOptionsTests.cs`, `tests/RelaxCat.App.SmokeTests/ExcelChecks.cs`.
+
+## D-PHASE-002
+
+Status: Active
+
+Upstream: S-CAPTURE-001, S-CAPTURE-002, S-CAPTURE-003, S-IMPORT-001, S-IMPORT-002, S-UI-002, S-I18N-001
+
+Decision: Extend the existing runnable gallery/Excel slice with selectable Off, folder-only and bundled Greenshot modes, live folder-to-queue import, capture settings, owned-process lifecycle and optional cursor movement. Preserve existing sizing, checkbox filtering, preview and Excel adapters. Settings remain session-scoped and default to Off; applying a selected provider starts it. Direct Windows-native capture and durable configuration remain future work.
+
+Reason: This fulfills the human's request to continue with Greenshot and monitoring without rebuilding finished functionality or inventing a new product intent.
+
+Evidence: `src/RelaxCat.App/MainWindow.Capture.cs`, `src/RelaxCat.App/Models/CaptureSettings.cs`, `README.md`, `docs/capture-validation.md`.
+
+## D-GREENSHOT-001
+
+Status: Active
+
+Upstream: S-CAPTURE-001, S-CAPTURE-003
+
+Decision: Vendor the unmodified official full Windows portable pre-release 1.4.371-g78211b16d9, latest suitable upstream build checked on 2026-10-20. Preserve license/source links and the GitHub-published SHA-256. Copy the archive and notices into build/publish output; verify and extract into RelaxCat's own local-data cache on first use. Use --ini-directory with a process-scoped RelaxCat profile, PNG FileNoDialog output, unique capture filenames and update checking disabled. This full upstream package requires Windows x64 and .NET Framework 4.8.
+
+Reason: Bundling avoids a machine-wide installation and makes the dependency reproducible/offline at runtime. The exact version/hash is a packaging decision, not a new singularity; future updates require reevaluating the pinned startup/configuration contract.
+
+Evidence: `vendor/greenshot/dependency.json`, `vendor/greenshot/portable.zip`, `src/RelaxCat.App/Capture/GreenshotBundle.cs`, `src/RelaxCat.App/Capture/GreenshotProvider.cs`.
+
+## D-GREENSHOT-LIFECYCLE-001
+
+Status: Active
+
+Upstream: S-CAPTURE-001, S-CAPTURE-003
+
+Decision: Refuse to start if another Greenshot exists, because upstream uses a session-wide single-instance mutex. Manage only the Process that RelaxCat starts and its Job Object descendants. A kill-on-close job covers abnormal RelaxCat exit as well as explicit stop. Verify readiness by connecting to the SID-scoped pipe and checking that its server PID equals the owned PID, without issuing commands. Stop on provider switch, application close, startup cancellation and unexpected child exit. Do not broadcast Greenshot's global --exit or terminate by process name.
+
+Reason: Real integration testing exposed that an early greenshot-cli probe can auto-start an extra instance. Passive PID-verified pipe readiness avoids that side effect, and process ownership prevents affecting unrelated user instances.
+
+Evidence: `src/RelaxCat.App/Capture/GreenshotProvider.cs`, `src/RelaxCat.App/Capture/OwnedProcessJob.cs`, `tests/RelaxCat.App.SmokeTests/CaptureChecks.cs`; pinned upstream `GreenshotApplication.cs`, `GreenshotCommandLine.cs`, `NamedPipeEndpoint.cs`.
+
+## D-CAPTURE-MONITOR-001
+
+Status: Active
+
+Upstream: S-IMPORT-001, S-CAPTURE-001, S-IMPORT-002
+
+Decision: Watch only the selected folder's top level; baseline existing files at start. FileSystemWatcher notifications prompt rescans, backed by periodic full reconciliation for missed/overflowed events. Identify versions by full path, size and last-write time; wait 750 ms without changes and require a readable handle that excludes active writers. Import sequentially via the same ImportPathsAsync pipeline as manual import, awaiting busy manual/export operations. Retry decoding failures up to five times; report failures and retry a changed file version. Stop cancellation propagates to pending/active monitored imports without cancelling unrelated manual/export work.
+
+Reason: Filename events alone do not imply complete image contents; notification coalescing and serial UI delivery avoid partial-file reads, duplicates and lost captures during export. Existing images can be manually imported instead of unexpectedly loading an entire folder.
+
+Evidence: `src/RelaxCat.Core/Capture/CaptureFolderMonitor.cs`, `src/RelaxCat.App/MainWindow.Capture.cs`, `tests/RelaxCat.Core.Tests/CaptureTests.cs`, `tests/RelaxCat.App.SmokeTests/CaptureChecks.cs`.
+
+## D-CAPTURE-KEYBOARD-001
+
+Status: Active
+
+Upstream: S-CAPTURE-002, S-CAPTURE-001
+
+Decision: When cursor movement is enabled for Greenshot, install a WH_KEYBOARD_LL hook on the UI message-loop thread after the provider is ready. Parse configured virtual keys/modifiers into an immutable options snapshot; on matching key-down synchronously call SetCursorPos, then always CallNextHookEx with the unchanged event, including error cases. Keep heavy work out of the callback. Unhook before stopping/switching providers. Configured coordinates may be negative for virtual desktops.
+
+Reason: The same key must reach Greenshot after movement, so neither RegisterHotKey interception nor asynchronously moving the pointer is suitable. Latest-hook-first ordering and the short synchronous callback implement the required sequence.
+
+Evidence: `src/RelaxCat.App/Capture/KeyboardMouseMonitor.cs`, `src/RelaxCat.Core/Capture/CaptureShortcut.cs`, `tests/RelaxCat.App.SmokeTests/CaptureChecks.cs`. A real F24 key test moved the cursor and still produced a Greenshot capture that reached the gallery.

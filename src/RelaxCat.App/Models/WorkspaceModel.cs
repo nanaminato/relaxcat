@@ -17,10 +17,13 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     private Bitmap? previewBitmap;
     public UiText Text { get; } = new();
     public SettingsModel Settings { get; } = new();
+    public CaptureSettings Capture { get; } = new();
     public ObservableCollection<ImageItem> Images { get; } = new();
     public WorkspaceModel()
     {
-        ThemeChoices = new[] { new ThemeOption(Text, "Dark"), new ThemeOption(Text, "Light") };
+        ThemeChoices = new[] { new LocalizedOption(Text, "Dark"), new LocalizedOption(Text, "Light") };
+        GapUnitChoices = new[] { new LocalizedOption(Text, "Points"), new LocalizedOption(Text, "Cells") };
+        CaptureProviderChoices = new[] { new LocalizedOption(Text, "CaptureOff"), new LocalizedOption(Text, "CaptureFolderOnly"), new LocalizedOption(Text, "CaptureGreenshot") };
         Message = Text["Ready"];
         Images.CollectionChanged += (_, e) =>
         {
@@ -34,7 +37,7 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public string Summary => string.Format(Text["Count"], Images.Count, Images.Count(i => i.IncludeInExport));
     public bool NoImages => Images.Count == 0;
     public bool CanExport => IsIdle && Images.Any(i => i.IncludeInExport);
-    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { Notify(nameof(IsIdle)); Notify(nameof(CanExport)); } } }
+    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanApplyCapture)); } } }
     public bool IsIdle => !IsBusy;
     public bool SettingsOpen { get => settingsOpen; set { if (Set(ref settingsOpen, value)) Notify(nameof(HomeOpen)); } }
     public bool HomeOpen => !SettingsOpen;
@@ -46,11 +49,22 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
             if (value is < 0 or > 1) return;
             if (!Set(ref languageIndex, value)) return;
             Text.Japanese = value == 1; Notify(nameof(Summary));
+            Notify(nameof(CaptureStatus));
             Message = Text["Ready"];
         }
     }
     public string[] Languages { get; } = { "简体中文", "日本語" };
-    public ThemeOption[] ThemeChoices { get; }
+    public LocalizedOption[] ThemeChoices { get; }
+    public LocalizedOption[] GapUnitChoices { get; }
+    public LocalizedOption[] CaptureProviderChoices { get; }
+    private bool captureBusy, captureRunning;
+    private string captureStatusKey = "CaptureStopped";
+    public bool CaptureBusy { get => captureBusy; set { if (Set(ref captureBusy, value)) { Notify(nameof(CanApplyCapture)); Notify(nameof(CanStopCapture)); } } }
+    public bool CaptureRunning { get => captureRunning; set { if (Set(ref captureRunning, value)) Notify(nameof(CanStopCapture)); } }
+    public bool CanApplyCapture => IsIdle && !CaptureBusy;
+    public bool CanStopCapture => CaptureRunning || CaptureBusy;
+    public string CaptureStatusKey { get => captureStatusKey; set { if (Set(ref captureStatusKey, value)) Notify(nameof(CaptureStatus)); } }
+    public string CaptureStatus => Text[CaptureStatusKey];
     public int ThemeIndex
     {
         get => themeIndex;

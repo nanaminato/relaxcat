@@ -13,6 +13,7 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
     private dynamic? app, workbook, sheet;
     private double nextTop;
     public double NextTop => nextTop;
+    public ExcelCellSize CellSize { get; private set; }
 
     public ExcelSession()
     {
@@ -59,16 +60,16 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             }
             finally { Release(sheets); Release(books); }
         }
-        object? rows = null, columns = null;
+        NormalizePreservingPictures(rowHeight, columnWidth);
+        object? cells = null, cell = null;
         try
         {
-            rows = sheet!.Rows; columns = sheet.Columns;
-            ((dynamic)rows).RowHeight = rowHeight;
-            ((dynamic)columns).ColumnWidth = columnWidth;
+            cells = sheet!.Cells; cell = ((dynamic)cells)[1, 1];
+            CellSize = new ExcelCellSize((double)((dynamic)cell).Width, (double)((dynamic)cell).Height);
             app!.Visible = true;
             workbook!.Activate();
         }
-        finally { Release(columns); Release(rows); }
+        finally { Release(cell); Release(cells); }
         // Normalization or user edits may have moved/resized earlier shapes.
         // Read the actual worksheet instead of trusting the last exported position.
         object? existing = null;
@@ -82,12 +83,68 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
                 try
                 {
                     item = ((dynamic)existing).Item(i);
-                    nextTop = Math.Max(nextTop, (double)((dynamic)item).Top + (double)((dynamic)item).Height + 12);
+                    nextTop = Math.Max(nextTop, (double)((dynamic)item).Top + (double)((dynamic)item).Height);
                 }
                 finally { Release(item); }
             }
         }
         finally { Release(existing); }
+    }
+
+    private sealed record PictureGeometry(object Shape, double Left, double Top, double Width, double Height, int Placement, int LockAspectRatio);
+    private static bool IsPicture(dynamic shape) => (int)shape.Type is 11 or 13; // msoLinkedPicture / msoPicture
+
+    private void NormalizePreservingPictures(double rowHeight, double columnWidth)
+    {
+        var saved = new List<PictureGeometry>();
+        object? shapes = null, rows = null, columns = null;
+        try
+        {
+            shapes = sheet!.Shapes;
+            for (var i = 1; i <= (int)((dynamic)shapes).Count; i++)
+            {
+                object? shape = ((dynamic)shapes).Item(i);
+                try
+                {
+                    if (!IsPicture(shape)) continue;
+                    dynamic picture = shape;
+                    saved.Add(new PictureGeometry(shape, (double)picture.Left, (double)picture.Top,
+                        (double)picture.Width, (double)picture.Height, (int)picture.Placement, (int)picture.LockAspectRatio));
+                    shape = null; // The snapshot owns this RCW until restoration.
+                    picture.Placement = 3; // Temporarily xlFreeFloating, only during our normalization.
+                }
+                finally { Release(shape); }
+            }
+            rows = sheet.Rows; columns = sheet.Columns;
+            ((dynamic)rows).RowHeight = rowHeight;
+            ((dynamic)columns).ColumnWidth = columnWidth;
+        }
+        finally
+        {
+            Release(columns); Release(rows); Release(shapes);
+            Exception? failure = null;
+            foreach (var geometry in saved)
+            {
+                dynamic picture = geometry.Shape;
+                try
+                {
+                    try
+                    {
+                        picture.LockAspectRatio = 0;
+                        picture.Width = (float)geometry.Width; picture.Height = (float)geometry.Height;
+                        picture.Left = (float)geometry.Left; picture.Top = (float)geometry.Top;
+                    }
+                    finally
+                    {
+                        try { picture.LockAspectRatio = geometry.LockAspectRatio; }
+                        finally { picture.Placement = geometry.Placement; }
+                    }
+                }
+                catch (Exception error) { failure ??= error; }
+                finally { Release(geometry.Shape); }
+            }
+            if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        }
     }
 
     public void Insert(string path, ImagePlacement points)
@@ -98,8 +155,11 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             shapes = sheet!.Shapes;
             shape = ((dynamic)shapes).AddPicture(Path.GetFullPath(path), 0, -1,
                 (float)points.X, (float)points.Y, (float)points.Width, (float)points.Height);
+            ((dynamic)shape).LockAspectRatio = 0;
+            ((dynamic)shape).Width = (float)points.Width; ((dynamic)shape).Height = (float)points.Height;
+            ((dynamic)shape).LockAspectRatio = -1; // msoTrue, independent of cell-following placement.
             ((dynamic)shape).Placement = 1; // xlMoveAndSize, available since Excel 2007.
-            nextTop = Math.Max(nextTop, points.Y + points.Height + 12);
+            nextTop = Math.Max(nextTop, points.Y + points.Height);
         }
         catch
         {
@@ -107,6 +167,27 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             throw;
         }
         finally { Release(shape); Release(shapes); }
+    }
+
+    public void SelectAllPictures()
+    {
+        object? shapes = null, range = null;
+        var names = new List<object>();
+        try
+        {
+            shapes = sheet!.Shapes;
+            for (var i = 1; i <= (int)((dynamic)shapes).Count; i++)
+            {
+                object? shape = null;
+                try { shape = ((dynamic)shapes).Item(i); if (IsPicture(shape)) names.Add((string)((dynamic)shape).Name); }
+                finally { Release(shape); }
+            }
+            if (names.Count == 0) return;
+            sheet.Activate();
+            range = ((dynamic)shapes).Range(names.ToArray());
+            ((dynamic)range).Select();
+        }
+        finally { Release(range); Release(shapes); }
     }
 
     private static void Release(object? value) { if (value is not null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }

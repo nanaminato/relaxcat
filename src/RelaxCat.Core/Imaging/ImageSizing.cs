@@ -33,8 +33,10 @@ public static class ImageSizing
 
         var dpiX = double.IsFinite(image.DpiX) && image.DpiX > 0 ? image.DpiX : ReferenceDpi;
         var dpiY = double.IsFinite(image.DpiY) && image.DpiY > 0 ? image.DpiY : ReferenceDpi;
-        var normalizedWidth = image.PixelWidth * ReferenceDpi / dpiX;
-        var normalizedHeight = image.PixelHeight * ReferenceDpi / dpiY;
+        // DPI controls uniform physical size, never the source pixel aspect ratio.
+        var effectiveDpi = dpiX / 2d + dpiY / 2d;
+        var normalizedWidth = image.PixelWidth * ReferenceDpi / effectiveDpi;
+        var normalizedHeight = image.PixelHeight * ReferenceDpi / effectiveDpi;
 
         double scale;
         var matched = false;
