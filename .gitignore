@@ -1,0 +1,54 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+*.sln.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+secrets.json
+
+# NuGet / .NET
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+TestResults/
+coverage/
+coverage.*
+
+# Node (in case tooling/web assets are added later)
+node_modules/
+
+# Generated / local working data
+.cache/
+tmp/
+temp/
