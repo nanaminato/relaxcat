@@ -24,16 +24,6 @@ public partial class SettingsView : UserControl
         }
         catch (Exception error) { model.Message = model.Text["CaptureError"] + error.Message; }
     }
-    private void ValidateClicked(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not WorkspaceModel model) return;
-        try
-        {
-            if (CaptureTab.IsSelected) { model.Capture.CreateOptions(model.Text); model.Message = model.Text["CaptureValid"]; }
-            else { model.Settings.CreateOptions(model.Text); model.Message = model.Text["Valid"]; }
-        }
-        catch (Exception error) { model.Message = model.Text["Invalid"] + error.Message; }
-    }
     private async void BrowseTemplateClicked(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not WorkspaceModel model || TopLevel.GetTopLevel(this) is not { } top) return;

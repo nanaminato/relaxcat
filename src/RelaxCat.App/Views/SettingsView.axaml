@@ -121,9 +121,6 @@
         </Grid>
       </TabItem>
     </TabControl>
-    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
-      <TextBlock Classes="muted" Text="{Binding Text[SessionHint]}" VerticalAlignment="Center" />
-    <Button Grid.Column="1" Content="{Binding Text[Validate]}" Click="ValidateClicked" HorizontalAlignment="Right" IsEnabled="{Binding IsIdle}" />
-    </Grid>
+    <TextBlock Grid.Row="2" Classes="muted" Text="{Binding Text[SessionHint]}" Margin="0,16,0,0" VerticalAlignment="Center" />
   </Grid>
 </UserControl>

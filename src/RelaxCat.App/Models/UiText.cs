@@ -62,8 +62,6 @@ public sealed class UiText : ObservableModel
         ["Template"] = ("Excel 模板", "Excel テンプレート"),
         ["TemplateHint"] = ("留空使用 Excel 默认模板。导出会重新规范目标工作表行高与列宽。", "空欄では Excel 標準テンプレートを使用。出力時に行の高さと列幅を設定します。"),
         ["Browse"] = ("浏览…", "参照…"),
-        ["Validate"] = ("检查设置", "設定を確認"),
-        ["Valid"] = ("设置有效，将用于下次导出", "設定は有効です。次の出力に適用されます"),
         ["Invalid"] = ("设置有误：", "設定エラー："),
         ["Appearance"] = ("界面主题", "テーマ"),
         ["Dark"] = ("深色", "ダーク"),
