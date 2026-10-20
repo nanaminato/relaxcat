@@ -15,7 +15,11 @@ public sealed class ImageLayoutEngine
 {
     public IReadOnlyList<ImagePlacement> Layout(IEnumerable<LayoutImage> images, LayoutOptions options)
     {
-        if (options.MaximumRowWidth <= 0) throw new ArgumentOutOfRangeException(nameof(options.MaximumRowWidth));
+        if (!double.IsFinite(options.MaximumRowWidth) || options.MaximumRowWidth <= 0 ||
+            !double.IsFinite(options.StartX) || !double.IsFinite(options.StartY) ||
+            !double.IsFinite(options.HorizontalGap) || options.HorizontalGap < 0 ||
+            !double.IsFinite(options.VerticalGap) || options.VerticalGap < 0)
+            throw new ArgumentOutOfRangeException(nameof(options));
 
         var result = new List<ImagePlacement>();
         var x = options.StartX;
@@ -26,7 +30,7 @@ public sealed class ImageLayoutEngine
 
         foreach (var image in images)
         {
-            if (image.Width <= 0 || image.Height <= 0) throw new ArgumentOutOfRangeException(nameof(images), "Image dimensions must be positive.");
+            if (!double.IsFinite(image.Width) || !double.IsFinite(image.Height) || image.Width <= 0 || image.Height <= 0) throw new ArgumentOutOfRangeException(nameof(images), "Image dimensions must be positive and finite.");
 
             var mustWrap = rowHasImage && (!options.SpaceSaving || x - options.StartX + options.HorizontalGap + image.Width > options.MaximumRowWidth);
             if (mustWrap)

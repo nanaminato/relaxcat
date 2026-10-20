@@ -26,25 +26,26 @@ public static class ImageSizing
     {
         if (image.PixelWidth <= 0 || image.PixelHeight <= 0)
             throw new ArgumentOutOfRangeException(nameof(image), "Image dimensions must be positive.");
-        if (options.DesignWidth <= 0 || options.DesignHeight <= 0 || options.DesignScale <= 0)
+        if (!double.IsFinite(options.DesignWidth) || !double.IsFinite(options.DesignHeight) || !double.IsFinite(options.DesignScale) || options.DesignWidth <= 0 || options.DesignHeight <= 0 || options.DesignScale <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "Design dimensions and scale must be positive.");
-        if (options.MaximumEnlargement <= 0)
+        if (!double.IsFinite(options.MaximumEnlargement) || options.MaximumEnlargement <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "Maximum enlargement must be positive.");
 
-        var dpiX = image.DpiX > 0 ? image.DpiX : ReferenceDpi;
-        var dpiY = image.DpiY > 0 ? image.DpiY : ReferenceDpi;
+        var dpiX = double.IsFinite(image.DpiX) && image.DpiX > 0 ? image.DpiX : ReferenceDpi;
+        var dpiY = double.IsFinite(image.DpiY) && image.DpiY > 0 ? image.DpiY : ReferenceDpi;
         var normalizedWidth = image.PixelWidth * ReferenceDpi / dpiX;
         var normalizedHeight = image.PixelHeight * ReferenceDpi / dpiY;
 
         double scale;
         var matched = false;
-        if (ruleEngine is not null && !string.IsNullOrWhiteSpace(options.Rules))
+        if (!string.IsNullOrWhiteSpace(options.Rules))
         {
+            ruleEngine ??= new ScaleRuleEngine();
             var context = new ScaleRuleContext(image.PixelWidth, image.PixelHeight, dpiX, dpiY);
             var ruleScale = ruleEngine.Evaluate(options.Rules, context);
             if (ruleScale is > 0)
             {
-                scale = Math.Min(ruleScale.Value, options.MaximumEnlargement);
+                scale = ruleScale.Value;
                 matched = true;
             }
             else
@@ -57,7 +58,11 @@ public static class ImageSizing
             scale = CalculateFallback(normalizedWidth, normalizedHeight, options);
         }
 
-        return new ScaleResult(scale, normalizedWidth * scale, normalizedHeight * scale, matched);
+        var displayWidth = normalizedWidth * scale;
+        var displayHeight = normalizedHeight * scale;
+        if (!double.IsFinite(scale) || !double.IsFinite(displayWidth) || !double.IsFinite(displayHeight) || displayWidth <= 0 || displayHeight <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "Calculated display dimensions must be positive and finite.");
+        return new ScaleResult(scale, displayWidth, displayHeight, matched);
     }
 
     private static double CalculateFallback(double width, double height, SizingOptions options)

@@ -50,5 +50,6 @@ node_modules/
 
 # Generated / local working data
 .cache/
+.local/
 tmp/
 temp/

@@ -54,7 +54,9 @@ public sealed class ScaleRuleEngine
             {
                 if (condition is null) throw new ScaleRuleException("Scale assignment has no condition.");
                 var scale = double.Parse(scaleMatch.Groups["value"].Value, CultureInfo.InvariantCulture);
-                if (scale <= 0) throw new ScaleRuleException("Scale must be positive.");
+                if (!double.IsFinite(scale) || scale <= 0) throw new ScaleRuleException("Scale must be positive and finite.");
+                // Validate every condition, including rules after the first matching rule.
+                EvaluateCondition(condition, default);
                 result.Add(new ScaleRule(condition, scale));
                 condition = null;
                 continue;
@@ -72,8 +74,9 @@ public sealed class ScaleRuleEngine
     {
         // Initial grammar: comparisons > and > or. Parentheses are intentionally deferred.
         var orParts = Regex.Split(expression, @"\s+or\s+", RegexOptions.IgnoreCase);
-        return orParts.Any(orPart => Regex.Split(orPart.Trim(), @"\s+and\s+", RegexOptions.IgnoreCase)
-            .All(part => EvaluateComparison(part.Trim(), context)));
+        return orParts.Select(orPart => Regex.Split(orPart.Trim(), @"\s+and\s+", RegexOptions.IgnoreCase)
+            .Select(part => EvaluateComparison(part.Trim(), context)).ToArray().All(value => value))
+            .ToArray().Any(value => value);
     }
 
     private static bool EvaluateComparison(string expression, ScaleRuleContext context)
@@ -83,6 +86,7 @@ public sealed class ScaleRuleEngine
 
         var left = context.Get(match.Groups["name"].Value);
         var right = double.Parse(match.Groups["value"].Value, CultureInfo.InvariantCulture);
+        if (!double.IsFinite(right)) throw new ScaleRuleException("Comparison value must be finite.");
         return match.Groups["op"].Value switch
         {
             "<" => left < right,

@@ -2,6 +2,10 @@
 
 > Status: Initial design / living document
 
+> Phase-one implementation now follows D-PHASE-001 in `.singularity/decisions/architecture.md`.
+> See `README.md` for the runnable workflow and `docs/phase-one-validation.md` for verified scope.
+> The suggested phases and boundaries below remain design evidence, not confirmed product intent.
+
 ## 1. Overview
 
 RelaxCat is a Windows-first screenshot collection and Excel image layout tool. It is intended as a clean, more extensible reimplementation of an earlier internal tool, without reusing the original source code.
@@ -290,7 +294,7 @@ Normalization and image insertion should be separate operations so normalization
 
 ## 12. Excel integration
 
-The first implementation targets Microsoft Excel/Office automation compatible with the required Excel 2016 environment.
+The first implementation uses late-bound Microsoft Excel/Office COM automation with APIs available in Excel 2007, 2016 and 2024, as required by S-EXCEL-004. Actual version coverage must be reported separately from API compatibility.
 
 COM/Interop remains appropriate because RelaxCat needs live Excel behavior rather than only producing an `.xlsx` package:
 
