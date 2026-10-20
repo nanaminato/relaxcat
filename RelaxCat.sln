@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RelaxCat.Core", "src\RelaxCat.Core\RelaxCat.Core.csproj", "{9F1B68AE-96E2-4F51-91B9-0AB0D625E361}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RelaxCat.Core.Tests", "tests\RelaxCat.Core.Tests\RelaxCat.Core.Tests.csproj", "{61B29D3D-5637-4DC0-AC4B-829D6A7163CC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9F1B68AE-96E2-4F51-91B9-0AB0D625E361}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9F1B68AE-96E2-4F51-91B9-0AB0D625E361}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9F1B68AE-96E2-4F51-91B9-0AB0D625E361}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9F1B68AE-96E2-4F51-91B9-0AB0D625E361}.Release|Any CPU.Build.0 = Release|Any CPU
+		{61B29D3D-5637-4DC0-AC4B-829D6A7163CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{61B29D3D-5637-4DC0-AC4B-829D6A7163CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{61B29D3D-5637-4DC0-AC4B-829D6A7163CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{61B29D3D-5637-4DC0-AC4B-829D6A7163CC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
