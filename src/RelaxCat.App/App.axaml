@@ -26,6 +26,7 @@
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <SolidColorBrush x:Key="AccentBrush">#568AF2</SolidColorBrush>
+      <Color x:Key="SystemAccentColor">#3574F0</Color>
     </ResourceDictionary>
   </Application.Resources>
   <Application.Styles>
@@ -76,7 +77,32 @@
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
     </Style>
     <Style Selector="TextBox">
-      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="CornerRadius" Value="3" />
+    </Style>
+    <Style Selector="TabControl.settings">
+      <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+      <Setter Property="Padding" Value="0,12,0,0" />
+    </Style>
+    <Style Selector="TabControl.settings TabItem">
+      <Setter Property="MinWidth" Value="142" />
+      <Setter Property="Padding" Value="12,10" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+    <Style Selector="TabControl.settings TabItem:selected">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+    </Style>
+    <Style Selector="TextBlock.section">
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Margin" Value="0,14,0,2" />
+    </Style>
+    <Style Selector="TabControl.settings TextBox">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="8,5" />
+    </Style>
+    <Style Selector="TabControl.settings ComboBox">
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="Padding" Value="8,5" />
+      <Setter Property="CornerRadius" Value="3" />
     </Style>
     <Style Selector="Border.lightbox.open">
       <Style.Animations>

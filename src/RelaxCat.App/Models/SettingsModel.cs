@@ -9,6 +9,7 @@ public sealed class SettingsModel : ObservableModel
     private string designWidth = "1920", designHeight = "1080", designScale = "0.5", maximumEnlargement = "1.5";
     private string horizontalGap = "12", verticalGap = "12", rowHeight = "18", columnWidth = "10", templatePath = "", rules = "";
     private bool compact;
+    private bool showGridlines = true;
     private bool selectAllPicturesAfterExport;
     private int horizontalGapUnitIndex, verticalGapUnitIndex;
     public string DesignWidth { get => designWidth; set => Set(ref designWidth, value); }
@@ -21,6 +22,7 @@ public sealed class SettingsModel : ObservableModel
     public string ColumnWidth { get => columnWidth; set => Set(ref columnWidth, value); }
     public string TemplatePath { get => templatePath; set => Set(ref templatePath, value); }
     public string Rules { get => rules; set => Set(ref rules, value); }
+    public bool ShowGridlines { get => showGridlines; set => Set(ref showGridlines, value); }
     public bool Compact { get => compact; set => Set(ref compact, value); }
     public bool SelectAllPicturesAfterExport { get => selectAllPicturesAfterExport; set => Set(ref selectAllPicturesAfterExport, value); }
     public int HorizontalGapUnitIndex { get => horizontalGapUnitIndex; set { if (value is 0 or 1) Set(ref horizontalGapUnitIndex, value); } }
@@ -36,7 +38,7 @@ public sealed class SettingsModel : ObservableModel
         }
         var sizing = new SizingOptions(Number(DesignWidth), Number(DesignHeight), Number(DesignScale), Number(MaximumEnlargement), Rules);
         var result = new ExportOptions(sizing, Compact, Number(HorizontalGap, true), Number(VerticalGap, true), Number(RowHeight), Number(ColumnWidth), TemplatePath,
-            (GapUnit)HorizontalGapUnitIndex, (GapUnit)VerticalGapUnitIndex, SelectAllPicturesAfterExport);
+            (GapUnit)HorizontalGapUnitIndex, (GapUnit)VerticalGapUnitIndex, SelectAllPicturesAfterExport, ShowGridlines);
         if (result.RowHeight > 409 || result.ColumnWidth > 255) throw new ArgumentException(text["ExcelRangeError"]);
         new ScaleRuleEngine().ParseRules(Rules);
         ImageSizing.Calculate(new ImageMetadata(1, 1), sizing);

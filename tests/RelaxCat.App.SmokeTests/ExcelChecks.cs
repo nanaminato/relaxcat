@@ -28,6 +28,17 @@ internal static class ExcelChecks
                 dynamic sheet = Get(session, "sheet");
                 dynamic app = Get(session, "app");
                 Console.WriteLine("Excel version: " + (string)app.Version);
+                object? excelWindow = null;
+                try
+                {
+                    session.Prepare(null, options.RowHeight, options.ColumnWidth, false);
+                    excelWindow = app.ActiveWindow;
+                    Check(!(bool)((dynamic)excelWindow).DisplayGridlines, "Gridlines were not hidden");
+                    // Exercise both states without adding extra images to the geometry assertions below.
+                    session.Prepare(null, options.RowHeight, options.ColumnWidth, true);
+                    Check((bool)((dynamic)excelWindow).DisplayGridlines, "Gridlines were not restored");
+                }
+                finally { Release(excelWindow); }
                 app.Visible = false;
                 Console.WriteLine("CHECK: hidden test workbook");
                 object? shapes = null, shape = null, rows = null, columns = null;

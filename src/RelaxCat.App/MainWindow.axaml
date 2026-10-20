@@ -3,15 +3,13 @@
         xmlns:models="using:RelaxCat.App.Models"
         xmlns:views="using:RelaxCat.App.Views"
         x:Class="RelaxCat.App.MainWindow" x:DataType="models:WorkspaceModel" x:CompileBindings="True"
-        Title="RelaxCat" Width="1280" Height="850" MinWidth="1000" MinHeight="680"
+        Icon="/Assets/relaxcat.ico" Title="RelaxCat" Width="1280" Height="850" MinWidth="1000" MinHeight="680"
         KeyDown="WindowKeyDown">
   <Grid RowDefinitions="68,*,Auto">
     <!-- Desktop shell. Detailed configuration lives on SettingsView. -->
     <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" IsEnabled="{Binding !PreviewOpen}">
       <Grid ColumnDefinitions="Auto,*,Auto" Margin="22,0">
-        <Border Width="34" Height="34" CornerRadius="9" Background="#DF7F55" VerticalAlignment="Center">
-          <TextBlock Text="R" Foreground="White" FontSize="23" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
+        <Image Source="/Assets/relaxcat.png" Width="34" Height="34" VerticalAlignment="Center" />
         <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
           <TextBlock Text="RelaxCat" FontSize="18" FontWeight="SemiBold" />
           <TextBlock Classes="muted" Text="{Binding Text[Tagline]}" />

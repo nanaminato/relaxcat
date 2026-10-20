@@ -92,6 +92,19 @@ public class ExportOptionsTests
         Assert.Empty(target.Events);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Gridline_preference_reaches_target_on_every_export(bool visible)
+    {
+        var target = new Target();
+        var exporter = new ImageExporter();
+        exporter.Export(Images, Options with { ShowGridlines = visible }, target, null, default);
+        Assert.Equal(visible, target.Gridlines);
+        exporter.Export(Images, Options with { ShowGridlines = !visible }, target, null, default);
+        Assert.Equal(!visible, target.Gridlines);
+    }
+
     private sealed class Target : IExcelTarget
     {
         public List<string> Events { get; } = new();
@@ -102,7 +115,9 @@ public class ExportOptionsTests
         {
             get { Assert.Equal("prepare", Events[0]); return new ExcelCellSize(67.5, 24); }
         }
-        public void Prepare(string? templatePath, double rowHeight, double columnWidth) => Events.Add("prepare");
+        public bool Gridlines { get; private set; }
+        public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true)
+        { Gridlines = showGridlines; Events.Add("prepare"); }
         public void Insert(string path, ImagePlacement points) { Events.Add("insert"); Placements.Add(points); AfterInsert?.Invoke(); }
         public void SelectAllPictures() => Events.Add("select");
     }

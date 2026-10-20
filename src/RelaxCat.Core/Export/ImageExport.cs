@@ -10,11 +10,11 @@ public sealed record ExportOptions(SizingOptions Sizing, bool SpaceSaving = fals
     double HorizontalGap = 12, double VerticalGap = 12, double RowHeight = 18,
     double ColumnWidth = 10, string? TemplatePath = null,
     GapUnit HorizontalGapUnit = GapUnit.Points, GapUnit VerticalGapUnit = GapUnit.Points,
-    bool SelectAllPicturesAfterExport = false);
+    bool SelectAllPicturesAfterExport = false, bool ShowGridlines = true);
 
 public interface IExcelTarget
 {
-    void Prepare(string? templatePath, double rowHeight, double columnWidth);
+    void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true);
     // Bottom edge of existing worksheet content in points; zero for an empty sheet.
     double NextTop { get; }
     // Actual physical cell dimensions after Prepare, not Excel character units.
@@ -46,7 +46,7 @@ public sealed class ImageExporter
         if (!Enum.IsDefined(options.HorizontalGapUnit) || !Enum.IsDefined(options.VerticalGapUnit))
             throw new ArgumentOutOfRangeException(nameof(options));
         cancellationToken.ThrowIfCancellationRequested();
-        target.Prepare(options.TemplatePath, options.RowHeight, options.ColumnWidth);
+        target.Prepare(options.TemplatePath, options.RowHeight, options.ColumnWidth, options.ShowGridlines);
         var horizontalGap = ResolveGap(options.HorizontalGap, options.HorizontalGapUnit, target.CellSize.WidthPoints);
         var verticalGap = ResolveGap(options.VerticalGap, options.VerticalGapUnit, target.CellSize.HeightPoints);
         var placements = layout.Layout(sizes, layoutOptions with

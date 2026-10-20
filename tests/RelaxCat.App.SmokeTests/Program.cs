@@ -21,6 +21,7 @@ var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
 using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     original.Settings.HorizontalGapUnitIndex = 1; original.Settings.VerticalGapUnitIndex = 1;
+    original.Settings.ShowGridlines = false;
     original.Settings.VerticalGap = "3"; original.Settings.Rules = "width > 100 => 0.5";
     original.ThemeIndex = 1; original.LanguageIndex = 1;
     original.Capture.ProviderIndex = 2; original.Capture.MoveMouse = true;
@@ -28,7 +29,7 @@ using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 using (var restored = new RelaxCat.App.Models.WorkspaceModel(settingsStore))
 {
     if (restored.Settings.HorizontalGapUnitIndex != 1 || restored.Settings.VerticalGapUnitIndex != 1 ||
-        restored.Settings.VerticalGap != "3" || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
+        restored.Settings.VerticalGap != "3" || restored.Settings.ShowGridlines || restored.ThemeIndex != 1 || restored.LanguageIndex != 1 ||
         restored.Capture.ProviderIndex != 2 || !restored.Capture.MoveMouse || restored.Settings.Rules != "width > 100 => 0.5")
         throw new Exception("Settings did not survive restart");
 }
@@ -72,7 +73,12 @@ var verticalUnit = settings.FindControl<ComboBox>("VerticalGapUnitSelector")!;
 horizontalUnit.SelectedIndex = 1; verticalUnit.SelectedIndex = 1;
 var selectAllPictures = settings.FindControl<CheckBox>("SelectAllPicturesOption")!;
 selectAllPictures.IsChecked = true; Dispatcher.UIThread.RunJobs();
+var gridlines = settings.FindControl<CheckBox>("ShowGridlinesOption")!;
+gridlines.IsChecked = false; Dispatcher.UIThread.RunJobs();
 var configured = window.Workspace.Settings.CreateOptions(window.Workspace.Text);
+Check(!configured.ShowGridlines, "Gridline setting did not reach export");
+gridlines.IsChecked = true;
+Check(window.Icon is not null, "Window icon missing");
 Check(configured.HorizontalGapUnit == GapUnit.Cells && configured.VerticalGapUnit == GapUnit.Cells && configured.SelectAllPicturesAfterExport,
     "Export settings did not reach the export options");
 Capture("settings-excel.png");
@@ -181,6 +187,6 @@ internal sealed class RecordingTarget : IExcelTarget
     public double NextTop => 0;
     public ExcelCellSize CellSize => new(60, 18);
     public void SelectAllPictures() { }
-    public void Prepare(string? templatePath, double rowHeight, double columnWidth) { }
+    public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true) { }
     public void Insert(string path, ImagePlacement points) => Paths.Add(path);
 }

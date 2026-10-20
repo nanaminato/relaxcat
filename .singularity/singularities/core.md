@@ -185,3 +185,11 @@ Status: Confirmed
 Statement: Greenshot owns its settings; RelaxCat may read selected values but must preserve them on subsequent launches. When integration is selected, application startup launches Greenshot and starts monitoring automatically.
 
 Confirmation basis: Human instruction, 2026-10-20.
+
+## S-EXCEL-006
+
+Status: Confirmed
+
+Statement: Provide a persistent setting controlling whether the exported worksheet displays gridlines.
+
+Confirmation basis: Human instruction, 2026-10-20.

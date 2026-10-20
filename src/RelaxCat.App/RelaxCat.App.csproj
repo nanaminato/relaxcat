@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <ApplicationIcon>Assets/relaxcat.ico</ApplicationIcon>
     <TargetFramework>net8.0-windows</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,6 +12,7 @@
     <ProjectReference Include="../RelaxCat.Core/RelaxCat.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <AvaloniaResource Include="Assets/*" />
     <Content Include="../../vendor/greenshot/*" Link="Providers/Greenshot/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

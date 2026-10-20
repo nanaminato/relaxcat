@@ -30,7 +30,7 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
         return completion.Task;
     }
 
-    public void Prepare(string? templatePath, double rowHeight, double columnWidth)
+    public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true)
     {
         if (Thread.CurrentThread != thread) throw new InvalidOperationException("Excel requires its STA worker.");
         if (!double.IsFinite(rowHeight) || rowHeight <= 0 || rowHeight > 409 ||
@@ -68,6 +68,14 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             CellSize = new ExcelCellSize((double)((dynamic)cell).Width, (double)((dynamic)cell).Height);
             app!.Visible = true;
             workbook!.Activate();
+            sheet!.Activate();
+            object? window = null;
+            try
+            {
+                window = app.ActiveWindow;
+                ((dynamic)window).DisplayGridlines = showGridlines;
+            }
+            finally { Release(window); }
         }
         finally { Release(cell); Release(cells); }
         // Normalization or user edits may have moved/resized earlier shapes.
@@ -94,7 +102,7 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
     private sealed record PictureGeometry(object Shape, double Left, double Top, double Width, double Height, int Placement, int LockAspectRatio);
     private static bool IsPicture(dynamic shape) => (int)shape.Type is 11 or 13; // msoLinkedPicture / msoPicture
 
-    private void NormalizePreservingPictures(double rowHeight, double columnWidth)
+    private void NormalizePreservingPictures(double rowHeight, double columnWidth, bool showGridlines = true)
     {
         var saved = new List<PictureGeometry>();
         object? shapes = null, rows = null, columns = null;

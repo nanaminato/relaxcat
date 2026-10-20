@@ -2,15 +2,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:models="using:RelaxCat.App.Models"
              x:Class="RelaxCat.App.Views.SettingsView" x:DataType="models:WorkspaceModel" x:CompileBindings="True">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="34,24,30,16">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24,20,24,16">
     <StackPanel Spacing="8" Margin="0,0,0,24">
       <TextBlock Classes="heading" Text="{Binding Text[Settings]}" />
       <TextBlock Classes="muted" Text="{Binding Text[SettingsHint]}" TextWrapping="Wrap" />
     </StackPanel>
-    <TabControl Grid.Row="1" FontSize="15">
-      <TabItem FontSize="16" Header="{Binding Text[SizingTab]}">
+    <TabControl Grid.Row="1" FontSize="13" TabStripPlacement="Left" Classes="settings">
+      <TabItem FontSize="13" Header="{Binding Text[SizingTab]}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="0,24,16,16" Spacing="18" IsEnabled="{Binding IsIdle}">
+          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="14" IsEnabled="{Binding IsIdle}">
             <TextBlock Classes="muted" Text="{Binding Text[SizeHint]}" TextWrapping="Wrap" />
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
               <TextBlock Text="{Binding Text[DesignWidth]}" />
@@ -29,9 +29,9 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
-      <TabItem FontSize="16" Header="{Binding Text[ExcelTab]}">
+      <TabItem FontSize="13" Header="{Binding Text[ExcelTab]}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="0,24,16,16" Spacing="18" IsEnabled="{Binding IsIdle}">
+          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="14" IsEnabled="{Binding IsIdle}">
             <CheckBox Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" />
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
               <TextBlock Text="{Binding Text[HorizontalGap]}" />
@@ -54,6 +54,8 @@
               <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.ColumnWidth, Mode=TwoWay}" />
             </Grid>
             <TextBlock Classes="muted" Text="{Binding Text[CellGapHint]}" TextWrapping="Wrap" />
+            <TextBlock Classes="section" Text="{Binding Text[WorksheetSection]}" />
+            <CheckBox x:Name="ShowGridlinesOption" Content="{Binding Text[ShowGridlines]}" IsChecked="{Binding Settings.ShowGridlines, Mode=TwoWay}" />
             <CheckBox x:Name="SelectAllPicturesOption" Content="{Binding Text[SelectAllPictures]}" IsChecked="{Binding Settings.SelectAllPicturesAfterExport, Mode=TwoWay}" />
             <TextBlock Classes="muted" Text="{Binding Text[SelectPicturesHint]}" TextWrapping="Wrap" />
             <TextBlock Text="{Binding Text[Template]}" FontWeight="SemiBold" Margin="0,8,0,0" />
@@ -65,8 +67,8 @@
           </StackPanel>
         </ScrollViewer>
       </TabItem>
-      <TabItem FontSize="16" Header="{Binding Text[AppearanceTab]}">
-        <StackPanel Width="400" HorizontalAlignment="Left" Margin="0,24,0,0" Spacing="14">
+      <TabItem FontSize="13" Header="{Binding Text[AppearanceTab]}">
+        <StackPanel Width="400" HorizontalAlignment="Left" Margin="24,8,0,0" Spacing="14">
           <TextBlock Text="{Binding Text[Appearance]}" FontWeight="SemiBold" />
           <ComboBox x:Name="ThemeSelector" ItemsSource="{Binding ThemeChoices}" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
             <ComboBox.ItemTemplate>
@@ -78,10 +80,10 @@
           <TextBlock Classes="muted" Text="{Binding Text[SessionHint]}" TextWrapping="Wrap" Margin="0,8,0,0" />
         </StackPanel>
       </TabItem>
-      <TabItem x:Name="CaptureTab" FontSize="16" Header="{Binding Text[CaptureTab]}">
+      <TabItem x:Name="CaptureTab" FontSize="13" Header="{Binding Text[CaptureTab]}">
         <Grid RowDefinitions="*,Auto">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="0,24,16,16" Spacing="14">
+          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="12">
             <TextBlock Text="{Binding CaptureStatus}" FontWeight="SemiBold" />
             <StackPanel Spacing="14" IsEnabled="{Binding CanApplyCapture}">
               <TextBlock Text="{Binding Text[CaptureProvider]}" />
@@ -119,6 +121,9 @@
         </Grid>
       </TabItem>
     </TabControl>
-    <Button Grid.Row="2" Content="{Binding Text[Validate]}" Click="ValidateClicked" HorizontalAlignment="Left" Margin="0,16,0,0" IsEnabled="{Binding IsIdle}" />
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,16,0,0">
+      <TextBlock Classes="muted" Text="{Binding Text[SessionHint]}" VerticalAlignment="Center" />
+    <Button Grid.Column="1" Content="{Binding Text[Validate]}" Click="ValidateClicked" HorizontalAlignment="Right" IsEnabled="{Binding IsIdle}" />
+    </Grid>
   </Grid>
 </UserControl>
