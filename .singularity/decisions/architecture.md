@@ -88,7 +88,7 @@ Evidence: `src/RelaxCat.Core/Export/ImageExport.cs`, `tests/RelaxCat.Core.Tests/
 
 ## D-UI-001
 
-Status: Active
+Status: Superseded by D-UI-002
 
 Upstream: S-UI-001, S-I18N-001, S-IMPORT-001
 
@@ -96,4 +96,40 @@ Decision: Use Avalonia with a dark, three-pane desktop-tool layout and an in-ses
 
 Reason: Implements the IDEA-style direction and both languages while keeping the first slice small. Explicit append/cancellation semantics avoid pretending Office mutations are transactional.
 
-Evidence: `src/RelaxCat.App/MainWindow.cs`.
+Evidence: Original `src/RelaxCat.App/MainWindow.cs` (replaced by `MainWindow.axaml` and `MainWindow.axaml.cs` under D-UI-002). The original full-queue export and three-pane arrangement are superseded by the human's S-UI-002 / S-IMPORT-002 instruction.
+
+## D-UI-002
+
+Status: Active
+
+Upstream: S-UI-001, S-UI-002, S-UI-003, S-I18N-001, S-IMPORT-001, S-IMPORT-002, S-EXCEL-001
+
+Decision: Declare the application theme resources, main shell/gallery/lightbox, and settings tabs in Avalonia XAML, with C# code-behind for platform interactions and observable models for state. The home page retains design scale and compact layout only. A separate settings view has sizing/rules, Excel layout, and appearance/language pages. Theme dictionaries supply light/dark semantic brushes; both themes and live language switching also apply to existing cards and preview.
+
+Reason: Preserves the IDEA-style desktop-tool direction while following the human's explicit XAML, simpler-home and theme requirements. Shared setting bindings avoid duplicate values between home and settings.
+
+Evidence: `src/RelaxCat.App/App.axaml`, `src/RelaxCat.App/MainWindow.axaml`, `src/RelaxCat.App/Views/SettingsView.axaml`, `src/RelaxCat.App/Models/`, `tests/RelaxCat.App.SmokeTests/Program.cs`.
+
+## D-GALLERY-001
+
+Status: Active
+
+Upstream: S-IMPORT-001, S-IMPORT-002, S-SIZE-001
+
+Decision: Present every queue item as a card in a scrollable wrapping gallery with a bounded thumbnail, original metadata, inclusion checkbox, copy action and remove action. Copy places full source-image pixels on the clipboard and flushes the Windows clipboard; remove releases the queue thumbnail without deleting the source file. New images are included by default. Export snapshots only checked items in queue order; zero selection does not create or modify Excel. Unchecked items remain available for preview and copying.
+
+Reason: Gives ordinary meaning to copy/remove while keeping export participation independent of queue membership. Thumbnails are for UI only; export still embeds original files. Snapshotting and disabled mutation controls retain safe progress/cancellation boundaries.
+
+Evidence: `src/RelaxCat.App/MainWindow.axaml.cs`, `src/RelaxCat.App/Models/ImageItem.cs`, `src/RelaxCat.App/Models/WorkspaceModel.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.
+
+## D-PREVIEW-001
+
+Status: Active
+
+Upstream: S-IMPORT-002, S-UI-001, S-UI-003, S-I18N-001
+
+Decision: Open a themed in-window lightbox with dimmed backdrop, fade-in, metadata, shared inclusion checkbox, fit-to-window, zoom/scroll, previous/next controls and arrow/Esc shortcuts. Decode the preview on a worker with a bounded maximum dimension; discard results from an older preview request and release bitmaps on close. These preview-only reductions never alter source pixels or export sizing.
+
+Reason: Provides a focused, responsive preview with predictable navigation and bounded per-image memory, including when users move rapidly between images.
+
+Evidence: `src/RelaxCat.App/MainWindow.axaml`, `src/RelaxCat.App/MainWindow.axaml.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.

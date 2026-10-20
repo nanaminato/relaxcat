@@ -1,0 +1,87 @@
+namespace RelaxCat.App.Models;
+
+// All product text lives here; indexer bindings update together when language changes.
+public sealed class UiText : ObservableModel
+{
+    private bool japanese;
+    public bool Japanese
+    {
+        get => japanese;
+        set { if (Set(ref japanese, value)) { Notify("Item"); Notify("Item[]"); } }
+    }
+    public string this[string key] => Entries.TryGetValue(key, out var value) ? (Japanese ? value.Ja : value.Zh) : key;
+    private static readonly Dictionary<string, (string Zh, string Ja)> Entries = new()
+    {
+        ["Workspace"] = ("图片工作台", "画像ワークスペース"),
+        ["Settings"] = ("设置", "設定"),
+        ["Tagline"] = ("从图片到整齐的工作簿", "画像から整ったワークブックへ"),
+        ["Import"] = ("导入图片", "画像を追加"),
+        ["Export"] = ("导出到 Excel", "Excel に出力"),
+        ["Cancel"] = ("取消", "キャンセル"),
+        ["Theme"] = ("切换明暗", "テーマを切替"),
+        ["GalleryHint"] = ("勾选要导出的图片，点击缩略图放大预览。", "出力する画像を選択。サムネイルをクリックして拡大表示。"),
+        ["Count"] = ("共 {0} 张 · 待导出 {1} 张", "全 {0} 枚 · 出力対象 {1} 枚"),
+        ["DesignScale"] = ("设计缩放", "設計倍率"),
+        ["Compact"] = ("节省空间排列", "省スペース配置"),
+        ["MoreSettings"] = ("详细设置 →", "詳細設定 →"),
+        ["EmptyTitle"] = ("让图片各就其位", "画像を、きれいに整える"),
+        ["EmptyHint"] = ("导入截图或图片，在这里预览、筛选，再一键排入 Excel。", "画像を追加してプレビュー・選択し、Excel に配置しましょう。"),
+        ["EmptyFormats"] = ("支持 PNG · JPEG · BMP", "PNG · JPEG · BMP 対応"),
+        ["Include"] = ("参与导出", "出力対象"),
+        ["Copy"] = ("复制", "コピー"),
+        ["CopyHint"] = ("复制原始图片到剪贴板", "元画像をクリップボードにコピー"),
+        ["Remove"] = ("移除", "削除"),
+        ["RemoveHint"] = ("从队列移除，保留源文件", "リストから削除（元ファイルは保持）"),
+        ["Preview"] = ("放大预览", "拡大プレビュー"),
+        ["Close"] = ("关闭预览", "プレビューを閉じる"),
+        ["Previous"] = ("上一张", "前の画像"),
+        ["Next"] = ("下一张", "次の画像"),
+        ["Fit"] = ("适应窗口", "ウィンドウに合わせる"),
+        ["PreviewHint"] = ("← → 切换图片 · Esc 关闭 · 放大后可滚动查看", "← → で画像切替 · Esc で閉じる · 拡大後はスクロール可能"),
+        ["Loading"] = ("正在加载预览…", "プレビューを読み込み中…"),
+        ["SettingsHint"] = ("在独立页面调整细节，返回工作台后直接生效。", "詳細を設定し、ワークスペースに戻るとそのまま適用されます。"),
+        ["SizingTab"] = ("尺寸与规则", "サイズとルール"),
+        ["ExcelTab"] = ("Excel 排版", "Excel レイアウト"),
+        ["AppearanceTab"] = ("外观与语言", "外観と言語"),
+        ["DesignWidth"] = ("设计宽度", "設計幅"),
+        ["DesignHeight"] = ("设计高度", "設計高さ"),
+        ["SizeHint"] = ("设计宽高使用 96 DPI 逻辑像素。图片只改变显示尺寸，不重采样源文件。", "設計サイズは 96 DPI の論理ピクセル。元画像を再サンプリングせず表示サイズを調整します。"),
+        ["MaxEnlargement"] = ("回退最大放大倍数", "既定の最大拡大率"),
+        ["Rules"] = ("有序缩放规则", "順序付き拡大縮小ルール"),
+        ["RulesHint"] = ("每条规则：一行条件，下一行 scale = 数值。首条命中生效；and 优先于 or。", "条件の次の行に scale = 数値。最初に一致したルールを適用。and は or より優先。"),
+        ["RulesPlaceholder"] = ("width >= 1920 or height >= 1080\nscale = 0.5", "width >= 1920 or height >= 1080\nscale = 0.5"),
+        ["HorizontalGap"] = ("水平间距（pt）", "横間隔（pt）"),
+        ["VerticalGap"] = ("垂直间距（pt）", "縦間隔（pt）"),
+        ["RowHeight"] = ("行高（pt）", "行の高さ（pt）"),
+        ["ColumnWidth"] = ("列宽（字符）", "列幅（文字）"),
+        ["Template"] = ("Excel 模板", "Excel テンプレート"),
+        ["TemplateHint"] = ("留空使用 Excel 默认模板。导出会重新规范目标工作表行高与列宽。", "空欄では Excel 標準テンプレートを使用。出力時に行の高さと列幅を設定します。"),
+        ["Browse"] = ("浏览…", "参照…"),
+        ["Validate"] = ("检查设置", "設定を確認"),
+        ["Valid"] = ("设置有效，将用于下次导出", "設定は有効です。次の出力に適用されます"),
+        ["Invalid"] = ("设置有误：", "設定エラー："),
+        ["Appearance"] = ("界面主题", "テーマ"),
+        ["Dark"] = ("黑暗", "ダーク"),
+        ["Light"] = ("明亮", "ライト"),
+        ["Language"] = ("界面语言", "表示言語"),
+        ["SessionHint"] = ("主题、语言与其他设置在当前会话内生效。", "テーマ・言語と各種設定は現在のセッションに適用されます。"),
+        ["Ready"] = ("就绪", "準備完了"),
+        ["Importing"] = ("正在导入", "読み込み中"),
+        ["Imported"] = ("导入完成", "読み込み完了"),
+        ["ImportErrors"] = ("部分图片导入失败：", "一部の画像を読み込めませんでした："),
+        ["ImportCancelled"] = ("已取消，已导入图片保留", "キャンセル済み。追加済み画像は保持されます"),
+        ["LocalOnly"] = ("仅支持本地图片", "ローカル画像のみ対応"),
+        ["PreparingExcel"] = ("正在准备 Excel…", "Excel を準備中…"),
+        ["Exporting"] = ("正在导出", "出力中"),
+        ["Exported"] = ("导出完成，请在 Excel 中保存工作簿", "出力完了。Excel でブックを保存してください"),
+        ["ExportCancelled"] = ("导出已取消，已插入图片保留", "出力をキャンセルしました。挿入済み画像は保持されます"),
+        ["ExportError"] = ("导出失败（可重试）：", "出力失敗（再試行可）："),
+        ["NoSelection"] = ("请至少勾选一张参与导出的图片", "出力対象の画像を少なくとも 1 枚選択してください"),
+        ["NumberError"] = ("请输入有效正数（间距可以为零）", "有効な正数を入力してください（間隔はゼロ可）"),
+        ["ExcelRangeError"] = ("行高需不超过 409 pt，列宽需不超过 255 字符", "行の高さは 409 pt 以下、列幅は 255 文字以下にしてください"),
+        ["Copied"] = ("图片已复制到剪贴板", "画像をクリップボードにコピーしました"),
+        ["CopyError"] = ("复制失败：", "コピー失敗："),
+        ["ClipboardUnavailable"] = ("剪贴板不可用", "クリップボードを利用できません"),
+        ["PreviewError"] = ("预览失败：", "プレビュー失敗："),
+    };
+}

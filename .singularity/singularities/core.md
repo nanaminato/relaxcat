@@ -121,3 +121,27 @@ Status: Confirmed
 Statement: RelaxCat provides both Simplified Chinese and Japanese user-interface localization. User-facing text must be designed so these two languages can be maintained as supported product languages rather than being hard-coded to a single language.
 
 Confirmation basis: Human instruction, 2026-10-20.
+
+## S-UI-002
+
+Status: Confirmed
+
+Statement: Implement desktop views with XAML plus C#. The home page exposes only a small set of common settings; more detailed settings belong on separate settings pages.
+
+Confirmation basis: Human instruction, 2026-10-20: “使用xaml+cs，而不是纯cs，另外首页不要放置太多设置，放置部分即可。同时更多的细节使用单独的页来设置”。
+
+## S-UI-003
+
+Status: Confirmed
+
+Statement: Provide both light and dark interface themes.
+
+Confirmation basis: Human instruction, 2026-10-20: “同时添加明亮和黑暗主题”。
+
+## S-IMPORT-002
+
+Status: Confirmed
+
+Statement: The home page displays each imported image individually. Each image can be removed and copied, and has a checkbox controlling whether it is included in export. Provide an elegant image preview experience.
+
+Confirmation basis: Human instruction, 2026-10-20: “主页时显示的图片，每一个都能显示出来并且对单个的可以进行移除和复制，同时包含一个checkbox，他会决定是否会出现到导出中，预览时提供优雅的预览效果”。

@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:RelaxCat.App.Models"
+             x:Class="RelaxCat.App.Views.SettingsView" x:DataType="models:WorkspaceModel" x:CompileBindings="True">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="34,24,30,16">
+    <StackPanel Spacing="8" Margin="0,0,0,24">
+      <TextBlock Classes="heading" Text="{Binding Text[Settings]}" />
+      <TextBlock Classes="muted" Text="{Binding Text[SettingsHint]}" TextWrapping="Wrap" />
+    </StackPanel>
+    <TabControl Grid.Row="1">
+      <TabItem Header="{Binding Text[SizingTab]}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="0,24,16,16" Spacing="18" IsEnabled="{Binding IsIdle}">
+            <TextBlock Classes="muted" Text="{Binding Text[SizeHint]}" TextWrapping="Wrap" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+              <TextBlock Text="{Binding Text[DesignWidth]}" />
+              <TextBlock Grid.Column="1" Text="{Binding Text[DesignHeight]}" />
+              <TextBox Grid.Row="1" Text="{Binding Settings.DesignWidth, Mode=TwoWay}" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Settings.DesignHeight, Mode=TwoWay}" />
+              <TextBlock Grid.Row="2" Text="{Binding Text[DesignScale]}" Margin="0,10,0,0" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Text[MaxEnlargement]}" Margin="0,10,0,0" />
+              <TextBox Grid.Row="3" Text="{Binding Settings.DesignScale, Mode=TwoWay}" />
+              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.MaximumEnlargement, Mode=TwoWay}" />
+            </Grid>
+            <TextBlock Text="{Binding Text[Rules]}" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <TextBlock Classes="muted" Text="{Binding Text[RulesHint]}" TextWrapping="Wrap" />
+            <TextBox x:Name="RulesEditor" Text="{Binding Settings.Rules, Mode=TwoWay}" PlaceholderText="{Binding Text[RulesPlaceholder]}"
+                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="200" FontFamily="Cascadia Code, Consolas" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="{Binding Text[ExcelTab]}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="0,24,16,16" Spacing="18" IsEnabled="{Binding IsIdle}">
+            <CheckBox Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" />
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+              <TextBlock Text="{Binding Text[HorizontalGap]}" />
+              <TextBlock Grid.Column="1" Text="{Binding Text[VerticalGap]}" />
+              <TextBox Grid.Row="1" Text="{Binding Settings.HorizontalGap, Mode=TwoWay}" />
+              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Settings.VerticalGap, Mode=TwoWay}" />
+              <TextBlock Grid.Row="2" Text="{Binding Text[RowHeight]}" Margin="0,10,0,0" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Text[ColumnWidth]}" Margin="0,10,0,0" />
+              <TextBox Grid.Row="3" Text="{Binding Settings.RowHeight, Mode=TwoWay}" />
+              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.ColumnWidth, Mode=TwoWay}" />
+            </Grid>
+            <TextBlock Text="{Binding Text[Template]}" FontWeight="SemiBold" Margin="0,8,0,0" />
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <TextBox Text="{Binding Settings.TemplatePath, Mode=TwoWay}" />
+              <Button Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseTemplateClicked" />
+            </Grid>
+            <TextBlock Classes="muted" Text="{Binding Text[TemplateHint]}" TextWrapping="Wrap" />
+          </StackPanel>
+        </ScrollViewer>
+      </TabItem>
+      <TabItem Header="{Binding Text[AppearanceTab]}">
+        <StackPanel Width="400" HorizontalAlignment="Left" Margin="0,24,0,0" Spacing="14">
+          <TextBlock Text="{Binding Text[Appearance]}" FontWeight="SemiBold" />
+          <ComboBox x:Name="ThemeSelector" ItemsSource="{Binding ThemeChoices}" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="models:ThemeOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Text="{Binding Text[Language]}" FontWeight="SemiBold" Margin="0,12,0,0" />
+          <ComboBox x:Name="LanguageSelector" ItemsSource="{Binding Languages}" SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" />
+          <TextBlock Classes="muted" Text="{Binding Text[SessionHint]}" TextWrapping="Wrap" Margin="0,8,0,0" />
+        </StackPanel>
+      </TabItem>
+    </TabControl>
+    <Button Grid.Row="2" Content="{Binding Text[Validate]}" Click="ValidateClicked" HorizontalAlignment="Left" Margin="0,16,0,0" IsEnabled="{Binding IsIdle}" />
+  </Grid>
+</UserControl>

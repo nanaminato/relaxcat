@@ -6,6 +6,10 @@
 > See `README.md` for the runnable workflow and `docs/phase-one-validation.md` for verified scope.
 > The suggested phases and boundaries below remain design evidence, not confirmed product intent.
 
+> Current desktop UI: `App.axaml` holds themes/styles; `MainWindow.axaml` holds the gallery and lightbox;
+> `Views/SettingsView.axaml` holds separate sizing, Excel, and appearance pages. Observable models provide
+> shared settings, per-image export selection and localization. See D-UI-002, D-GALLERY-001 and D-PREVIEW-001.
+
 ## 1. Overview
 
 RelaxCat is a Windows-first screenshot collection and Excel image layout tool. It is intended as a clean, more extensible reimplementation of an earlier internal tool, without reusing the original source code.
