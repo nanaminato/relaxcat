@@ -6,20 +6,20 @@ Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接�
 
 从 [Releases](https://github.com/nanaminato/relaxcat/releases/latest) 下载 Windows x64 便携版，解压后进入 `RelaxCat-v<版本>-win-x64` 文件夹运行 `RelaxCat.App.exe`：
 
-- **完整便携版**（`RelaxCat-v*-win-x64.zip`）：包含 .NET 8 运行时，无需另行安装。
-- **轻量版**（`RelaxCat-v*-win-x64-framework-dependent.zip`）：不含运行时，需要安装 [.NET 8 x64 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。不要求 Desktop Runtime；只有 .NET 9/10 不能代替 .NET 8。
+- **完整便携版**（`RelaxCat-v*-win-x64.zip`）：包含 .NET 10 运行时，无需另行安装。
+- **轻量版**（`RelaxCat-v*-win-x64-framework-dependent.zip`）：不含运行时，需要安装 [.NET 10 x64 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)。不要求 Desktop Runtime；只有 .NET 8/9 不能代替 .NET 10。
 
 需要 Windows 10 或更新版本、x64。Excel 导出需要本机安装桌面版 Microsoft Excel；没有 Excel 时仍可导入与预览。
 
 ## 从源码运行
 
-需要 .NET 8 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
+需要 .NET 10 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
 
 ```powershell
 dotnet run --project src/RelaxCat.App -c Release
 ```
 
-也可启动构建生成的 `src/RelaxCat.App/bin/Release/net8.0-windows/RelaxCat.App.exe`。
+也可启动构建生成的 `src/RelaxCat.App/bin/Release/net10.0-windows/RelaxCat.App.exe`。
 
 1. 点击「导入图片」选择本地 PNG、JPEG 或 BMP，或把多张图片、文件夹直接拖入窗口——文件夹会递归导入子文件夹中的图片。首页以卡片展示每张图片；取消「参与导出」勾选可保留图片但不导出。卡片上的「复制」复制原始图片到剪贴板，「移除」只移出队列，不删除源文件。
 2. 点击缩略图打开放大预览：支持适应窗口、缩放与滚动、上一张/下一张，左右方向键切换，Esc 或点击背景关闭。预览中的勾选框与卡片同步。

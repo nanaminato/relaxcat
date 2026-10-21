@@ -2,7 +2,8 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <ApplicationIcon>Assets/relaxcat.ico</ApplicationIcon>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Version>0.3.0</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
