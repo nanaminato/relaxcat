@@ -1,10 +1,19 @@
 # RelaxCat
 
-Windows 截图收集与 Excel 排版工具。提供捆绑 Greenshot 截图、文件夹自动导入、手动导入、图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及真实 Excel COM 导出。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語切换。
+Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接拖入窗口、文件夹自动监控、手动导入，提供图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及真实 Excel COM 导出；可选择捆绑的 Greenshot 截图。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語切换。
 
-## 启动
+## 下载
 
-需要 Windows 10 或更新版本、.NET 8 Desktop/Runtime，以及构建用 .NET SDK 10.0.300（见 `global.json`）。Excel 导出需要安装桌面版 Microsoft Excel；没有 Excel 时仍可导入与预览。
+从 [Releases](https://github.com/nanaminato/relaxcat/releases/latest) 下载 Windows x64 便携版，解压后进入 `RelaxCat-v<版本>-win-x64` 文件夹运行 `RelaxCat.App.exe`：
+
+- **完整便携版**（`RelaxCat-v*-win-x64.zip`）：包含 .NET 8 运行时，无需另行安装。
+- **轻量版**（`RelaxCat-v*-win-x64-framework-dependent.zip`）：不含运行时，需要安装 [.NET 8 x64 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)。不要求 Desktop Runtime；只有 .NET 9/10 不能代替 .NET 8。
+
+需要 Windows 10 或更新版本、x64。Excel 导出需要本机安装桌面版 Microsoft Excel；没有 Excel 时仍可导入与预览。
+
+## 从源码运行
+
+需要 .NET 8 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
 
 ```powershell
 dotnet run --project src/RelaxCat.App -c Release
@@ -72,4 +81,4 @@ dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --ex
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --greenshot --excel
 ```
 
-直接集成 Windows 原生截图工具、配置持久化及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`。
+直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`。
