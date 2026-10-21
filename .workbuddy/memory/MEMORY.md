@@ -21,3 +21,6 @@
 - 目标框架统一 .NET 10：`RelaxCat.App` / `SmokeTests` 为 `net10.0-windows`，`RelaxCat.Core` / `Core.Tests` 为 `net10.0`；SDK 版本由 `global.json` 钉在 10.0.300。
 - 应用版本号的唯一来源是 `RelaxCat.App.csproj` 的 `<Version>`（当前 0.3.0）。不要再用发布命令行 `-p:Version=` 覆盖，否则普通构建产物与 Release 不一致（曾经构建出 1.0.0）。
 - 测试机已缓存 `microsoft.netcore.app.runtime.win-x64 10.0.8` 与 host/ref 10.0.x，可离线 `dotnet publish -r win-x64 --self-contained true`。
+- 测试栈：xunit v2（2.9.3）+ `xunit.runner.visualstudio` 4.0.1 + `Microsoft.NET.Test.Sdk` 18.11.0。runner 4.x 仍支持 v2，不要因为版本号跳到 4 就以为必须迁 xunit.v3。
+- 查过期包用 `dotnet list <sln> package --outdated`（本机 curl 直连 api.nuget.org 会 TLS 握手失败）。
+- 截图入库：README 引用的图片必须放在 `docs/images/`（`artifacts/` 被 gitignore，只作本地验证产物）。
