@@ -11,6 +11,16 @@ Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接�
 
 需要 Windows 10 或更新版本、x64。Excel 导出需要本机安装桌面版 Microsoft Excel；没有 Excel 时仍可导入与预览。
 
+## 界面预览
+
+| 图片工作台（浅色） | 图片工作台（深色） |
+| :---: | :---: |
+| ![图片工作台](docs/images/workspace-light.png) | ![深色主题](docs/images/workspace-dark.png) |
+
+| 放大预览 | Excel 排版设置 |
+| :---: | :---: |
+| ![放大预览](docs/images/preview.png) | ![Excel 排版设置](docs/images/settings-excel.png) |
+
 ## 从源码运行
 
 需要 .NET 10 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
