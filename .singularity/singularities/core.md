@@ -235,3 +235,11 @@ Status: Confirmed
 Statement: Before exporting, clear all pictures from the target worksheet, then export the currently selected workspace images starting at the configured row and column. Preserve cell content, non-picture shapes and other worksheets. This supersedes earlier derived append behavior while retaining document reuse.
 
 Confirmation basis: Human instruction, 2026-10-20: exporting to Excel clears its pictures before export.
+
+## S-IMPORT-005
+
+Status: Confirmed
+
+Statement: Images and folders can be dropped onto the RelaxCat window and enter the same import workflow as manual import. A dropped folder contributes the images of its whole subtree, including subfolders, in one action.
+
+Confirmation basis: Human instruction, 2026-10-21: “拖入多张图片或者文件夹（递归子文件夹内的图片）时将图片导入到工作区”.

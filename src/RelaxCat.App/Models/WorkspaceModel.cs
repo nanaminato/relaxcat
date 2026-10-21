@@ -10,7 +10,7 @@ namespace RelaxCat.App.Models;
 
 public sealed class WorkspaceModel : ObservableModel, IDisposable
 {
-    private bool settingsOpen, busy, previewOpen, previewLoading;
+    private bool settingsOpen, busy, previewOpen, previewLoading, dropActive;
     private int languageIndex, themeIndex;
     private string message = "";
     private double progress, previewZoom = 1;
@@ -42,6 +42,8 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
         { Message = Text["SettingsLoadError"] + error.Message; }
         if (this.store.RecoveredFromBackup) Message = Text["SettingsRecovered"];
+        // Restoring a value equal to the field default does not raise a change, so apply the theme explicitly.
+        ApplyTheme(ThemeIndex);
         saveTimer.Tick += (_, _) => FlushSettings();
         Settings.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SettingsModel.SortOrderIndex)) SortImages(); };
         Settings.PropertyChanged += SaveSettings;
@@ -73,7 +75,8 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public bool NoImages => Images.Count == 0;
     public bool CanRemoveAll => IsIdle && Images.Count > 0;
     public bool CanExport => IsIdle && Images.Any(i => i.IncludeInExport);
-    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanApplyCapture)); } } }
+    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { if (value) DropActive = false; Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanApplyCapture)); } } }
+    public bool DropActive { get => dropActive; set => Set(ref dropActive, value); }
     public bool IsIdle => !IsBusy;
     public bool SettingsOpen { get => settingsOpen; set { if (Set(ref settingsOpen, value)) Notify(nameof(HomeOpen)); } }
     public bool HomeOpen => !SettingsOpen;
@@ -109,8 +112,12 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         {
             if (value is < 0 or > 1) return;
             if (!Set(ref themeIndex, value)) return;
-            if (Application.Current is { } app) app.RequestedThemeVariant = value == 1 ? ThemeVariant.Light : ThemeVariant.Dark;
+            ApplyTheme(value);
         }
+    }
+    private static void ApplyTheme(int index)
+    {
+        if (Application.Current is { } app) app.RequestedThemeVariant = index == 1 ? ThemeVariant.Light : ThemeVariant.Dark;
     }
     public string Message { get => message; set => Set(ref message, value); }
     public double Progress { get => progress; set => Set(ref progress, value); }

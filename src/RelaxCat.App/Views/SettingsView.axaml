@@ -3,120 +3,120 @@
              xmlns:models="using:RelaxCat.App.Models"
              x:Class="RelaxCat.App.Views.SettingsView" x:DataType="models:WorkspaceModel" x:CompileBindings="True">
   <Grid RowDefinitions="Auto,*,Auto" Margin="24,20,24,16">
-    <StackPanel Spacing="8" Margin="0,0,0,24">
+    <StackPanel Spacing="8" Margin="0,0,0,18">
       <TextBlock Classes="heading" Text="{Binding Text[Settings]}" />
       <TextBlock Classes="muted" Text="{Binding Text[SettingsHint]}" TextWrapping="Wrap" />
     </StackPanel>
+    <!-- The settings pane keeps one surface behind the tab strip and the page body. -->
     <TabControl Grid.Row="1" FontSize="13" TabStripPlacement="Left" Classes="settings">
       <TabItem FontSize="13" Header="{Binding Text[SizingTab]}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="14" IsEnabled="{Binding IsIdle}">
-            <TextBlock Classes="muted" Text="{Binding Text[SizeHint]}" TextWrapping="Wrap" />
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
-              <TextBlock Text="{Binding Text[DesignWidth]}" />
-              <TextBlock Grid.Column="1" Text="{Binding Text[DesignHeight]}" />
-              <TextBox Grid.Row="1" Text="{Binding Settings.DesignWidth, Mode=TwoWay}" />
-              <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Settings.DesignHeight, Mode=TwoWay}" />
-              <TextBlock Grid.Row="2" Text="{Binding Text[DesignScale]}" Margin="0,10,0,0" />
-              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Text[MaxEnlargement]}" Margin="0,10,0,0" />
-              <TextBox Grid.Row="3" Text="{Binding Settings.DesignScale, Mode=TwoWay}" />
-              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.MaximumEnlargement, Mode=TwoWay}" />
-            </Grid>
-            <TextBlock Text="{Binding Text[Rules]}" FontWeight="SemiBold" Margin="0,8,0,0" />
-            <TextBlock Classes="muted" Text="{Binding Text[RulesHint]}" TextWrapping="Wrap" />
-            <TextBox x:Name="RulesEditor" Text="{Binding Settings.Rules, Mode=TwoWay}" PlaceholderText="{Binding Text[RulesPlaceholder]}"
-                     AcceptsReturn="True" TextWrapping="Wrap" MinHeight="200" FontFamily="Cascadia Code, Consolas" />
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-      <TabItem FontSize="13" Header="{Binding Text[ExcelTab]}">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="14" IsEnabled="{Binding IsIdle}">
-            <CheckBox Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" />
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
-              <TextBlock Text="{Binding Text[HorizontalGap]}" />
-              <TextBlock Grid.Column="1" Text="{Binding Text[VerticalGap]}" />
-              <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBox Text="{Binding Settings.HorizontalGap, Mode=TwoWay}" />
-                <ComboBox x:Name="HorizontalGapUnitSelector" Grid.Column="1" ItemsSource="{Binding GapUnitChoices}" SelectedIndex="{Binding Settings.HorizontalGapUnitIndex, Mode=TwoWay}" MinWidth="106">
-                  <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
-              </Grid>
-              <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                <TextBox Text="{Binding Settings.VerticalGap, Mode=TwoWay}" />
-                <ComboBox x:Name="VerticalGapUnitSelector" Grid.Column="1" ItemsSource="{Binding GapUnitChoices}" SelectedIndex="{Binding Settings.VerticalGapUnitIndex, Mode=TwoWay}" MinWidth="106">
-                  <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
-              </Grid>
-              <TextBlock Grid.Row="2" Text="{Binding Text[RowHeight]}" Margin="0,10,0,0" />
-              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding Text[ColumnWidth]}" Margin="0,10,0,0" />
-              <TextBox Grid.Row="3" Text="{Binding Settings.RowHeight, Mode=TwoWay}" />
-              <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.ColumnWidth, Mode=TwoWay}" />
-            </Grid>
-            <TextBlock Classes="muted" Text="{Binding Text[CellGapHint]}" TextWrapping="Wrap" />
-            <TextBlock Classes="section" Text="{Binding Text[StartCellSection]}" />
-            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="24" RowSpacing="9">
-              <TextBlock Text="{Binding Text[StartRow]}" />
-              <TextBlock Grid.Column="1" Text="{Binding Text[StartColumn]}" />
-              <TextBox x:Name="StartRowInput" Grid.Row="1" Text="{Binding Settings.StartRow, Mode=TwoWay}" />
-              <TextBox x:Name="StartColumnInput" Grid.Row="1" Grid.Column="1" Text="{Binding Settings.StartColumn, Mode=TwoWay}" />
-            </Grid>
-            <TextBlock Classes="muted" Text="{Binding Text[StartCellHint]}" TextWrapping="Wrap" />
-            <TextBlock Classes="section" Text="{Binding Text[WorksheetSection]}" />
-            <CheckBox x:Name="ShowGridlinesOption" Content="{Binding Text[ShowGridlines]}" IsChecked="{Binding Settings.ShowGridlines, Mode=TwoWay}" />
-            <CheckBox x:Name="SelectAllPicturesOption" Content="{Binding Text[SelectAllPictures]}" IsChecked="{Binding Settings.SelectAllPicturesAfterExport, Mode=TwoWay}" />
-            <TextBlock Classes="muted" Text="{Binding Text[SelectPicturesHint]}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding Text[Template]}" FontWeight="SemiBold" Margin="0,8,0,0" />
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-              <TextBox Text="{Binding Settings.TemplatePath, Mode=TwoWay}" />
-              <Button Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseTemplateClicked" />
-            </Grid>
-            <TextBlock Classes="muted" Text="{Binding Text[TemplateHint]}" TextWrapping="Wrap" />
-          </StackPanel>
-        </ScrollViewer>
-      </TabItem>
-      <TabItem FontSize="13" Header="{Binding Text[AppearanceTab]}">
-        <StackPanel Width="400" HorizontalAlignment="Left" Margin="24,8,0,0" Spacing="14">
-          <TextBlock Text="{Binding Text[Appearance]}" FontWeight="SemiBold" />
-          <ComboBox x:Name="ThemeSelector" ItemsSource="{Binding ThemeChoices}" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
-            <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
-            </ComboBox.ItemTemplate>
-          </ComboBox>
-          <TextBlock Text="{Binding Text[Language]}" FontWeight="SemiBold" Margin="0,12,0,0" />
-          <ComboBox x:Name="LanguageSelector" ItemsSource="{Binding Languages}" SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" />
-          <TextBlock Classes="muted" Text="{Binding Text[SessionHint]}" TextWrapping="Wrap" Margin="0,8,0,0" />
-        </StackPanel>
-      </TabItem>
-      <TabItem x:Name="CaptureTab" FontSize="13" Header="{Binding Text[CaptureTab]}">
-        <Grid RowDefinitions="*,Auto">
           <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="24,8,12,16" Spacing="12">
-            <TextBlock Text="{Binding CaptureStatus}" FontWeight="SemiBold" />
-            <StackPanel Spacing="14" IsEnabled="{Binding CanApplyCapture}">
-              <TextBlock Text="{Binding Text[CaptureProvider]}" />
-              <ComboBox x:Name="CaptureProviderSelector" ItemsSource="{Binding CaptureProviderChoices}" SelectedIndex="{Binding Capture.ProviderIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
-                <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-              </ComboBox>
-              <TextBlock Text="{Binding Text[CaptureFolder]}" />
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                <TextBox x:Name="CaptureFolderInput" Text="{Binding Capture.Folder, Mode=TwoWay}" MinWidth="340" />
-                <Button Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseCaptureFolderClicked" />
+            <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="26,10,16,20" Spacing="14" IsEnabled="{Binding IsIdle}">
+              <TextBlock Classes="muted" Text="{Binding Text[SizeHint]}" TextWrapping="Wrap" />
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+                <TextBlock Classes="field" Text="{Binding Text[DesignWidth]}" />
+                <TextBlock Grid.Column="1" Classes="field" Text="{Binding Text[DesignHeight]}" />
+                <TextBox Grid.Row="1" Text="{Binding Settings.DesignWidth, Mode=TwoWay}" />
+                <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Settings.DesignHeight, Mode=TwoWay}" />
+                <TextBlock Grid.Row="2" Classes="field" Text="{Binding Text[DesignScale]}" Margin="0,10,0,1" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Classes="field" Text="{Binding Text[MaxEnlargement]}" Margin="0,10,0,1" />
+                <TextBox Grid.Row="3" Text="{Binding Settings.DesignScale, Mode=TwoWay}" />
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.MaximumEnlargement, Mode=TwoWay}" />
               </Grid>
-              <TextBlock Classes="muted" Text="{Binding Text[CaptureFolderHint]}" TextWrapping="Wrap" />
-              <StackPanel Spacing="12" IsVisible="{Binding Capture.IsGreenshot}">
-                <TextBlock Classes="muted" Text="{Binding Text[CaptureGreenshotHint]}" TextWrapping="Wrap" />
-              </StackPanel>
+              <TextBlock Classes="section" Text="{Binding Text[Rules]}" />
+              <TextBlock Classes="muted" Text="{Binding Text[RulesHint]}" TextWrapping="Wrap" />
+              <TextBox x:Name="RulesEditor" Text="{Binding Settings.Rules, Mode=TwoWay}" PlaceholderText="{Binding Text[RulesPlaceholder]}"
+                       AcceptsReturn="True" TextWrapping="Wrap" MinHeight="200" FontFamily="Cascadia Code, Consolas" />
             </StackPanel>
-          </StackPanel>
           </ScrollViewer>
-          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="0,12,0,0">
-            <Button x:Name="ApplyCaptureButton" Classes="primary" Content="{Binding Text[CaptureApply]}" Click="ApplyCaptureClicked" IsEnabled="{Binding CanApplyCapture}" />
-            <Button x:Name="StopCaptureButton" Content="{Binding Text[CaptureStop]}" Click="StopCaptureClicked" IsEnabled="{Binding CanStopCapture}" />
+        </TabItem>
+        <TabItem FontSize="13" Header="{Binding Text[ExcelTab]}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="26,10,16,20" Spacing="14" IsEnabled="{Binding IsIdle}">
+              <CheckBox Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" />
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+                <TextBlock Classes="field" Text="{Binding Text[HorizontalGap]}" />
+                <TextBlock Grid.Column="1" Classes="field" Text="{Binding Text[VerticalGap]}" />
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox Text="{Binding Settings.HorizontalGap, Mode=TwoWay}" />
+                  <ComboBox x:Name="HorizontalGapUnitSelector" Grid.Column="1" ItemsSource="{Binding GapUnitChoices}" SelectedIndex="{Binding Settings.HorizontalGapUnitIndex, Mode=TwoWay}" MinWidth="106">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+                <Grid Grid.Row="1" Grid.Column="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox Text="{Binding Settings.VerticalGap, Mode=TwoWay}" />
+                  <ComboBox x:Name="VerticalGapUnitSelector" Grid.Column="1" ItemsSource="{Binding GapUnitChoices}" SelectedIndex="{Binding Settings.VerticalGapUnitIndex, Mode=TwoWay}" MinWidth="106">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                </Grid>
+                <TextBlock Grid.Row="2" Classes="field" Text="{Binding Text[RowHeight]}" Margin="0,10,0,1" />
+                <TextBlock Grid.Row="2" Grid.Column="1" Classes="field" Text="{Binding Text[ColumnWidth]}" Margin="0,10,0,1" />
+                <TextBox Grid.Row="3" Text="{Binding Settings.RowHeight, Mode=TwoWay}" />
+                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Settings.ColumnWidth, Mode=TwoWay}" />
+              </Grid>
+              <TextBlock Classes="muted" Text="{Binding Text[CellGapHint]}" TextWrapping="Wrap" />
+              <TextBlock Classes="section" Text="{Binding Text[StartCellSection]}" />
+              <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="24" RowSpacing="9">
+                <TextBlock Classes="field" Text="{Binding Text[StartRow]}" />
+                <TextBlock Grid.Column="1" Classes="field" Text="{Binding Text[StartColumn]}" />
+                <TextBox x:Name="StartRowInput" Grid.Row="1" Text="{Binding Settings.StartRow, Mode=TwoWay}" />
+                <TextBox x:Name="StartColumnInput" Grid.Row="1" Grid.Column="1" Text="{Binding Settings.StartColumn, Mode=TwoWay}" />
+              </Grid>
+              <TextBlock Classes="muted" Text="{Binding Text[StartCellHint]}" TextWrapping="Wrap" />
+              <TextBlock Classes="section" Text="{Binding Text[WorksheetSection]}" />
+              <CheckBox x:Name="ShowGridlinesOption" Content="{Binding Text[ShowGridlines]}" IsChecked="{Binding Settings.ShowGridlines, Mode=TwoWay}" />
+              <CheckBox x:Name="SelectAllPicturesOption" Content="{Binding Text[SelectAllPictures]}" IsChecked="{Binding Settings.SelectAllPicturesAfterExport, Mode=TwoWay}" />
+              <TextBlock Classes="muted" Text="{Binding Text[SelectPicturesHint]}" TextWrapping="Wrap" />
+              <TextBlock Classes="section" Text="{Binding Text[Template]}" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                <TextBox Text="{Binding Settings.TemplatePath, Mode=TwoWay}" />
+                <Button Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseTemplateClicked" />
+              </Grid>
+              <TextBlock Classes="muted" Text="{Binding Text[TemplateHint]}" TextWrapping="Wrap" />
+            </StackPanel>
+          </ScrollViewer>
+        </TabItem>
+        <TabItem FontSize="13" Header="{Binding Text[AppearanceTab]}">
+          <StackPanel MaxWidth="400" HorizontalAlignment="Left" Margin="26,10,16,20" Spacing="14">
+            <TextBlock Classes="section" Text="{Binding Text[Appearance]}" Margin="0,0,0,1" />
+            <ComboBox x:Name="ThemeSelector" ItemsSource="{Binding ThemeChoices}" SelectedIndex="{Binding ThemeIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <TextBlock Classes="section" Text="{Binding Text[Language]}" Margin="0,10,0,1" />
+            <ComboBox x:Name="LanguageSelector" ItemsSource="{Binding Languages}" SelectedIndex="{Binding LanguageIndex, Mode=TwoWay}" HorizontalAlignment="Stretch" />
           </StackPanel>
-        </Grid>
-      </TabItem>
-    </TabControl>
-    <TextBlock Grid.Row="2" Classes="muted" Text="{Binding Text[SessionHint]}" Margin="0,16,0,0" VerticalAlignment="Center" />
+        </TabItem>
+        <TabItem x:Name="CaptureTab" FontSize="13" Header="{Binding Text[CaptureTab]}">
+          <Grid RowDefinitions="*,Auto">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+              <StackPanel MaxWidth="680" HorizontalAlignment="Left" Margin="26,10,16,16" Spacing="12">
+                <TextBlock Text="{Binding CaptureStatus}" FontWeight="SemiBold" />
+                <StackPanel Spacing="10" IsEnabled="{Binding CanApplyCapture}">
+                  <TextBlock Classes="field" Text="{Binding Text[CaptureProvider]}" Margin="0,4,0,1" />
+                  <ComboBox x:Name="CaptureProviderSelector" ItemsSource="{Binding CaptureProviderChoices}" SelectedIndex="{Binding Capture.ProviderIndex, Mode=TwoWay}" HorizontalAlignment="Stretch">
+                    <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <TextBlock Classes="field" Text="{Binding Text[CaptureFolder]}" Margin="0,10,0,1" />
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                    <TextBox x:Name="CaptureFolderInput" Text="{Binding Capture.Folder, Mode=TwoWay}" MinWidth="340" />
+                    <Button Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseCaptureFolderClicked" />
+                  </Grid>
+                  <TextBlock Classes="muted" Text="{Binding Text[CaptureFolderHint]}" TextWrapping="Wrap" />
+                  <StackPanel Spacing="12" IsVisible="{Binding Capture.IsGreenshot}">
+                    <TextBlock Classes="muted" Text="{Binding Text[CaptureGreenshotHint]}" TextWrapping="Wrap" />
+                  </StackPanel>
+                </StackPanel>
+              </StackPanel>
+            </ScrollViewer>
+            <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="26,12,16,16">
+              <Button x:Name="ApplyCaptureButton" Classes="primary" Content="{Binding Text[CaptureApply]}" Click="ApplyCaptureClicked" IsEnabled="{Binding CanApplyCapture}" />
+              <Button x:Name="StopCaptureButton" Content="{Binding Text[CaptureStop]}" Click="StopCaptureClicked" IsEnabled="{Binding CanStopCapture}" />
+            </StackPanel>
+          </Grid>
+        </TabItem>
+      </TabControl>
+    <TextBlock Grid.Row="2" Classes="muted" Text="{Binding Text[SessionHint]}" Margin="0,12,0,0" VerticalAlignment="Center" />
   </Grid>
 </UserControl>

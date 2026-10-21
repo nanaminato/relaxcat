@@ -7,6 +7,7 @@ using Avalonia.Platform.Storage;
 using RelaxCat.App.Models;
 using RelaxCat.Core.Export;
 using RelaxCat.Core.Imaging;
+using RelaxCat.Core.Import;
 
 namespace RelaxCat.App;
 
@@ -26,6 +27,12 @@ public sealed partial class MainWindow : Window
     {
         Workspace = new WorkspaceModel(store);
         InitializeComponent();
+        // The window covers every page, so one drop target serves the whole app; files and folders both import.
+        DragDrop.SetAllowDrop(this, true);
+        AddHandler(DragDrop.DragEnterEvent, WindowDragOver);
+        AddHandler(DragDrop.DragOverEvent, WindowDragOver);
+        AddHandler(DragDrop.DragLeaveEvent, WindowDragLeave);
+        AddHandler(DragDrop.DropEvent, WindowDropped);
         DataContext = Workspace;
         Opened += async (_, _) => { if (Workspace.Capture.ProviderIndex != 0) await ApplyCaptureAsync(); };
         Closing += WindowClosing;
@@ -86,6 +93,54 @@ public sealed partial class MainWindow : Window
         catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ImportCancelled"]; }
         finally { operation.Dispose(); operation = null; Workspace.IsBusy = false; }
     }
+
+    private void WindowDragOver(object? sender, DragEventArgs e)
+    {
+        var accepted = !closed && Workspace.IsIdle && DroppedPaths(e).Count > 0;
+        e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+        e.Handled = true;
+        Workspace.DropActive = accepted;
+    }
+    private void WindowDragLeave(object? sender, DragEventArgs e) { Workspace.DropActive = false; e.Handled = true; }
+    private async void WindowDropped(object? sender, DragEventArgs e)
+    {
+        Workspace.DropActive = false;
+        var paths = DroppedPaths(e);
+        e.Handled = true;
+        e.DragEffects = !closed && Workspace.IsIdle && paths.Count > 0 ? DragDropEffects.Copy : DragDropEffects.None;
+        if (closed || paths.Count == 0) return;
+        await DropPathsAsync(paths);
+    }
+    private static List<string> DroppedPaths(DragEventArgs e)
+    {
+        var paths = new List<string>();
+        if (e.DataTransfer is not { } transfer || transfer.TryGetFiles() is not { } files) return paths;
+        foreach (var file in files) if (file.TryGetLocalPath() is { } path) paths.Add(path);
+        return paths;
+    }
+
+    /// <summary>Imports dropped images and the images of dropped folders, subfolders included.</summary>
+    internal async Task DropPathsAsync(IReadOnlyList<string> droppedPaths, CancellationToken cancellationToken = default)
+    {
+        if (closed || droppedPaths.Count == 0) return;
+        if (Workspace.IsBusy) { Workspace.Message = Workspace.Text["DropBusy"]; return; }
+        DropPathResolver.Resolution resolution;
+        try { resolution = await Task.Run(() => DropPathResolver.Resolve(droppedPaths), cancellationToken); }
+        catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ImportCancelled"]; return; }
+        if (resolution.Images.Count == 0)
+        {
+            Workspace.Message = resolution.Issues.Count == 0 ? Workspace.Text["DropNoImages"] : DescribeIssues(resolution.Issues);
+            return;
+        }
+        Workspace.SettingsOpen = false;
+        await ImportPathsAsync(resolution.Images, cancellationToken);
+        // Keep the import result, but do not hide folders that could not be read.
+        if (closed || resolution.Issues.Count == 0 || Workspace.Message == Workspace.Text["ImportCancelled"]) return;
+        Workspace.Message += " · " + DescribeIssues(resolution.Issues);
+    }
+    private string DescribeIssues(IReadOnlyList<DropIssue> issues) =>
+        Workspace.Text["DropErrors"] + string.Join("; ", issues.Select(issue =>
+            Workspace.Text[issue.Kind == DropIssueKind.NotFound ? "DropNotFound" : "DropUnreadable"] + " " + issue.Path));
 
     private ImageItem LoadImage(string path)
     {

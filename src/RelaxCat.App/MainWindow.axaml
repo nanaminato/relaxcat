@@ -14,9 +14,9 @@
           <TextBlock Text="RelaxCat" FontSize="18" FontWeight="SemiBold" />
           <TextBlock Classes="muted" Text="{Binding Text[Tagline]}" />
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-          <Button x:Name="ThemeButton" Classes="quiet" Content="{Binding Text[Theme]}" Click="ToggleThemeClicked" />
-          <Border Width="1" Background="{DynamicResource LineBrush}" Margin="4,6" />
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button x:Name="ThemeButton" Classes="quiet" Content="{Binding Text[Theme]}" Click="ToggleThemeClicked" FontSize="12" Padding="10,6" ToolTip.Tip="{Binding Text[ThemeHint]}" />
+          <Border Width="1" Height="18" Background="{DynamicResource LineBrush}" Margin="2,0" />
           <Button x:Name="ImportButton" Content="{Binding Text[Import]}" Click="ImportClicked" IsEnabled="{Binding IsIdle}" />
           <Button x:Name="ExportButton" Classes="primary" Content="{Binding Text[Export]}" Click="ExportClicked" IsEnabled="{Binding CanExport}" />
         </StackPanel>
@@ -44,19 +44,17 @@
               <TextBlock x:Name="SummaryLabel" Text="{Binding Summary}" FontSize="12" />
             </Border>
           </Grid>
-          <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" CornerRadius="8" Padding="16,10" Margin="8,0,12,16">
-            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,Auto,*,Auto" IsEnabled="{Binding IsIdle}">
-              <TextBlock Text="{Binding Text[DesignScale]}" VerticalAlignment="Center" Margin="0,0,12,0" />
-              <TextBox x:Name="QuickScale" Grid.Column="1" Width="80" Text="{Binding Settings.DesignScale, Mode=TwoWay}" />
-              <CheckBox Grid.Column="2" Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" Margin="24,0,0,0" />
-              <Button Grid.Column="4" Classes="quiet" Content="{Binding Text[MoreSettings]}" Click="SettingsClicked" />
-              <Grid Grid.Row="1" Grid.ColumnSpan="5" ColumnDefinitions="Auto,Auto,*,Auto" Margin="0,10,0,0">
-                <TextBlock Text="{Binding Text[SortOrder]}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                <ComboBox x:Name="SortOrderSelector" Grid.Column="1" ItemsSource="{Binding SortOrderChoices}" SelectedIndex="{Binding Settings.SortOrderIndex, Mode=TwoWay}" MinWidth="180" ToolTip.Tip="{Binding Text[SortTimeHint]}">
-                  <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button x:Name="RemoveAllButton" Grid.Column="3" Classes="quiet" Content="{Binding Text[RemoveAll]}" ToolTip.Tip="{Binding Text[RemoveAllHint]}" IsEnabled="{Binding CanRemoveAll}" Click="RemoveAllClicked" />
-              </Grid>
+          <Border Grid.Row="1" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="8" Padding="16,11" Margin="8,0,12,16">
+            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto,Auto,*,Auto,Auto" IsEnabled="{Binding IsIdle}">
+              <TextBlock Classes="field" Text="{Binding Text[DesignScale]}" VerticalAlignment="Center" Margin="0,0,10,0" />
+              <TextBox x:Name="QuickScale" Grid.Column="1" Width="76" Text="{Binding Settings.DesignScale, Mode=TwoWay}" VerticalAlignment="Center" />
+              <CheckBox Grid.Column="2" Content="{Binding Text[Compact]}" IsChecked="{Binding Settings.Compact, Mode=TwoWay}" Margin="20,0,0,0" VerticalAlignment="Center" />
+              <Button Grid.Column="4" Classes="quiet" Content="{Binding Text[MoreSettings]}" Click="SettingsClicked" FontSize="12" Padding="10,6" />
+              <Button x:Name="RemoveAllButton" Grid.Column="5" Classes="danger" Content="{Binding Text[RemoveAll]}" ToolTip.Tip="{Binding Text[RemoveAllHint]}" IsEnabled="{Binding CanRemoveAll}" Click="RemoveAllClicked" FontSize="12" Padding="10,6" Margin="2,0,0,0" />
+              <TextBlock Grid.Row="1" Classes="field" Text="{Binding Text[SortOrder]}" VerticalAlignment="Center" Margin="0,12,10,0" />
+              <ComboBox x:Name="SortOrderSelector" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="0,12,0,0" ItemsSource="{Binding SortOrderChoices}" SelectedIndex="{Binding Settings.SortOrderIndex, Mode=TwoWay}" MinWidth="190" ToolTip.Tip="{Binding Text[SortTimeHint]}">
+                <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
             </Grid>
           </Border>
           <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -76,11 +74,11 @@
                       </Button>
                       <TextBlock Grid.Row="1" Text="{Binding Name}" FontWeight="SemiBold" Margin="14,13,14,0" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Image.Path}" />
                       <TextBlock Grid.Row="2" Classes="muted" Text="{Binding Details}" Margin="14,5,14,10" />
-                      <Border Grid.Row="3" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,4">
+                      <Border Grid.Row="3" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,3">
                         <Grid ColumnDefinitions="*,Auto,Auto">
-                          <CheckBox Content="{Binding Text[Include]}" IsChecked="{Binding IncludeInExport, Mode=TwoWay}" FontSize="12" />
-                          <Button Grid.Column="1" Classes="quiet" Padding="8,8" Content="{Binding Text[Copy]}" FontSize="12" Click="CopyImageClicked" ToolTip.Tip="{Binding Text[CopyHint]}" />
-                          <Button Grid.Column="2" Classes="quiet" Padding="8,8" Content="{Binding Text[Remove]}" FontSize="12" Click="RemoveImageClicked" ToolTip.Tip="{Binding Text[RemoveHint]}" />
+                          <CheckBox Content="{Binding Text[Include]}" IsChecked="{Binding IncludeInExport, Mode=TwoWay}" FontSize="12" MinHeight="28" />
+                          <Button Grid.Column="1" Classes="quiet" Padding="8,6" Content="{Binding Text[Copy]}" FontSize="12" Foreground="{DynamicResource MutedBrush}" Click="CopyImageClicked" ToolTip.Tip="{Binding Text[CopyHint]}" />
+                          <Button Grid.Column="2" Classes="quiet" Padding="8,6" Content="{Binding Text[Remove]}" FontSize="12" Foreground="{DynamicResource MutedBrush}" Click="RemoveImageClicked" ToolTip.Tip="{Binding Text[RemoveHint]}" />
                         </Grid>
                       </Border>
                     </Grid>
@@ -89,15 +87,15 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </ScrollViewer>
-          <StackPanel Grid.Row="2" IsVisible="{Binding NoImages}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="14" Margin="20">
-            <Border Background="{DynamicResource AccentSoftBrush}" Width="76" Height="76" CornerRadius="20" HorizontalAlignment="Center" Margin="0,0,0,8">
+          <StackPanel Grid.Row="2" IsVisible="{Binding NoImages}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Margin="20,0,20,40">
+            <Border Background="{DynamicResource AccentSoftBrush}" Width="72" Height="72" CornerRadius="18" HorizontalAlignment="Center" Margin="0,0,0,4">
               <Path Data="M 4,4 L 36,4 L 36,32 L 4,32 Z M 4,26 L 15,15 L 23,23 L 29,17 L 36,24 M 26,10 L 29,10"
-                    Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" Width="40" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" Width="38" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
-            <TextBlock Text="{Binding Text[EmptyTitle]}" FontSize="23" FontWeight="SemiBold" HorizontalAlignment="Center" />
-            <TextBlock Classes="muted" Text="{Binding Text[EmptyHint]}" TextWrapping="Wrap" MaxWidth="450" TextAlignment="Center" />
-            <Button Classes="primary" Content="{Binding Text[Import]}" Click="ImportClicked" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Center" Margin="0,8" />
-            <TextBlock Classes="muted" Text="{Binding Text[EmptyFormats]}" HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding Text[EmptyTitle]}" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Classes="muted" Text="{Binding Text[EmptyHint]}" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center" />
+            <Button Classes="primary" Content="{Binding Text[Import]}" Click="ImportClicked" IsEnabled="{Binding IsIdle}" HorizontalAlignment="Center" Margin="0,4" Padding="18,8" />
+            <TextBlock Classes="muted" Text="{Binding Text[EmptyFormats]}" HorizontalAlignment="Center" FontSize="11" />
           </StackPanel>
         </Grid>
         <views:SettingsView x:Name="SettingsPage" IsVisible="{Binding SettingsOpen}" ApplyCaptureRequested="ApplyCaptureRequested" StopCaptureRequested="StopCaptureRequested" />
@@ -110,6 +108,21 @@
         <Button Grid.Column="1" Content="{Binding Text[Cancel]}" Click="CancelClicked" IsVisible="{Binding IsBusy}" Padding="12,5" Margin="12,0,0,0" />
         <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Height="3" Margin="0,7,0,0" Minimum="0" Maximum="1" Value="{Binding Progress}" IsVisible="{Binding IsBusy}" />
       </Grid>
+    </Border>
+
+    <!-- Drop feedback. Files and folders (including subfolders) are imported into the workspace. -->
+    <Border x:Name="DropOverlay" Grid.RowSpan="3" ZIndex="9" IsVisible="{Binding DropActive}" IsHitTestVisible="False" Background="#66141620">
+      <Border Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource AccentBrush}" BorderThickness="1" CornerRadius="14"
+              Padding="48,34" HorizontalAlignment="Center" VerticalAlignment="Center" BoxShadow="0 18 70 0 #55000000">
+        <StackPanel Spacing="12" HorizontalAlignment="Center">
+          <Border Background="{DynamicResource AccentSoftBrush}" Width="64" Height="64" CornerRadius="16" HorizontalAlignment="Center">
+            <Path Data="M 4,22 L 4,32 L 32,32 L 32,22 M 18,4 L 18,24 M 10,12 L 18,4 L 26,12"
+                  Stroke="{DynamicResource AccentBrush}" StrokeThickness="2" Width="40" Height="40" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="{Binding Text[DropHere]}" FontSize="18" FontWeight="SemiBold" HorizontalAlignment="Center" />
+          <TextBlock Classes="muted" Text="{Binding Text[DropHint]}" HorizontalAlignment="Center" MaxWidth="420" TextAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
     </Border>
 
     <!-- In-window lightbox inherits theme/language and leaves the gallery in place. -->

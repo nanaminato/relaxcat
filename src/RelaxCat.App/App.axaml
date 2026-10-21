@@ -13,16 +13,36 @@
           <SolidColorBrush x:Key="InkBrush">#E7E9EF</SolidColorBrush>
           <SolidColorBrush x:Key="MutedBrush">#A1A5B1</SolidColorBrush>
           <SolidColorBrush x:Key="AccentSoftBrush">#253A59</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentInkBrush">#9CBCFF</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentHoverBrush">#6C9BFF</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentPressedBrush">#457BEA</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlBrush">#3A3D43</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlHoverBrush">#44474E</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlPressedBrush">#4C5058</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlBorderBrush">#4C5058</SolidColorBrush>
+          <SolidColorBrush x:Key="DangerBrush">#E4837B</SolidColorBrush>
+          <SolidColorBrush x:Key="DangerSoftBrush">#3F2A2A</SolidColorBrush>
+          <SolidColorBrush x:Key="OverlayBrush">#B3141620</SolidColorBrush>
         </ResourceDictionary>
         <ResourceDictionary x:Key="Light">
           <SolidColorBrush x:Key="PageBrush">#F3F4F7</SolidColorBrush>
           <SolidColorBrush x:Key="SurfaceBrush">#FFFFFF</SolidColorBrush>
           <SolidColorBrush x:Key="RaisedBrush">#F8F9FC</SolidColorBrush>
-          <SolidColorBrush x:Key="WellBrush">#ECEEF3</SolidColorBrush>
+          <SolidColorBrush x:Key="WellBrush">#EDEFF4</SolidColorBrush>
           <SolidColorBrush x:Key="LineBrush">#DDE1E9</SolidColorBrush>
           <SolidColorBrush x:Key="InkBrush">#222733</SolidColorBrush>
           <SolidColorBrush x:Key="MutedBrush">#646C7D</SolidColorBrush>
           <SolidColorBrush x:Key="AccentSoftBrush">#E5EEFF</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentInkBrush">#2F5FC4</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentHoverBrush">#3F79E8</SolidColorBrush>
+          <SolidColorBrush x:Key="AccentPressedBrush">#2A64D4</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlBrush">#FFFFFF</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlHoverBrush">#F2F5FB</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlPressedBrush">#E7ECF5</SolidColorBrush>
+          <SolidColorBrush x:Key="ControlBorderBrush">#D5DAE4</SolidColorBrush>
+          <SolidColorBrush x:Key="DangerBrush">#C0392B</SolidColorBrush>
+          <SolidColorBrush x:Key="DangerSoftBrush">#FBEAE7</SolidColorBrush>
+          <SolidColorBrush x:Key="OverlayBrush">#B3141620</SolidColorBrush>
         </ResourceDictionary>
       </ResourceDictionary.ThemeDictionaries>
       <SolidColorBrush x:Key="AccentBrush">#568AF2</SolidColorBrush>
@@ -44,28 +64,120 @@
       <Setter Property="FontSize" Value="26" />
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="TextBlock.field">
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Margin" Value="0,0,0,1" />
+    </Style>
+
+    <!-- Buttons: every state is theme-driven so secondary actions never fall back to a platform colour. -->
     <Style Selector="Button">
+      <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
       <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="14,9" />
+      <Setter Property="Padding" Value="14,7" />
+      <Setter Property="MinHeight" Value="30" />
+      <Setter Property="FontSize" Value="13" />
       <Setter Property="Cursor" Value="Hand" />
     </Style>
+    <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+    </Style>
+    <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+    </Style>
+    <!-- Disabled buttons keep their shape but lose emphasis instead of turning into a solid grey chip. -->
+    <Style Selector="Button:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
     <Style Selector="Button.primary">
       <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentHoverBrush}" />
       <Setter Property="Foreground" Value="White" />
     </Style>
+    <Style Selector="Button.primary:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentPressedBrush}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+    <Style Selector="Button.primary:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}" />
+    </Style>
+
     <Style Selector="Button.quiet">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
     </Style>
+    <Style Selector="Button.quiet:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.quiet:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlPressedBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <!-- Text actions keep a flat surface when disabled; a filled chip would read as a real button. -->
+    <Style Selector="Button.quiet:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <!-- Destructive but low-emphasis: muted until hovered. -->
+    <Style Selector="Button.danger">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+    </Style>
+    <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource DangerSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource DangerBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+    <Style Selector="Button.danger:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <Style Selector="Button.nav">
       <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="HorizontalContentAlignment" Value="Left" />
       <Setter Property="Background" Value="Transparent" />
-      <Setter Property="Padding" Value="16,12" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="Padding" Value="14,11" />
+    </Style>
+    <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource ControlHoverBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
     </Style>
     <Style Selector="Button.nav.active">
       <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
+    <Style Selector="Button.nav.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource AccentSoftBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource AccentInkBrush}" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
     <Style Selector="Border.card">
       <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
       <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
@@ -86,6 +198,7 @@
     <Style Selector="TabControl.settings TabItem">
       <Setter Property="MinWidth" Value="142" />
       <Setter Property="Padding" Value="12,10" />
+      <Setter Property="Margin" Value="0,2,8,2" />
       <Setter Property="HorizontalContentAlignment" Value="Left" />
     </Style>
     <Style Selector="TabControl.settings TabItem:selected">
@@ -93,7 +206,8 @@
     </Style>
     <Style Selector="TextBlock.section">
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="Margin" Value="0,14,0,2" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="Margin" Value="0,16,0,2" />
     </Style>
     <Style Selector="TabControl.settings TextBox">
       <Setter Property="MinHeight" Value="30" />

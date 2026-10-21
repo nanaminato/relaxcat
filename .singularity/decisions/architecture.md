@@ -241,3 +241,39 @@ Upstream: S-IMPORT-003, S-IMPORT-004, S-WORKFLOW-001
 Decision: Snapshot file last-write UTC at import, default to oldest first, and support newest first and original import order. Use a monotonic per-item import sequence for ties. Insert new items into the current order and move existing item objects when sorting, preserving selection and preview identity. Export uses stable image IDs for source mapping. Clear-all releases item resources and clears the collection without deleting files or touching Excel; it is disabled while busy and does not stop monitoring.
 
 Reason: File last-write time is available consistently for screenshots and manual imports; UTC comparisons avoid local-time ambiguity. Retaining item objects keeps per-image state intact. No export tracking or automatic export is introduced.
+
+## D-IMPORT-DROP-001
+
+Status: Active
+
+Upstream: S-IMPORT-005, S-IMPORT-001
+
+Decision: Resolve dropped paths in the platform-free core (`DropPathResolver`) before touching the UI. Walk folders with an explicit stack, expand files in name order before descending, skip nested reparse points so junctions cannot loop, tolerate per-folder read failures, and de-duplicate by full path. Return images, ignored non-images and structured issues (not localized strings); the window formats issues via `UiText` and imports the resolved images through the existing `ImportPathsAsync` pipeline, so progress, cancellation and time sorting behave exactly like manual import.
+
+Reason: One dropped folder must not abort the rest of the drop, and localization belongs to the UI layer. Reusing the manual import pipeline keeps a single import behaviour instead of a second, subtly different path.
+
+Evidence: `src/RelaxCat.Core/Import/DropPathResolver.cs`, `src/RelaxCat.App/MainWindow.axaml.cs`, `tests/RelaxCat.Core.Tests/DropTests.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.
+
+## D-UI-003
+
+Status: Active
+
+Upstream: S-UI-001, S-UI-003
+
+Decision: Define explicit theme brushes for every button state (surface, hover, pressed, border, disabled, primary, quiet, danger, navigation) in the theme dictionaries, and override both the control and its template content presenter (`/template/ ContentPresenter#PART_ContentPresenter`) for hover, pressed and disabled. Disabled text actions stay flat instead of inheriting a filled platform background.
+
+Reason: Relying on framework defaults produced a fixed dark fill for secondary buttons in the light theme, so the secondary and primary hierarchy read backwards, and disabled text actions appeared as solid chips that look like enabled buttons.
+
+Evidence: `src/RelaxCat.App/App.axaml`, `artifacts/desktop-gallery-light.png`, `artifacts/desktop-gallery-dark.png`.
+
+## D-UI-004
+
+Status: Active
+
+Upstream: S-UI-003, S-SETTINGS-001
+
+Decision: Apply the resolved theme to the application explicitly after settings restore instead of relying on the `ThemeIndex` change notification, because restoring a value equal to the field default raises no change and would leave the previous application-wide variant in place.
+
+Reason: The settings store is process-independent, and more than one workspace instance can exist (tests, restart), so a variant left over from another instance would silently override the stored preference.
+
+Evidence: `src/RelaxCat.App/Models/WorkspaceModel.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.

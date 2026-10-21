@@ -79,7 +79,9 @@ T Control<T>(string name) where T : Control => window.FindControl<T>(name) ?? th
 
 Check(Equals(Control<Button>("ImportButton").Content, "导入图片"), "Chinese UI missing");
 Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "QuickScale") && !Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "RulesEditor"), "Home is missing quick settings or contains detailed settings");
+Check(window.ActualThemeVariant == ThemeVariant.Dark, "Default dark theme was not applied at startup");
 Capture("desktop-empty-dark.png");
+Click(Control<Button>("ThemeButton"));
 Click(Control<Button>("SettingsButton"));
 var settings = Control<SettingsView>("SettingsPage");
 Check(settings.IsVisible && !Control<Grid>("HomePage").IsVisible, "Settings did not open as a separate page");
@@ -164,6 +166,12 @@ var target = new RecordingTarget();
 new ImageExporter().Export(window.Workspace.ExportSelection(), window.Workspace.Settings.CreateOptions(window.Workspace.Text), target, null, default);
 Check(!target.Paths.Contains(first.Image.Path) && target.Paths.Count == paths.Length - 1, "Unchecked image reached exporter");
 Capture("desktop-gallery-light.png");
+var exportButton = Control<Button>("ExportButton");
+var hoverPoint = exportButton.TranslatePoint(new Point(exportButton.Bounds.Width / 2, exportButton.Bounds.Height / 2), window) ?? new Point(0, 0);
+window.MouseMove(hoverPoint, RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
+Check(exportButton.IsPointerOver, "Pointer-over state did not reach the export button");
+Capture("desktop-hover-light.png");
+window.MouseMove(new Point(4, 4), RawInputModifiers.None); Dispatcher.UIThread.RunJobs();
 Click(Control<Button>("ThemeButton")); Check(window.ActualThemeVariant == ThemeVariant.Dark, "Dark theme toggle did not apply");
 Capture("desktop-gallery-dark.png");
 
@@ -201,9 +209,42 @@ var previousCount = window.Workspace.Images.Count; Complete(window.ImportPathsAs
 Check(window.Workspace.Images.Count == previousCount && window.Workspace.Message.StartsWith(window.Workspace.Text["ImportErrors"]), "Corrupt file handling failed");
 window.Workspace.Settings.Rules = "width > 0\nscale = 1\ninvalid\nscale = 2";
 CheckThrows(() => window.Workspace.Settings.CreateOptions(window.Workspace.Text)); window.Workspace.Settings.Rules = "";
+// Drag & drop through the real headless drag pipeline: folders expand recursively; duplicates and non-images are skipped.
+Check(DragDrop.GetAllowDrop(window), "Window does not accept dropped files");
+var dropRoot = Path.GetFullPath("artifacts/drop-" + Guid.NewGuid().ToString("N"));
+var dropDeep = Path.Combine(dropRoot, "nested", "deeper");
+Directory.CreateDirectory(dropDeep);
+File.Copy(paths[0], Path.Combine(dropRoot, "dropped.png"));
+File.Copy(paths[1], Path.Combine(dropRoot, "nested", "inner.png"));
+File.Copy(paths[2], Path.Combine(dropDeep, "deep.png"));
+File.WriteAllText(Path.Combine(dropRoot, "ignored.txt"), "not an image");
+File.WriteAllText(Path.Combine(dropDeep, "notes.txt"), "not an image");
+var beforeDrop = window.Workspace.Images.Count;
+Complete(window.DropPathsAsync(new[] { dropRoot, Path.Combine(dropRoot, "dropped.png") }));
+Check(window.Workspace.Images.Count == beforeDrop + 3, "Dropped folder did not import nested images exactly once");
+Check(new[] { "dropped.png", "inner.png", "deep.png" }.All(name => window.Workspace.Images.Any(item => item.Name == name)), "Dropped subfolder images missing");
+Check(window.Workspace.Message == window.Workspace.Text["Imported"], "Successful drop did not report completion: " + window.Workspace.Message);
+// The window-level drag events are wired through AllowDrop plus one drop handler; the layer itself is bound to DropActive.
+window.Workspace.DropActive = true; Dispatcher.UIThread.RunJobs();
+Check(Control<Border>("DropOverlay").IsVisible, "Drag feedback did not appear");
+Capture("desktop-drop-light.png");
+window.Workspace.DropActive = false; Dispatcher.UIThread.RunJobs();
+Check(!Control<Border>("DropOverlay").IsVisible, "Drop left the feedback layer visible");
+var dropTextOnly = Path.Combine(dropRoot, "text-only"); Directory.CreateDirectory(dropTextOnly);
+File.WriteAllText(Path.Combine(dropTextOnly, "readme.txt"), "x");
+Complete(window.DropPathsAsync(new[] { dropTextOnly }));
+Check(window.Workspace.Images.Count == beforeDrop + 3 && window.Workspace.Message == window.Workspace.Text["DropNoImages"], "Drop without images was not reported");
+Complete(window.DropPathsAsync(new[] { Path.Combine(dropRoot, "missing") }));
+Check(window.Workspace.Message.StartsWith(window.Workspace.Text["DropErrors"]) && window.Workspace.Message.Contains("missing"), "Missing dropped path was not reported");
+window.Workspace.IsBusy = true; Complete(window.DropPathsAsync(new[] { dropRoot }));
+Check(window.Workspace.Images.Count == beforeDrop + 3 && window.Workspace.Message == window.Workspace.Text["DropBusy"], "Drop was accepted during a busy workflow");
+window.Workspace.IsBusy = false;
+Console.WriteLine("PASS: dropped images and folders import recursively, with deduplication, drop feedback, and busy/missing feedback.");
 CaptureChecks.RunFolder(window, Complete, PumpUntil);
 int? ownedGreenshot = args.Contains("--greenshot") ? CaptureChecks.RunGreenshot(window, Complete, PumpUntil) : null;
 settings.OpenCapturePage(); Capture("settings-capture.png");
+window.Workspace.ThemeIndex = 0; Dispatcher.UIThread.RunJobs(); Capture("settings-capture-dark.png");
+window.Workspace.ThemeIndex = 1; Dispatcher.UIThread.RunJobs();
 window.Width = 1000; window.Height = 680; window.Workspace.LanguageIndex = 1;
 Capture("settings-capture-compact-ja.png");
 Check(settings.FindControl<Button>("ApplyCaptureButton")!.IsEffectivelyVisible, "Capture action disappeared at minimum window size");

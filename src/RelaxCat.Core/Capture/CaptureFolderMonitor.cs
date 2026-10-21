@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using RelaxCat.Core.Import;
 
 namespace RelaxCat.Core.Capture;
 
@@ -44,7 +45,7 @@ public sealed class CaptureFolderMonitor : IAsyncDisposable
         worker = Task.Run(RunAsync);
     }
 
-    public static bool Supports(string path) => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".bmp";
+    public static bool Supports(string path) => ImageFileFormats.Supports(path);
     private void Changed(object sender, FileSystemEventArgs e) => Interlocked.Exchange(ref rescan, 1);
     private static Version ReadVersion(string path)
     {
