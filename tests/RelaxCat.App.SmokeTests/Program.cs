@@ -68,6 +68,13 @@ static void PumpUntil(Func<bool> done)
 }
 static void Complete(Task task) { PumpUntil(() => task.IsCompleted); task.GetAwaiter().GetResult(); }
 static void Click(Button button) { button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Dispatcher.UIThread.RunJobs(); }
+// Buttons carry an icon plus a label, so the visible text lives in child TextBlocks.
+static string Label(Button button) => button.Content switch
+{
+    string text => text,
+    Panel panel => string.Concat(panel.Children.OfType<TextBlock>().Select(text => text.Text)),
+    _ => ""
+};
 void Capture(string file)
 {
     if (window.Workspace.PreviewOpen) { Thread.Sleep(180); }
@@ -77,7 +84,7 @@ void Capture(string file)
 }
 T Control<T>(string name) where T : Control => window.FindControl<T>(name) ?? throw new Exception("Missing " + name);
 
-Check(Equals(Control<Button>("ImportButton").Content, "导入图片"), "Chinese UI missing");
+Check(Label(Control<Button>("ImportButton")) == "导入图片", "Chinese UI missing");
 Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "QuickScale") && !Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "RulesEditor"), "Home is missing quick settings or contains detailed settings");
 Check(window.ActualThemeVariant == ThemeVariant.Dark, "Default dark theme was not applied at startup");
 Capture("desktop-empty-dark.png");
@@ -107,10 +114,17 @@ Check(window.Icon is not null, "Window icon missing");
 Check(configured.HorizontalGapUnit == GapUnit.Cells && configured.VerticalGapUnit == GapUnit.Cells && configured.SelectAllPicturesAfterExport,
     "Export settings did not reach the export options");
 Capture("settings-excel.png");
+// Narrow layout check: two columns must still fit at the minimum window width, and any
+// overflow has to stay reachable through the pane's own scroll range.
+window.Width = 1000; window.Height = 680; Dispatcher.UIThread.RunJobs();
+var excelScroll = settings.FindControl<ScrollViewer>("ExcelScroll")!;
+Check(excelScroll.Extent.Height > excelScroll.Viewport.Height && excelScroll.Viewport.Height > 0, "Narrow settings page clipped without a scroll range");
+Capture("settings-excel-narrow.png");
+window.Width = 1280; window.Height = 850; Dispatcher.UIThread.RunJobs();
 tabs.SelectedIndex = 2; Dispatcher.UIThread.RunJobs();
 var language = settings.FindControl<ComboBox>("LanguageSelector")!;
 language.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
-Check(Equals(Control<Button>("ImportButton").Content, "画像を追加"), "Japanese labels did not update");
+Check(Label(Control<Button>("ImportButton")) == "画像を追加", "Japanese labels did not update");
 Check(horizontalUnit.SelectedIndex == 1 && verticalUnit.SelectedIndex == 1 && window.Workspace.Settings.SelectAllPicturesAfterExport,
     "Language change reset gap units or export selection option");
 Check(window.Workspace.Text["Remove"] == "削除", "Card translations missing");
@@ -152,7 +166,7 @@ Check(window.Workspace.Images.Count == paths.Length, "Image import failed");
 var gallery = Control<ItemsControl>("Gallery");
 Check(gallery.GetVisualDescendants().OfType<Image>().Count() == paths.Length, "Not every image is rendered");
 window.Workspace.LanguageIndex = 1; Dispatcher.UIThread.RunJobs();
-Check(gallery.GetVisualDescendants().OfType<Button>().Any(b => Equals(b.Content, "コピー")), "Existing cards did not change language");
+Check(gallery.GetVisualDescendants().OfType<Button>().Any(b => Label(b) == "コピー"), "Existing cards did not change language");
 window.Workspace.LanguageIndex = 0; Dispatcher.UIThread.RunJobs();
 Control<TextBox>("QuickScale").Text = "0.75"; Dispatcher.UIThread.RunJobs();
 Check(window.Workspace.Settings.CreateOptions(window.Workspace.Text).Sizing.DesignScale == .75, "Quick setting did not reach export configuration");
@@ -175,7 +189,7 @@ window.MouseMove(new Point(4, 4), RawInputModifiers.None); Dispatcher.UIThread.R
 Click(Control<Button>("ThemeButton")); Check(window.ActualThemeVariant == ThemeVariant.Dark, "Dark theme toggle did not apply");
 Capture("desktop-gallery-dark.png");
 
-var copy = gallery.GetVisualDescendants().OfType<Button>().First(b => b.DataContext == first && Equals(b.Content, "复制"));
+var copy = gallery.GetVisualDescendants().OfType<Button>().First(b => b.DataContext == first && Label(b) == "复制");
 Click(copy); PumpUntil(() => window.Workspace.Message == window.Workspace.Text["Copied"] || window.Workspace.Message.StartsWith(window.Workspace.Text["CopyError"]));
 Check(window.Workspace.Message == window.Workspace.Text["Copied"], window.Workspace.Message);
 var copiedTask = window.Clipboard!.TryGetBitmapAsync(); Complete(copiedTask);
@@ -198,7 +212,7 @@ window.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Ke
 Check(!window.Workspace.PreviewOpen && window.Workspace.PreviewBitmap is null, "Esc did not close/release preview");
 
 var last = window.Workspace.Images[^1];
-var remove = gallery.GetVisualDescendants().OfType<Button>().First(b => b.DataContext == last && Equals(b.Content, "移除"));
+var remove = gallery.GetVisualDescendants().OfType<Button>().First(b => b.DataContext == last && Label(b) == "移除");
 Click(remove);
 Check(window.Workspace.Images.Count == paths.Length - 1 && File.Exists(last.Image.Path), "Remove deleted source or did not update gallery");
 foreach (var item in window.Workspace.Images) item.IncludeInExport = false;

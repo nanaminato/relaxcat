@@ -67,6 +67,7 @@ public sealed class UiText : ObservableModel
         ["RulesHint"] = ("每条规则：一行条件，下一行 scale = 数值。首条命中生效；and 优先于 or。", "条件の次の行に scale = 数値。最初に一致したルールを適用。and は or より優先。"),
         ["RulesPlaceholder"] = ("width >= 1920 or height >= 1080\nscale = 0.5", "width >= 1920 or height >= 1080\nscale = 0.5"),
         ["HorizontalGap"] = ("水平间距", "横間隔"),
+        ["CellSection"] = ("单元格与间距", "セルと間隔"),
         ["VerticalGap"] = ("垂直间距", "縦間隔"),
         ["Points"] = ("磅（pt）", "ポイント（pt）"),
         ["Cells"] = ("单元格", "セル"),

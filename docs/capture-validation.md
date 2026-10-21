@@ -10,7 +10,7 @@
 - `--greenshot` 实际启动随包 Greenshot，生成并读取独立 INI，通过 F24 全屏截图、自动落盘、监控解码、队列加入形成真实纵向链路。可选鼠标 hook 把鼠标移动到 (30,40)，同一个 F24 仍被 Greenshot 接收并完成截图。测试结束恢复鼠标原位置。
 - 真实检查第二个 provider 遇到已有 Greenshot 时拒绝接管；来源切换停止自有进程；启动取消不残留；模拟子进程异常退出会停止监控并显示错误，可重新启动；关闭主窗口会停止 Greenshot。导入中关闭会等待当前操作取消并完成退出，无需再点一次关闭。
 - 发现并修复：上游 CLI 在服务未就绪时会自启动另一个 Greenshot，原就绪探测因此留下额外实例。现改为无命令管道连接并验证 server PID，另用 Job Object 确保自有进程树清理；不使用全局退出命令。
-- XAML 保持中日双语与明暗主题，截图详情仍位于独立设置页，操作按钮固定在滚动区外。检查 `artifacts/settings-capture.png`。
+- XAML 保持中日双语与明暗主题，截图详情仍位于独立设置页；设置页正文为两栏卡片，操作按钮紧随表单，窄窗口下随内容滚动。检查 `artifacts/settings-capture.png`、`settings-capture-dark.png`、`settings-capture-compact-ja.png`。
 - Excel 的真实 COM 插入、比例保护、单元格间距、全选、工作簿复用和模板恢复回归通过。
 - 发布目录复制便携包与附属说明，并重新检查发布包 ZIP 摘要。
 
