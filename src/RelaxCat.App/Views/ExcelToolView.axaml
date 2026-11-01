@@ -1,0 +1,210 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:RelaxCat.App.Models"
+             x:Class="RelaxCat.App.Views.ExcelToolView" x:DataType="models:WorkspaceModel" x:CompileBindings="True">
+  <UserControl.Resources>
+    <DataTemplate x:Key="MetricTemplate" x:DataType="models:ExcelMetric">
+      <Border Classes="metric" Width="164" Margin="0,0,8,8" Padding="10,8">
+        <StackPanel Spacing="1">
+          <TextBlock Classes="muted" FontSize="10" Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+          <TextBlock Text="{Binding Value}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="CheckTemplate" x:DataType="models:ExcelCheckRow">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" Margin="0,2">
+        <TextBlock Text="✓" Foreground="{DynamicResource AccentInkBrush}" FontWeight="Bold" IsVisible="{Binding Passed}" />
+        <TextBlock Text="✕" Foreground="{DynamicResource DangerBrush}" FontWeight="Bold" IsVisible="{Binding !Passed}" />
+        <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="11" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="2" Text="{Binding Detail}" FontSize="10" Classes="muted" HorizontalAlignment="Right" VerticalAlignment="Center" />
+      </Grid>
+    </DataTemplate>
+    <DataTemplate x:Key="SwatchTemplate" x:DataType="models:ExcelStyleSwatch">
+      <Border Classes="swatch" Width="148" Margin="0,0,6,8" ClipToBounds="True" ToolTip.Tip="{Binding Details}">
+        <Grid RowDefinitions="66,Auto">
+          <Border Background="{Binding Fill}" BorderBrush="{Binding BorderBrush}" BorderThickness="{Binding BorderThickness}" Margin="1">
+            <TextBlock Text="{Binding Sample}" FontFamily="{Binding FontFamily}" FontSize="{Binding FontSize}"
+                       FontWeight="{Binding FontWeight}" FontStyle="{Binding FontStyle}" Foreground="{Binding Foreground}"
+                       HorizontalAlignment="{Binding HorizontalTextAlignment}" VerticalAlignment="{Binding VerticalContentAlignment}"
+                       Margin="10,7" />
+          </Border>
+          <StackPanel Grid.Row="1" Margin="9,6,9,7" Spacing="1">
+            <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+            <TextBlock Text="{Binding UsageText}" Classes="muted" FontSize="10" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <Grid RowDefinitions="Auto,*" Margin="24,20,24,16">
+    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
+      <StackPanel Spacing="7">
+        <TextBlock Classes="heading" Text="{Binding Text[ExcelToolTab]}" />
+        <TextBlock Classes="muted" Text="{Binding Text[ExcelToolHint]}" TextWrapping="Wrap" MaxWidth="780" />
+      </StackPanel>
+      <Border Grid.Column="1" Background="{DynamicResource AccentSoftBrush}" CornerRadius="6" Padding="12,7" VerticalAlignment="Top">
+        <TextBlock Text="{Binding Text[ExcelToolBadge]}" FontSize="11" Foreground="{DynamicResource AccentInkBrush}" />
+      </Border>
+    </Grid>
+
+    <Grid Grid.Row="1" ColumnDefinitions="388,*" ColumnSpacing="18">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="12" Margin="0,0,4,8">
+          <Border Classes="panel" Padding="16" IsEnabled="{Binding IsIdle}">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="section" Text="{Binding Text[WorkbookSection]}" Margin="0" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox x:Name="WorkbookPathInput" Text="{Binding ExcelTool.FilePath, Mode=TwoWay}" PlaceholderText="{Binding Text[WorkbookPathHint]}" />
+                <Button x:Name="BrowseWorkbookButton" Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseWorkbookClicked" />
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="AnalyzeButton" Classes="primary" Content="{Binding Text[Analyze]}" Click="AnalyzeClicked" IsEnabled="{Binding ExcelTool.CanAnalyze}" />
+                <Button x:Name="OptimizeButton" Content="{Binding Text[OptimizeSaveAs]}" Click="OptimizeClicked" IsEnabled="{Binding ExcelTool.CanOptimize}" />
+              </StackPanel>
+              <TextBlock Classes="muted" Text="{Binding Text[AnalyzeHint]}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="16" IsVisible="{Binding ExcelTool.HasResult}">
+            <StackPanel Spacing="9">
+              <TextBlock Classes="section" Text="{Binding Text[ResultSection]}" Margin="0" />
+              <StackPanel Spacing="1">
+                <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[OutputFile]}" />
+                <TextBlock Text="{Binding ExcelTool.Result.OutputName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                           ToolTip.Tip="{Binding ExcelTool.Result.OutputPath}" />
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding ExcelTool.Result.Metrics}" ItemTemplate="{StaticResource MetricTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <TextBlock Text="{Binding ExcelTool.Result.VerificationText}" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource AccentInkBrush}" />
+              <ItemsControl ItemsSource="{Binding ExcelTool.Result.Checks}" ItemTemplate="{StaticResource CheckTemplate}" />
+              <Button Classes="quiet" Content="{Binding Text[OpenOutputFolder]}" Click="OpenOutputFolderClicked"
+                      HorizontalAlignment="Left" Padding="8,5" Margin="0,2,0,0" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="16" IsVisible="{Binding ExcelTool.HasSummary}">
+            <StackPanel Spacing="8">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <StackPanel Spacing="2">
+                  <TextBlock Text="{Binding ExcelTool.Summary.FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ExcelTool.Summary.Path}" />
+                  <TextBlock Classes="muted" FontSize="10" Text="{Binding ExcelTool.Summary.Path}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding ExcelTool.Summary.Path}" />
+                </StackPanel>
+                <Border Grid.Column="1" Background="{DynamicResource AccentSoftBrush}" CornerRadius="4" Padding="8,3" VerticalAlignment="Top"
+                        IsVisible="{Binding ExcelTool.Summary.HasMacro}">
+                  <TextBlock Text="{Binding ExcelTool.Summary.MacroText}" FontSize="10" Foreground="{DynamicResource AccentInkBrush}" />
+                </Border>
+              </Grid>
+
+              <ItemsControl ItemsSource="{Binding ExcelTool.Summary.Metrics}" ItemTemplate="{StaticResource MetricTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+
+              <TextBlock Classes="section" Text="{Binding Text[BeforeAfterSection]}" Margin="0,2,0,0" />
+              <Grid ColumnDefinitions="*,96,96" ColumnSpacing="10">
+                <TextBlock Grid.Column="1" Classes="muted" FontSize="10" Text="{Binding Text[BeforeColumn]}" HorizontalAlignment="Right" />
+                <TextBlock Grid.Column="2" Classes="muted" FontSize="10" Text="{Binding ExcelTool.Summary.AfterLabel}" HorizontalAlignment="Right" />
+              </Grid>
+              <ItemsControl ItemsSource="{Binding ExcelTool.Summary.Comparison}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="models:ExcelComparisonRow">
+                    <Grid ColumnDefinitions="*,96,96" ColumnSpacing="10" Margin="0,2">
+                      <TextBlock Text="{Binding Label}" FontSize="12" VerticalAlignment="Center" />
+                      <TextBlock Grid.Column="1" Text="{Binding Before}" FontSize="12" FontFamily="Cascadia Code, Consolas" HorizontalAlignment="Right" />
+                      <TextBlock Grid.Column="2" Text="{Binding After}" FontSize="12" FontFamily="Cascadia Code, Consolas"
+                                 Foreground="{DynamicResource AccentInkBrush}" HorizontalAlignment="Right" />
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+
+              <Border Background="{DynamicResource AccentSoftBrush}" CornerRadius="6" Padding="10,7">
+                <Grid ColumnDefinitions="*,Auto">
+                  <TextBlock Text="{Binding ExcelTool.Summary.ReductionLabel}" FontSize="11" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding ExcelTool.Summary.ReductionText}" FontWeight="SemiBold" FontSize="13"
+                             Foreground="{DynamicResource AccentInkBrush}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+              <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[ProjectionHint]}" TextWrapping="Wrap"
+                         IsVisible="{Binding !ExcelTool.HasResult}" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="16">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="section" Text="{Binding Text[SafetySection]}" Margin="0" />
+              <TextBlock Classes="muted" Text="{Binding Text[SafetyHint]}" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Border Grid.Column="1" Classes="panel" ClipToBounds="True">
+        <Grid>
+          <StackPanel IsVisible="{Binding !ExcelTool.HasSummary}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Margin="30">
+            <Border Background="{DynamicResource AccentSoftBrush}" Width="64" Height="64" CornerRadius="16" HorizontalAlignment="Center">
+              <Path Data="M 2,3 H 14 V 13 H 2 Z M 2,6.5 H 14 M 2,9.5 H 14 M 6,3 V 13 M 10,3 V 13"
+                    Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8" Width="34" Height="34"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="{Binding Text[ExcelToolEmptyTitle]}" FontSize="19" FontWeight="SemiBold" HorizontalAlignment="Center" />
+            <TextBlock Classes="muted" Text="{Binding Text[ExcelToolEmptyHint]}" TextWrapping="Wrap" MaxWidth="400" TextAlignment="Center" />
+          </StackPanel>
+
+          <Grid IsVisible="{Binding ExcelTool.HasSummary}" RowDefinitions="Auto,Auto,*">
+            <Border Padding="14,10" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <ItemsControl x:Name="SheetTabs" ItemsSource="{Binding ExcelTool.Sheets}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:ExcelSheetSummary">
+                      <Button Classes="tab" Classes.active="{Binding IsSelected}" Click="SheetClicked" Margin="0,0,4,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                          <Border Background="{DynamicResource WellBrush}" CornerRadius="3" Padding="5,1" IsVisible="{Binding Hidden}">
+                            <TextBlock Text="{Binding HiddenText}" FontSize="9" Foreground="{DynamicResource MutedBrush}" />
+                          </Border>
+                        </StackPanel>
+                      </Button>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="18" Margin="20,14,20,10" IsVisible="{Binding ExcelTool.HasSelectedSheet}">
+              <StackPanel Spacing="2">
+                <TextBlock Text="{Binding ExcelTool.SelectedSheet.Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                <TextBlock Classes="muted" Text="{Binding Text[WorksheetStyles]}" FontSize="11" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="1">
+                <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[UsedRange]}" />
+                <TextBlock Text="{Binding ExcelTool.SelectedSheet.UsedRangeText}" FontSize="12" FontFamily="Cascadia Code, Consolas" HorizontalAlignment="Right" />
+              </StackPanel>
+              <StackPanel Grid.Column="2" Spacing="1">
+                <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[CellsLabel]}" HorizontalAlignment="Right" />
+                <TextBlock Text="{Binding ExcelTool.SelectedSheet.CellCountText}" FontSize="12" HorizontalAlignment="Right" />
+              </StackPanel>
+              <StackPanel Grid.Column="3" Spacing="1">
+                <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[StylesLabel]}" HorizontalAlignment="Right" />
+                <TextBlock Text="{Binding ExcelTool.SelectedSheet.StyleCountText}" FontSize="12" HorizontalAlignment="Right" />
+              </StackPanel>
+            </Grid>
+
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20,0,20,20">
+              <StackPanel Spacing="8">
+                <ItemsControl ItemsSource="{Binding ExcelTool.SelectedSheet.Styles}" ItemTemplate="{StaticResource SwatchTemplate}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                </ItemsControl>
+                <TextBlock Classes="muted" Text="{Binding ExcelTool.SelectedSheet.MoreText}" IsVisible="{Binding ExcelTool.SelectedSheet.HasMore}" />
+                <TextBlock Classes="muted" Text="{Binding ExcelTool.SelectedSheet.EmptyText}"
+                           IsVisible="{Binding !ExcelTool.SelectedSheet.HasStyles}" Margin="0,14" />
+              </StackPanel>
+            </ScrollViewer>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

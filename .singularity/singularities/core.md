@@ -236,6 +236,14 @@ Statement: Before exporting, clear all pictures from the target worksheet, then 
 
 Confirmation basis: Human instruction, 2026-10-20: exporting to Excel clears its pictures before export.
 
+## S-EXCEL-009
+
+Status: Confirmed
+
+Statement: RelaxCat provides an Excel/OOXML style analysis and optimization capability as a local tool. It shows a workbook's worksheet styles and style-table diagnostics before processing, merges only cell formats that are provably identical, never modifies the source workbook, writes the optimized result to a new workbook, and shows the processing effect afterwards. Analysis and optimization are offline; reports and previews do not expose cell values; non-style OOXML parts, including a `.xlsm` VBA project, are preserved.
+
+Confirmation basis: Human instruction, 2026-11-01: introduce the design of `nanaminato/todolist` PR #2 (`ideas/excel-style-deduplicator.md`) into RelaxCat as a tool feature with a suitable interface that displays worksheet styles before processing and the processing effect.
+
 ## S-IMPORT-005
 
 Status: Confirmed

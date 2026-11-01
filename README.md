@@ -1,6 +1,6 @@
 # RelaxCat
 
-Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接拖入窗口、文件夹自动监控、手动导入，提供图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及真实 Excel COM 导出；可选择捆绑的 Greenshot 截图。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語切换。
+Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接拖入窗口、文件夹自动监控、手动导入，提供图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及真实 Excel COM 导出；可选择捆绑的 Greenshot 截图。另提供完全离线的 Excel 样式分析/去重工具，显示工作表样式与优化前后效果，并输出到新工作簿。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語切换。
 
 ## 下载
 
@@ -20,6 +20,10 @@ Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接�
 | 放大预览 | Excel 排版设置 |
 | :---: | :---: |
 | ![放大预览](docs/images/preview.png) | ![Excel 排版设置](docs/images/settings-excel.png) |
+
+| Excel 样式分析 | 优化结果（明亮） | 优化结果（黑暗） |
+| :---: | :---: | :---: |
+| ![Excel 样式分析](docs/images/excel-style-analysis.png) | ![优化结果](docs/images/excel-style-result.png) | ![深色主题](docs/images/excel-style-result-dark.png) |
 
 ## 从源码运行
 
@@ -78,6 +82,27 @@ scale = 0.9
 
 「取消」在当前图片/COM 操作完成后生效，保留已完成的部分。再次导出会先清空目标工作表中的图片，再重新导出当前勾选的图片。源文件需保留至导出或复制完成。
 
+## Excel 样式优化
+
+长期编辑、跨工作簿复制粘贴的 Excel 文件可能积累大量重复的单元格格式（`cellXfs`），使 `styles.xml` 异常膨胀。左侧「Excel 优化」提供完全离线的分析与优化，不依赖 Excel，也不会修改原工作簿：
+
+1. 选择 `.xlsx` 或 `.xlsm` 工作簿，点击「分析」。页面显示文件大小、`styles.xml` 大小、字体/填充/边框数量、`cellXfs` 总数、唯一格式、可去重格式、工作表未引用格式，以及每个工作表的实际使用范围与样式数量。
+2. 右侧按工作表展示实际使用的样式：填充、字体、边框、对齐和数字格式的直观预览，并显示每种样式覆盖的单元格数量。分析和预览都不会读取或输出单元格值、公式或批注。
+3. 「优化并另存为…」把结果写到新工作簿：只合并 XML 完全相同的 `cellXfs`，并同步更新单元格、行、列的样式引用；看起来相似但定义不同的格式保持不动。原文件始终不修改，`.xlsm` 保留 VBA 工程，其它 OOXML 部件按原样复制，输出扩展名必须与输入一致。
+4. 写入前逐项校验样式表其它分区、`cellXfs` 内容、工作表样式引用、其它部件和输出包。校验失败会丢弃临时输出并报错；没有重复格式时不会做无意义的重写。完成后自动分析新文件，页面同时显示优化前后的格式数量、`styles.xml` 大小、文件大小和校验结果。
+
+命令行工具复用同一套核心逻辑：
+
+```powershell
+# 只读分析（加 --json 输出机器可读结果）
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book.xlsx
+
+# 优化到新文件
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
+```
+
+`.xls` 是二进制格式，不在支持范围。第一版只处理 `cellXfs` 的完全重复项，不合并字体/填充/边框/命名样式表。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
+
 ## 验证
 
 ```powershell
@@ -91,7 +116,7 @@ dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --ex
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --greenshot --excel
 ```
 
-直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`。
+Core 测试包含 Excel 样式分析、去重映射、包保留与拒绝不安全目标的用例；无界面冒烟测试覆盖新页面的分析、样式渲染、优化、同文件拒绝和中日文刷新。直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`，Excel 样式优化记录为 `docs/excel-style-optimizer.md`。
 
 ## 许可证
 

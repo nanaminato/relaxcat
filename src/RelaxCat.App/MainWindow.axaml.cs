@@ -43,8 +43,8 @@ public sealed partial class MainWindow : Window
         };
     }
 
-    private void HomeClicked(object? sender, RoutedEventArgs e) => Workspace.SettingsOpen = false;
-    private void SettingsClicked(object? sender, RoutedEventArgs e) => Workspace.SettingsOpen = true;
+    private void HomeClicked(object? sender, RoutedEventArgs e) => Workspace.ShowHome();
+    private void SettingsClicked(object? sender, RoutedEventArgs e) => Workspace.ShowSettings();
     private void ToggleThemeClicked(object? sender, RoutedEventArgs e) => Workspace.ThemeIndex = 1 - Workspace.ThemeIndex;
     private void CancelClicked(object? sender, RoutedEventArgs e) => operation?.Cancel();
     private async void ImportClicked(object? sender, RoutedEventArgs e)
@@ -59,7 +59,7 @@ public sealed partial class MainWindow : Window
             });
             if (closed || files.Count == 0) return;
             var paths = files.Select(file => file.TryGetLocalPath() ?? throw new IOException(Workspace.Text["LocalOnly"])).ToArray();
-            Workspace.SettingsOpen = false;
+            Workspace.ShowHome();
             await ImportPathsAsync(paths);
         }
         catch (Exception error) { Workspace.Message = Workspace.Text["ImportErrors"] + error.Message; }
@@ -132,7 +132,7 @@ public sealed partial class MainWindow : Window
             Workspace.Message = resolution.Issues.Count == 0 ? Workspace.Text["DropNoImages"] : DescribeIssues(resolution.Issues);
             return;
         }
-        Workspace.SettingsOpen = false;
+        Workspace.ShowHome();
         await ImportPathsAsync(resolution.Images, cancellationToken);
         // Keep the import result, but do not hide folders that could not be read.
         if (closed || resolution.Issues.Count == 0 || Workspace.Message == Workspace.Text["ImportCancelled"]) return;

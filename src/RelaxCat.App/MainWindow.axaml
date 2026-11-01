@@ -51,6 +51,12 @@
               <TextBlock Text="{Binding Text[Settings]}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+          <Button x:Name="ExcelToolButton" Classes="nav" Classes.active="{Binding ExcelToolOpen}" Click="ExcelToolClicked">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="glyph" Data="{StaticResource IconSheet}" />
+              <TextBlock Text="{Binding Text[ExcelToolNav]}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
           <Border Height="1" Background="{DynamicResource LineBrush}" Margin="6,20,6,10" />
           <TextBlock Classes="muted" Text="{Binding CaptureStatus}" TextWrapping="Wrap" Margin="10,0" />
           <Button x:Name="CaptureSettingsButton" Classes="nav" Click="CaptureSettingsClicked">
@@ -155,6 +161,8 @@
           </StackPanel>
         </Grid>
         <views:SettingsView x:Name="SettingsPage" IsVisible="{Binding SettingsOpen}" ApplyCaptureRequested="ApplyCaptureRequested" StopCaptureRequested="StopCaptureRequested" />
+        <views:ExcelToolView x:Name="ExcelToolPage" IsVisible="{Binding ExcelToolOpen}"
+                             AnalyzeRequested="AnalyzeExcelRequested" OptimizeRequested="OptimizeExcelRequested" />
       </Grid>
     </Grid>
 

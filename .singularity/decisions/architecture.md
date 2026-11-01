@@ -277,3 +277,27 @@ Decision: Apply the resolved theme to the application explicitly after settings 
 Reason: The settings store is process-independent, and more than one workspace instance can exist (tests, restart), so a variant left over from another instance would silently override the stored preference.
 
 Evidence: `src/RelaxCat.App/Models/WorkspaceModel.cs`, `tests/RelaxCat.App.SmokeTests/Program.cs`.
+
+## D-EXCEL-OPT-001
+
+Status: Active
+
+Upstream: S-EXCEL-009
+
+Decision: Implement Excel style analysis and deduplication as a platform-free Core library (`src/RelaxCat.Core/Excel`) that reads OOXML parts directly with ZIP/XML APIs and never through Excel COM. Merge `cellXfs` entries whose normalized XML is identical, keep the first occurrence of each unique format (including formats no worksheet references), remap worksheet style references (`c@s`, `row@s`, `col@style`), copy every other package part byte-for-byte, require the output extension to match the input package type, and publish only after a full verification pass. When no duplicate exists, copy the package without re-serializing any XML. Expose the same public API through `tools/RelaxCat.ExcelTool` for scripted use.
+
+Reason: The confirmed behavior is offline, must not modify the source workbook, and must preserve VBA and unknown parts. Direct OOXML rewriting is testable without Excel, keeps the format mapping explicit, and the post-write checks make silent style loss detectable. Re-serializing XML when nothing changes would only alter bytes and inflate the styles part.
+
+Evidence: `src/RelaxCat.Core/Excel/ExcelStyleAnalyzer.cs`, `src/RelaxCat.Core/Excel/ExcelStyleOptimizer.cs`, `src/RelaxCat.Core/Excel/StyleDeduplicationPlan.cs`, `tests/RelaxCat.Core.Tests/ExcelStyleTests.cs`, `tools/RelaxCat.ExcelTool/`.
+
+## D-EXCEL-OPT-002
+
+Status: Active
+
+Upstream: S-EXCEL-009, S-UI-001, S-UI-002, S-UI-003, S-I18N-001
+
+Decision: Present the tool on a dedicated left-navigation page rather than the home page. The page combines a workbook picker and analysis metrics with a per-worksheet style gallery that renders resolved fill, font, border, alignment and number format (never cell text), a before/after effect panel, and a verified-result card. After writing, re-analyze the optimized copy so the gallery shows the processed workbook's styles; switching language rebuilds all derived labels and style details from the retained analysis records. Analysis and optimization run off the UI thread and share the window's busy/progress/cancel state.
+
+Reason: Worksheet styles are the main evidence a user needs before trusting a rewrite, and the page is too detailed for the home-page guidance in S-UI-002. Re-analyzing the output makes the "processing effect" visible rather than only numeric, while retained records keep the page live under S-I18N-001 without re-reading the file on every language switch.
+
+Evidence: `src/RelaxCat.App/Views/ExcelToolView.axaml`, `src/RelaxCat.App/MainWindow.ExcelTool.cs`, `src/RelaxCat.App/Models/ExcelToolModel.cs`, `tests/RelaxCat.App.SmokeTests/ExcelToolChecks.cs`, `docs/excel-style-optimizer.md`.

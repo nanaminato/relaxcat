@@ -18,7 +18,7 @@ public sealed partial class MainWindow
     internal int? GreenshotProcessId => greenshot?.OwnedProcessId;
 
     private void CaptureSettingsClicked(object? sender, RoutedEventArgs e)
-    { Workspace.SettingsOpen = true; SettingsPage.OpenCapturePage(); }
+    { Workspace.ShowSettings(); SettingsPage.OpenCapturePage(); }
     private async void ApplyCaptureRequested(object? sender, EventArgs e) => await ApplyCaptureAsync();
     private async void StopCaptureRequested(object? sender, EventArgs e) => await StopCaptureAsync();
 

@@ -9,6 +9,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using RelaxCat.App;
+using RelaxCat.App.SmokeTests;
 using RelaxCat.App.Views;
 using RelaxCat.Core.Export;
 using RelaxCat.Core.Layout;
@@ -263,6 +264,7 @@ window.Width = 1000; window.Height = 680; window.Workspace.LanguageIndex = 1;
 Capture("settings-capture-compact-ja.png");
 Check(settings.FindControl<Button>("ApplyCaptureButton")!.IsEffectivelyVisible, "Capture action disappeared at minimum window size");
 window.Width = 1280; window.Height = 850; window.Workspace.LanguageIndex = 0;
+if (!args.Contains("--no-excel-tool")) ExcelToolChecks.Run(window, Complete, Capture, PumpUntil);
 Capture("desktop-smoke.png"); window.Close(); PumpUntil(() => !window.IsVisible);
 if (ownedGreenshot.HasValue)
 {
