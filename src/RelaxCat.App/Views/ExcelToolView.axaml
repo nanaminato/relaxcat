@@ -38,15 +38,10 @@
   </UserControl.Resources>
 
   <Grid RowDefinitions="Auto,*" Margin="24,20,24,16">
-    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,14">
-      <StackPanel Spacing="7">
-        <TextBlock Classes="heading" Text="{Binding Text[ExcelToolTab]}" />
-        <TextBlock Classes="muted" Text="{Binding Text[ExcelToolHint]}" TextWrapping="Wrap" MaxWidth="780" />
-      </StackPanel>
-      <Border Grid.Column="1" Background="{DynamicResource AccentSoftBrush}" CornerRadius="6" Padding="12,7" VerticalAlignment="Top">
-        <TextBlock Text="{Binding Text[ExcelToolBadge]}" FontSize="11" Foreground="{DynamicResource AccentInkBrush}" />
-      </Border>
-    </Grid>
+    <StackPanel Spacing="7" Margin="0,0,0,14">
+      <TextBlock Classes="heading" Text="{Binding Text[ExcelToolTab]}" />
+      <TextBlock Classes="muted" Text="{Binding Text[ExcelToolHint]}" TextWrapping="Wrap" MaxWidth="780" />
+    </StackPanel>
 
     <Grid Grid.Row="1" ColumnDefinitions="388,*" ColumnSpacing="18">
       <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
@@ -128,13 +123,6 @@
               </Border>
               <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[ProjectionHint]}" TextWrapping="Wrap"
                          IsVisible="{Binding !ExcelTool.HasResult}" />
-            </StackPanel>
-          </Border>
-
-          <Border Classes="panel" Padding="16">
-            <StackPanel Spacing="6">
-              <TextBlock Classes="section" Text="{Binding Text[SafetySection]}" Margin="0" />
-              <TextBlock Classes="muted" Text="{Binding Text[SafetyHint]}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
         </StackPanel>
