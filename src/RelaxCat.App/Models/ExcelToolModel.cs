@@ -199,7 +199,7 @@ public sealed class ExcelToolModel : ObservableModel
     };
 
     internal static string Count(int value) => value.ToString("N0", CultureInfo.CurrentCulture);
-    internal static string Percent(double ratio) => (ratio * 100).ToString("0.#", CultureInfo.CurrentCulture) + "%";
+    internal static string Percent(double ratio) => (ratio * 100).ToString("0.##", CultureInfo.CurrentCulture) + "%";
 
     internal static string Bytes(long value) => value switch
     {

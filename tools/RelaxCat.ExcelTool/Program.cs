@@ -151,7 +151,7 @@ static void PrintUsage()
 
 static string Count(long value) => value.ToString("N0", CultureInfo.InvariantCulture);
 
-static string Percent(double ratio) => (ratio * 100).ToString("0.#", CultureInfo.InvariantCulture) + "%";
+static string Percent(double ratio) => (ratio * 100).ToString("0.##", CultureInfo.InvariantCulture) + "%";
 
 static string Bytes(long value) => value switch
 {
