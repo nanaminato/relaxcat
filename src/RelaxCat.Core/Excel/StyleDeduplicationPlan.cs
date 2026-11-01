@@ -76,7 +76,8 @@ internal sealed record WorksheetStyleScan(
     int CellCount,
     Dictionary<int, int> EffectiveStyleCounts,
     Dictionary<int, int> RawStyleCounts,
-    List<int> StyleOrder);
+    List<int> StyleOrder,
+    List<string> MergedRanges);
 
 internal static class WorksheetStyleScanner
 {
@@ -92,6 +93,7 @@ internal static class WorksheetStyleScanner
         var raw = new Dictionary<int, int>();
         var order = new List<int>();
         var seen = new HashSet<int>();
+        var mergedRanges = new List<string>();
         var cellCount = 0;
         var minimumRow = int.MaxValue;
         var maximumRow = 0;
@@ -136,6 +138,9 @@ internal static class WorksheetStyleScanner
                 case "row":
                     ProcessRow();
                     break;
+                case "mergeCell":
+                    if (reader.GetAttribute("ref") is { Length: > 0 } merged) mergedRanges.Add(merged);
+                    break;
             }
         }
         if (rowIndex > 0) rowProgress?.Invoke(rowIndex, expectedRows);
@@ -145,7 +150,7 @@ internal static class WorksheetStyleScanner
             : cellCount > 0
                 ? OoxmlXml.CellReference(minimumRow, minimumColumn) + ":" + OoxmlXml.CellReference(maximumRow, maximumColumn)
                 : "";
-        return new WorksheetStyleScan(usedRange, cellCount, effective, raw, order);
+        return new WorksheetStyleScan(usedRange, cellCount, effective, raw, order, mergedRanges);
 
         void ProcessRow()
         {

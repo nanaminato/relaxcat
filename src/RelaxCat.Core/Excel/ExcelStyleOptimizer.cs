@@ -177,6 +177,8 @@ public sealed class ExcelStyleOptimizer
                 after = WorksheetStyleScanner.Scan(stream, outputKeys.Count, sheet.Name);
             if (before.CellCount != after.CellCount || before.UsedRange != after.UsedRange)
                 return new OptimizationCheck("references", false, sheet.Name);
+            if (!before.MergedRanges.SequenceEqual(after.MergedRanges, StringComparer.Ordinal))
+                return new OptimizationCheck("references", false, sheet.Name + " merged cells");
             if (!SameUsage(before.EffectiveStyleCounts, after.EffectiveStyleCounts, inputKeys, outputKeys) ||
                 !SameUsage(before.RawStyleCounts, after.RawStyleCounts, inputKeys, outputKeys))
                 return new OptimizationCheck("references", false, sheet.Name + " styles");

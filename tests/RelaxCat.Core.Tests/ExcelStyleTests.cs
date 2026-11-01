@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Xml.Linq;
 using RelaxCat.Core.Excel;
 using Xunit;
 
@@ -193,6 +194,45 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.Equal(2, summary.CellCount);
         Assert.Equal(2, summary.DistinctStyleCount);
         Assert.Equal(1, summary.Styles.Single(usage => usage.StyleId == 1).CellCount);
+        Assert.Equal("#FF0000", summary.Styles.Single(usage => usage.StyleId == 1).Style.FillColor);
+    }
+
+    [Fact]
+    public void Optimize_PreservesMergedCellsAndTheirStyles()
+    {
+        var styles = OoxmlWorkbookFixture.StylesXml(
+            OoxmlWorkbookFixture.CellXfs(DefaultXf, RedXf, RedXf), Fonts, Fills, Borders, NumberFormats);
+        var sheet = """
+            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+            <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <dimension ref="A1:C2"/>
+              <sheetData>
+                <row r="1"><c r="A1" s="1"><v>1</v></c><c r="B1"/><c r="C1"/></row>
+                <row r="2"><c r="A2" s="2"><v>2</v></c><c r="B2"/></row>
+              </sheetData>
+              <mergeCells count="2"><mergeCell ref="A1:C1"/><mergeCell ref="A2:B2"/></mergeCells>
+            </worksheet>
+            """;
+        var input = OoxmlWorkbookFixture.Create(PathOf("merged.xlsx"), styles, new SheetSpec("Sheet1", sheet));
+        var output = PathOf("merged-optimized.xlsx");
+
+        var result = new ExcelStyleOptimizer().Optimize(input, output);
+
+        Assert.True(result.Verified);
+        Assert.Equal(1, result.RemappedReferences);
+        var outputSheet = XDocument.Parse(Encoding.UTF8.GetString(
+            OoxmlWorkbookFixture.ReadPart(output, "xl/worksheets/sheet1.xml")));
+        var mergeCells = outputSheet.Descendants().Single(element => element.Name.LocalName == "mergeCells");
+        Assert.Equal("2", (string?)mergeCells.Attribute("count"));
+        Assert.Equal(new[] { "A1:C1", "A2:B2" },
+            outputSheet.Descendants().Where(element => element.Name.LocalName == "mergeCell")
+                .Select(element => (string?)element.Attribute("ref")).ToArray());
+
+        var optimized = new ExcelStyleAnalyzer().Analyze(output);
+        var summary = optimized.Worksheets.Single();
+        Assert.Equal(5, summary.CellCount);
+        Assert.Equal(2, summary.DistinctStyleCount);
+        Assert.Equal(2, summary.Styles.Single(usage => usage.StyleId == 1).CellCount);
         Assert.Equal("#FF0000", summary.Styles.Single(usage => usage.StyleId == 1).Style.FillColor);
     }
 
