@@ -27,6 +27,13 @@ internal sealed class StyleSheetDocument
         ["mediumDashed"] = 1.4, ["medium"] = 1.6, ["double"] = 2.2, ["thick"] = 2.2
     };
 
+    // CT_Stylesheet is a sequence, not a choice: Excel repairs files whose sections are out of order.
+    private static readonly string[] SectionOrder =
+    {
+        "numFmts", "fonts", "fills", "borders", "cellStyleXfs", "cellXfs",
+        "cellStyles", "dxfs", "tableStyles", "colors", "extLst"
+    };
+
     private readonly Dictionary<int, CellStylePreview> previewCache = new();
 
     internal XDocument Document { get; }
@@ -63,6 +70,7 @@ internal sealed class StyleSheetDocument
         var root = document.Root ?? throw new InvalidDataException("The workbook style sheet has no root element.");
         if (root.Name.LocalName != "styleSheet")
             throw new InvalidDataException("The workbook's xl/styles.xml is not a style sheet part.");
+        ValidateSectionOrder(root);
         if (OoxmlXml.Child(root, "cellXfs") is null)
             throw new InvalidDataException("The workbook style sheet has no cell format table (cellXfs).");
         var colors = new ColorResolver(
@@ -78,6 +86,21 @@ internal sealed class StyleSheetDocument
     {
         var container = OoxmlXml.Child(root, containerName);
         return container is null ? new List<XElement>() : OoxmlXml.Children(container, itemName).ToList();
+    }
+
+    private static void ValidateSectionOrder(XElement root)
+    {
+        var previous = -1;
+        foreach (var section in root.Elements())
+        {
+            var current = Array.IndexOf(SectionOrder, section.Name.LocalName);
+            if (current < 0) continue;
+            if (current < previous)
+                throw new InvalidDataException(
+                    $"The workbook's xl/styles.xml has '{section.Name.LocalName}' out of the OOXML section order; " +
+                    "Excel would repair this workbook, so it is not safe to analyze or optimize.");
+            previous = current;
+        }
     }
 
     internal CellStylePreview Preview(int styleId)
