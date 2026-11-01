@@ -444,9 +444,11 @@ Implementation boundaries:
 - `src/RelaxCat.Core/Excel/ExcelStyleAnalyzer.cs` — read-only analysis of package parts, `cellXfs` counts and worksheet style usage.
 - `src/RelaxCat.Core/Excel/StyleDeduplicationPlan.cs` — normalized-XML identity, old-to-new format mapping, rewritten `styles.xml`.
 - `src/RelaxCat.Core/Excel/ExcelStyleOptimizer.cs` — package rewrite into a temporary file, verification, and atomic publication.
+- `src/RelaxCat.Core/Excel/ExcelBatch.cs` — recursive workbook discovery and per-file batch execution with failure continuation.
 - `src/RelaxCat.Core/Excel/StyleSheetDocument.cs` / `ColorResolution.cs` — resolved font/fill/border/alignment/number-format previews, including theme, indexed and tinted colors.
 - `src/RelaxCat.App/Views/ExcelToolView.axaml` + `MainWindow.ExcelTool.cs` — workbook picker, worksheet style gallery, before/after effect and verified-result card.
-- `tools/RelaxCat.ExcelTool` — CLI wrapper over the same public API.
+- `src/RelaxCat.App/Views/ExcelBatchView.axaml` + `MainWindow.ExcelBatch.cs` — folder batch page with per-file status/progress.
+- `tools/RelaxCat.ExcelTool` — CLI wrapper over the same public API, including folder batch.
 
 Safety model: only `cellXfs` entries with identical normalized XML are merged; all other style tables and package parts are preserved byte-for-byte; the source workbook is never modified; `.xls` is rejected; the output keeps the input package type. After writing, the optimizer verifies the other styles sections, the rebuilt `cellXfs`, worksheet style references (cell, row and column), preserved part lengths and the output package before publishing. Any failure discards the temporary output.
 

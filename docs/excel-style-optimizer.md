@@ -50,6 +50,26 @@
 因此“600 KB 文件、解压后 10 MB 样式表”的典型情况在 1 秒量级；工作簿越大，瓶颈通常是
 样式表解析和单个超大工作表的 XML 重写，而不是单元格数量本身。
 
+## 批量处理
+
+左侧「批量优化」页面处理整个文件夹：
+
+- 输入文件夹默认递归扫描 `.xlsx` / `.xlsm`；不跟随重解析点（junction/symlink），跳过 `~$` 临时文件和
+  以 `-optimized` 结尾的文件。
+- 输出文件夹可以不存在，处理时自动创建；输出名为 `<原名>-optimized.<ext>`，并保留相对子目录结构。
+  如果输出文件夹位于输入文件夹内部，扫描时会排除该子树，避免重复处理。
+- 默认跳过已经存在的输出；勾选「覆盖已存在的输出」后才覆盖。
+- 单个文件失败（损坏、被占用、权限不足等）会记录为失败并继续处理其余文件；状态栏显示当前文件与
+  整体进度，取消会在当前文件完成后停止，并保留已完成的结果。
+- 结果列表逐文件显示完成/跳过/失败、`cellXfs` 与文件大小变化、校验状态；原文件始终不修改。
+
+CLI 也支持同样的文件夹批处理：
+
+```powershell
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output
+# 可选：--no-recursive、--overwrite
+```
+
 ## 分析内容
 
 工作簿级：
@@ -111,7 +131,7 @@
 
 ## 界面
 
-左侧导航新增「Excel 优化」独立页面（不占用首页设置）：
+左侧导航新增「Excel 优化」独立页面（不占用首页设置），以及单独的「批量优化」页面：
 
 - 工作簿选择、分析、优化并另存为；
 - 概要指标卡：文件大小、`styles.xml`、`cellXfs`、唯一格式、可去重格式、工作表未引用格式、
@@ -137,6 +157,9 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book
 
 # 优化到新文件
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
+
+# 批量优化文件夹
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output [--no-recursive] [--overwrite]
 ```
 
 退出码：`0` 成功，`1` 失败，`2` 用法错误。CLI 输出为英文，便于脚本处理；桌面界面仍遵循
@@ -151,6 +174,10 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\boo
   的显示可能与 Excel 有细微差异；优化本身不改变任何颜色或格式定义。
 - 不解密受密码保护的文件；分析会以“不是有效包”的错误结束。
 - 分析/校验是流式扫描；优化重写按单个工作表载入 XML，超大单表在重写阶段可能占用较多内存。
+- 批量扫描会跳过以 `-optimized` 结尾的输入文件；需要处理这类文件时请先重命名。
+- 不修改原工作簿，也不做自动备份/恢复；单文件通过“另存为”选择输出位置，批量写入指定输出文件夹。
+- Excel 的单元格格式上限（65,490）只作为诊断信息展示；优化会减少格式数量，但不处理上限以外
+  的数据模型问题。
 - 目标文件夹必须允许应用写入。优化会先在目标文件夹创建临时文件；安全软件（腾讯电脑管家、Windows Defender
   受控文件夹访问等）可能拦截未签名或 Debug 版本向「下载 / 文档」等受保护目录写入，即使当前用户对目录有
   完全控制权限。请改用项目/工作区目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单后重试。
@@ -163,15 +190,12 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\boo
 1. 先保存到普通工作目录（例如项目下的 `artifacts`）确认功能正常；
 2. 若只有「下载 / 文档 / 桌面」失败，检查安全软件的保护/信任设置，或临时关闭文档保护；
 3. 仍失败时检查目标目录 ACL 与磁盘可用空间。
-- 不修改原工作簿，也不做自动备份/恢复；用户通过“另存为”选择输出位置。
-- Excel 的单元格格式上限（65,490）只作为诊断信息展示；优化会减少格式数量，但不处理上限以外
-  的数据模型问题。
 
 ## 验证记录
 
 2026-11-01：
 
-- Core 单元测试 71 个全部通过，其中 13 个覆盖样式分析、预览解析、去重映射（含列样式继承）、合并单元格、包保留、拒绝不安全
+- Core 单元测试 74 个全部通过，其中 16 个覆盖样式分析、预览解析、去重映射（含列样式继承）、合并单元格、批量扫描/继续处理、包保留、拒绝不安全
   目标、取消清理和越界样式引用。
 - 无界面冒烟测试覆盖：分析指标与工作表列表、样式样本渲染、优化写入与校验、同文件拒绝、
   损坏文件报错、明暗主题与中日文切换；截图保存在 `artifacts/`。

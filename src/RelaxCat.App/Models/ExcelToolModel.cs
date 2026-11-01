@@ -24,7 +24,13 @@ public sealed class ExcelToolModel : ObservableModel
     private ExcelStyleAnalysis? analysis;
     private ExcelOptimizationResult? optimization;
 
-    internal ExcelToolModel(UiText text) => this.text = text;
+    internal ExcelToolModel(UiText text)
+    {
+        this.text = text;
+        Batch = new ExcelBatchModel(text);
+    }
+
+    public ExcelBatchModel Batch { get; }
 
     public string FilePath
     {
@@ -106,6 +112,7 @@ public sealed class ExcelToolModel : ObservableModel
 
     internal void RefreshLanguage()
     {
+        Batch.RefreshLanguage();
         if (analysis is null) return;
         var selected = SelectedSheet?.Name;
         summary = BuildSummary(analysis, optimization);

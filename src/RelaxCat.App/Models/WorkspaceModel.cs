@@ -10,7 +10,7 @@ namespace RelaxCat.App.Models;
 
 public sealed class WorkspaceModel : ObservableModel, IDisposable
 {
-    private bool settingsOpen, busy, previewOpen, previewLoading, dropActive, excelToolOpen;
+    private bool settingsOpen, busy, previewOpen, previewLoading, dropActive, excelToolOpen, excelBatchOpen;
     private int languageIndex, themeIndex;
     private string message = "";
     private double progress, previewZoom = 1;
@@ -83,10 +83,12 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public bool IsIdle => !IsBusy;
     public bool SettingsOpen { get => settingsOpen; set { if (Set(ref settingsOpen, value)) Notify(nameof(HomeOpen)); } }
     public bool ExcelToolOpen { get => excelToolOpen; set { if (Set(ref excelToolOpen, value)) Notify(nameof(HomeOpen)); } }
-    public bool HomeOpen => !SettingsOpen && !ExcelToolOpen;
-    public void ShowHome() { SettingsOpen = false; ExcelToolOpen = false; }
-    public void ShowSettings() { ExcelToolOpen = false; SettingsOpen = true; }
-    public void ShowExcelTool() { SettingsOpen = false; ExcelToolOpen = true; }
+    public bool ExcelBatchOpen { get => excelBatchOpen; set { if (Set(ref excelBatchOpen, value)) Notify(nameof(HomeOpen)); } }
+    public bool HomeOpen => !SettingsOpen && !ExcelToolOpen && !ExcelBatchOpen;
+    public void ShowHome() { SettingsOpen = false; ExcelToolOpen = false; ExcelBatchOpen = false; }
+    public void ShowSettings() { ExcelToolOpen = false; ExcelBatchOpen = false; SettingsOpen = true; }
+    public void ShowExcelTool() { SettingsOpen = false; ExcelBatchOpen = false; ExcelToolOpen = true; }
+    public void ShowExcelBatch() { SettingsOpen = false; ExcelToolOpen = false; ExcelBatchOpen = true; }
     public int LanguageIndex
     {
         get => languageIndex;

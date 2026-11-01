@@ -301,3 +301,15 @@ Decision: Present the tool on a dedicated left-navigation page rather than the h
 Reason: Worksheet styles are the main evidence a user needs before trusting a rewrite, and the page is too detailed for the home-page guidance in S-UI-002. Re-analyzing the output makes the "processing effect" visible rather than only numeric, while retained records keep the page live under S-I18N-001 without re-reading the file on every language switch.
 
 Evidence: `src/RelaxCat.App/Views/ExcelToolView.axaml`, `src/RelaxCat.App/MainWindow.ExcelTool.cs`, `src/RelaxCat.App/Models/ExcelToolModel.cs`, `tests/RelaxCat.App.SmokeTests/ExcelToolChecks.cs`, `docs/excel-style-optimizer.md`.
+
+## D-EXCEL-OPT-003
+
+Status: Active
+
+Upstream: S-EXCEL-010, S-EXCEL-009
+
+Decision: Implement folder batch processing in Core (`ExcelWorkbookFinder`, `ExcelBatchOptimizer`) and expose it through a dedicated batch page and the CLI. Discovery recurses by default, skips reparse points, `~$` temp names and `-optimized` names, and excludes an output folder nested inside the input tree. Outputs use `<name>-optimized.<ext>` under the chosen output folder while preserving relative subdirectories; existing outputs are skipped unless overwrite is requested. Per-file failures are recorded and processing continues; cancellation stops after the current file and keeps completed results. The UI reports current file and overall file progress; the CLI prints one line per completed item.
+
+Reason: Batch runs must be predictable and non-destructive: a generated output folder must not be rescanned, a rerun must not silently replace previous results, and one corrupt workbook must not abort a large folder. Keeping discovery/runner in Core makes the UI and CLI share the same semantics and allows tests without Avalonia or Excel.
+
+Evidence: `src/RelaxCat.Core/Excel/ExcelBatch.cs`, `src/RelaxCat.App/Views/ExcelBatchView.axaml`, `src/RelaxCat.App/MainWindow.ExcelBatch.cs`, `src/RelaxCat.App/Models/ExcelBatchModel.cs`, `tools/RelaxCat.ExcelTool/Program.cs`, `tests/RelaxCat.Core.Tests/ExcelBatchTests.cs`, `tests/RelaxCat.App.SmokeTests/ExcelBatchChecks.cs`.

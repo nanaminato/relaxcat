@@ -92,6 +92,13 @@ if (args.Contains("--excel-tool-only"))
     Console.WriteLine("PASS: Excel tool-only smoke flow.");
     return;
 }
+if (args.Contains("--excel-batch-only"))
+{
+    ExcelBatchChecks.Run(window, Complete, Capture, PumpUntil);
+    window.Close(); PumpUntil(() => !window.IsVisible);
+    Console.WriteLine("PASS: Excel batch-only smoke flow.");
+    return;
+}
 
 Check(Label(Control<Button>("ImportButton")) == "导入图片", "Chinese UI missing");
 Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "QuickScale") && !Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "RulesEditor"), "Home is missing quick settings or contains detailed settings");
@@ -273,6 +280,7 @@ Capture("settings-capture-compact-ja.png");
 Check(settings.FindControl<Button>("ApplyCaptureButton")!.IsEffectivelyVisible, "Capture action disappeared at minimum window size");
 window.Width = 1280; window.Height = 850; window.Workspace.LanguageIndex = 0;
 if (!args.Contains("--no-excel-tool")) ExcelToolChecks.Run(window, Complete, Capture, PumpUntil);
+ExcelBatchChecks.Run(window, Complete, Capture, PumpUntil);
 Capture("desktop-smoke.png"); window.Close(); PumpUntil(() => !window.IsVisible);
 if (ownedGreenshot.HasValue)
 {

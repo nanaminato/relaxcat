@@ -142,7 +142,7 @@ internal static class ExcelToolChecks
     }
 
     /// <summary>Creates a workbook with 1,200 cell formats of which only ten are unique.</summary>
-    private static void CreateWorkbook(string path)
+    internal static void CreateWorkbook(string path)
     {
         if (File.Exists(path)) File.Delete(path);
         var styles = BuildStyles();

@@ -57,6 +57,12 @@
               <TextBlock Text="{Binding Text[ExcelToolNav]}" VerticalAlignment="Center" />
             </StackPanel>
           </Button>
+          <Button x:Name="ExcelBatchButton" Classes="nav" Classes.active="{Binding ExcelBatchOpen}" Click="ExcelBatchClicked">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Path Classes="glyph" Data="{StaticResource IconBatch}" />
+              <TextBlock Text="{Binding Text[ExcelBatchNav]}" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
           <Border Height="1" Background="{DynamicResource LineBrush}" Margin="6,20,6,10" />
           <TextBlock Classes="muted" Text="{Binding CaptureStatus}" TextWrapping="Wrap" Margin="10,0" />
           <Button x:Name="CaptureSettingsButton" Classes="nav" Click="CaptureSettingsClicked">
@@ -163,6 +169,8 @@
         <views:SettingsView x:Name="SettingsPage" IsVisible="{Binding SettingsOpen}" ApplyCaptureRequested="ApplyCaptureRequested" StopCaptureRequested="StopCaptureRequested" />
         <views:ExcelToolView x:Name="ExcelToolPage" IsVisible="{Binding ExcelToolOpen}"
                              AnalyzeRequested="AnalyzeExcelRequested" OptimizeRequested="OptimizeExcelRequested" />
+        <views:ExcelBatchView x:Name="ExcelBatchPage" IsVisible="{Binding ExcelBatchOpen}"
+                              ScanRequested="ScanExcelBatchRequested" RunRequested="RunExcelBatchRequested" />
       </Grid>
     </Grid>
 

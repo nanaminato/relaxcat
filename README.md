@@ -25,6 +25,10 @@ Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接�
 | :---: | :---: | :---: |
 | ![Excel 样式分析](docs/images/excel-style-analysis.png) | ![优化结果](docs/images/excel-style-result.png) | ![深色主题](docs/images/excel-style-result-dark.png) |
 
+| Excel 批量优化 |
+| :---: |
+| ![批量优化](docs/images/excel-batch.png) |
+
 ## 从源码运行
 
 需要 .NET 10 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
@@ -92,6 +96,14 @@ scale = 0.9
 4. 写入前逐项校验样式表其它分区、`cellXfs` 内容、工作表样式引用、其它部件和输出包。校验失败会丢弃临时输出并报错；没有重复格式时不会做无意义的重写。完成后自动分析新文件，页面同时显示优化前后的格式数量、`styles.xml` 大小、文件大小和校验结果。
 5. 处理以工作表为单位，不按打印分页；单个大工作表在分析、校验时会显示已扫描行数。分析与校验采用流式读取，10 MB 级 `styles.xml`（约 6 万个格式）的本机分析约 0.6 秒，完整优化约 1 秒量级（不含进程启动）。
 
+左侧「批量优化」提供文件夹级处理：
+
+- 递归扫描输入文件夹中的 `.xlsx` / `.xlsm`，可排除子文件夹；
+- 输出到指定文件夹，文件名追加 `-optimized`，保留子目录结构；
+- 默认跳过已存在的输出，可勾选覆盖；
+- 单个文件失败不影响其余文件，结果列表逐个显示完成、跳过、失败和校验状态；
+- 状态栏显示当前文件与整体进度，可随时取消；原文件始终不修改。
+
 命令行工具复用同一套核心逻辑：
 
 ```powershell
@@ -100,6 +112,9 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book
 
 # 优化到新文件
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
+
+# 批量优化文件夹（默认递归，默认跳过已有输出）
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output
 ```
 
 `.xls` 是二进制格式，不在支持范围。第一版只处理 `cellXfs` 的完全重复项，不合并字体/填充/边框/命名样式表。若保存到「下载 / 文档」等受保护目录时报拒绝访问，通常是安全软件拦截了未签名或 Debug 版本写入；请改用项目目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
@@ -112,6 +127,8 @@ dotnet test RelaxCat.sln -c Release --no-build
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build
 # 只跑 Excel 样式优化页面流程：生成 artifacts/excel-tool-sample.xlsx、执行分析/优化并截图
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel-tool-only
+# 只跑 Excel 批量优化页面流程
+dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel-batch-only
 # 可选：实际启动测试专用 Excel，导出并验证，然后关闭该测试实例
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel
 # 可选：真实 Greenshot 截图链路、鼠标与按键透传、切换、异常退出、关闭清理
@@ -119,7 +136,7 @@ dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --ex
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --greenshot --excel
 ```
 
-Core 测试包含 Excel 样式分析、去重映射、包保留与拒绝不安全目标的用例；无界面冒烟测试覆盖新页面的分析、样式渲染、优化、同文件拒绝和中日文刷新。直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`，Excel 样式优化记录为 `docs/excel-style-optimizer.md`。
+Core 测试包含 Excel 样式分析、去重映射、包保留、合并单元格与批量扫描/继续处理的用例；无界面冒烟测试覆盖单文件与批量页面的分析、样式渲染、优化、失败继续、同文件拒绝和中日文刷新。直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`，Excel 样式优化记录为 `docs/excel-style-optimizer.md`。
 
 ## 许可证
 

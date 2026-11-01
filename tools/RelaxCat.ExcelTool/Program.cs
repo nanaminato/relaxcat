@@ -18,6 +18,7 @@ static int Run(string[] args)
         {
             "analyze" => Analyze(args[1..]),
             "optimize" => Optimize(args[1..]),
+            "batch" => Batch(args[1..]),
             _ => Unknown(command)
         };
     }
@@ -129,6 +130,41 @@ static string Positional(string[] args)
     return path;
 }
 
+static int Batch(string[] args)
+{
+    string? input = null, output = null;
+    var recursive = true;
+    var overwrite = false;
+    for (var index = 0; index < args.Length; index++)
+    {
+        var argument = args[index];
+        if (argument is "--output-dir" or "-o")
+        {
+            if (++index >= args.Length) throw new ArgumentException("--output-dir requires a path.");
+            output = args[index];
+        }
+        else if (argument == "--no-recursive") recursive = false;
+        else if (argument == "--overwrite") overwrite = true;
+        else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
+        else if (input is null) input = argument;
+        else throw new ArgumentException("batch accepts one input folder.");
+    }
+    if (input is null) throw new ArgumentException("batch requires an input folder.");
+    if (output is null) throw new ArgumentException("batch requires --output-dir <folder>.");
+    var discovery = ExcelWorkbookFinder.Find(input, recursive, output);
+    Console.WriteLine($"Found {discovery.Files.Count:N0} workbook(s) in {Path.GetFullPath(input)}");
+    foreach (var issue in discovery.Issues) Console.WriteLine("  warning: cannot read " + issue);
+    if (discovery.Files.Count == 0) return 0;
+    var progress = new ConsoleBatchProgress();
+    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, progress);
+    Console.WriteLine();
+    Console.WriteLine($"Completed: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Completed):N0}, " +
+                      $"skipped: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Skipped):N0}, " +
+                      $"failed: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Failed):N0}" +
+                      (outcome.Cancelled ? ", cancelled" : ""));
+    return outcome.Results.Any(result => result.Status == ExcelBatchItemStatus.Failed) || outcome.Cancelled ? 1 : 0;
+}
+
 static int Unknown(string command)
 {
     Console.Error.WriteLine("error: unknown command '" + command + "'");
@@ -144,11 +180,15 @@ static void PrintUsage()
         Usage:
           RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json]
           RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm>
+          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--no-recursive] [--overwrite]
 
         analyze   Read-only report of the style table, duplicate cell formats and worksheet styles.
         optimize  Merge XML-identical cell formats into a NEW workbook. The input is never modified.
                   The output keeps the input's extension; .xlsm files keep their VBA project and all
                   other package parts byte-for-byte. Every result is verified before it is published.
+        batch     Optimize every .xlsx/.xlsm found in a folder (recursive by default). Outputs are
+                  written as <name>-optimized.<ext> under --output-dir, preserving subdirectories.
+                  Existing outputs are skipped unless --overwrite is given; per-file failures continue.
 
         Exit codes: 0 success, 1 failure, 2 usage error.
         """);
@@ -165,3 +205,20 @@ static string Bytes(long value) => value switch
     >= 1024 => (value / 1024d).ToString("0.#", CultureInfo.InvariantCulture) + " KB",
     _ => value.ToString("N0", CultureInfo.InvariantCulture) + " B"
 };
+
+internal sealed class ConsoleBatchProgress : IProgress<ExcelBatchProgress>
+{
+    public void Report(ExcelBatchProgress value)
+    {
+        if (value.LastResult is not { } result) return;
+        var status = result.Status switch
+        {
+            ExcelBatchItemStatus.Completed => "ok",
+            ExcelBatchItemStatus.Skipped => "skipped",
+            ExcelBatchItemStatus.Cancelled => "cancelled",
+            _ => "FAILED"
+        };
+        Console.WriteLine($"  [{value.Completed}/{value.Total}] {result.RelativePath}: {status}" +
+                          (result.Error is null ? "" : " - " + result.Error));
+    }
+}

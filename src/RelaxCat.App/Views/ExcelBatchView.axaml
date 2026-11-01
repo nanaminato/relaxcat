@@ -1,0 +1,99 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="using:RelaxCat.App.Models"
+             x:Class="RelaxCat.App.Views.ExcelBatchView" x:DataType="models:WorkspaceModel" x:CompileBindings="True">
+  <Grid RowDefinitions="Auto,*" Margin="24,20,24,16">
+    <StackPanel Spacing="7" Margin="0,0,0,14">
+      <TextBlock Classes="heading" Text="{Binding Text[ExcelBatchTab]}" />
+      <TextBlock Classes="muted" Text="{Binding Text[BatchHint]}" TextWrapping="Wrap" MaxWidth="820" />
+    </StackPanel>
+
+    <Grid Grid.Row="1" ColumnDefinitions="380,*" ColumnSpacing="18">
+      <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <StackPanel Spacing="12" Margin="0,0,4,8">
+          <Border Classes="panel" Padding="16" IsEnabled="{Binding IsIdle}">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="section" Text="{Binding Text[BatchSection]}" Margin="0" />
+              <StackPanel Spacing="5">
+                <TextBlock Classes="field" Text="{Binding Text[BatchInputFolder]}" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="BatchInputFolderInput" Text="{Binding ExcelTool.Batch.InputFolder, Mode=TwoWay}" PlaceholderText="{Binding Text[BatchInputFolder]}" />
+                  <Button x:Name="BatchBrowseInputButton" Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseInputClicked" />
+                </Grid>
+              </StackPanel>
+              <StackPanel Spacing="5">
+                <TextBlock Classes="field" Text="{Binding Text[BatchOutputFolder]}" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="BatchOutputFolderInput" Text="{Binding ExcelTool.Batch.OutputFolder, Mode=TwoWay}" PlaceholderText="{Binding Text[BatchOutputFolder]}" />
+                  <Button x:Name="BatchBrowseOutputButton" Grid.Column="1" Content="{Binding Text[Browse]}" Click="BrowseOutputClicked" />
+                </Grid>
+              </StackPanel>
+              <CheckBox x:Name="BatchRecursiveOption" Content="{Binding Text[BatchRecursive]}" IsChecked="{Binding ExcelTool.Batch.Recursive, Mode=TwoWay}" />
+              <CheckBox x:Name="BatchOverwriteOption" Content="{Binding Text[BatchOverwrite]}" IsChecked="{Binding ExcelTool.Batch.Overwrite, Mode=TwoWay}" />
+              <TextBlock Classes="muted" Text="{Binding Text[BatchOutputHint]}" TextWrapping="Wrap" FontSize="10" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button x:Name="BatchScanButton" Content="{Binding Text[BatchScan]}" Click="ScanClicked" IsEnabled="{Binding ExcelTool.Batch.CanScan}" />
+                <Button x:Name="BatchRunButton" Classes="primary" Content="{Binding Text[BatchRun]}" Click="RunClicked" IsEnabled="{Binding ExcelTool.Batch.CanRun}" />
+              </StackPanel>
+              <ProgressBar Minimum="0" Maximum="1" Height="4" Value="{Binding Progress}" IsVisible="{Binding IsBusy}" />
+              <TextBlock x:Name="BatchStatusLabel" Text="{Binding ExcelTool.Batch.Status}" FontWeight="SemiBold" FontSize="12" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding ExcelTool.Batch.Summary}" Classes="muted" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="panel" Padding="14" IsVisible="{Binding ExcelTool.Batch.HasIssues}">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="section" Text="{Binding Text[BatchIssuesTitle]}" Margin="0" FontSize="12" />
+              <TextBlock Text="{Binding ExcelTool.Batch.IssuesText}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Border Grid.Column="1" Classes="panel" ClipToBounds="True">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="18,14,18,10">
+            <StackPanel Spacing="2">
+              <TextBlock Text="{Binding Text[BatchResults]}" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="{Binding ExcelTool.Batch.Summary}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+            </StackPanel>
+            <TextBlock Grid.Column="1" Text="{Binding ExcelTool.Batch.Status}" Classes="muted" FontSize="11"
+                       TextWrapping="Wrap" MaxWidth="240" VerticalAlignment="Center" />
+          </Grid>
+
+          <Grid Grid.Row="1">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="18,0,18,18">
+              <ItemsControl x:Name="BatchResultsList" ItemsSource="{Binding ExcelTool.Batch.Items}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="models:ExcelBatchItem">
+                    <Border Classes="batchRow" Padding="12,9" Margin="0,0,0,6">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Border Width="8" Height="8" CornerRadius="4" Background="{Binding StatusBrush}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="1" Spacing="2">
+                          <TextBlock Text="{Binding RelativePath}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                     ToolTip.Tip="{Binding InputPath}" />
+                          <TextBlock Text="{Binding DetailText}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="{Binding StatusText}" FontSize="11" Foreground="{Binding StatusBrush}"
+                                   VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </ScrollViewer>
+
+            <StackPanel IsVisible="{Binding !ExcelTool.Batch.HasItems}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" Margin="30">
+              <Border Background="{DynamicResource AccentSoftBrush}" Width="64" Height="64" CornerRadius="16" HorizontalAlignment="Center">
+                <Path Data="M2,2 H10 V10 H2 Z M6,6 H14 V14 H6 Z"
+                      Stroke="{DynamicResource AccentBrush}" StrokeThickness="1.8" Width="32" Height="32"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <TextBlock Text="{Binding Text[BatchEmpty]}" Classes="muted" TextWrapping="Wrap" MaxWidth="380" TextAlignment="Center" />
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

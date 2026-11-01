@@ -244,6 +244,14 @@ Statement: RelaxCat provides an Excel/OOXML style analysis and optimization capa
 
 Confirmation basis: Human instruction, 2026-11-01: introduce the design of `nanaminato/todolist` PR #2 (`ideas/excel-style-deduplicator.md`) into RelaxCat as a tool feature with a suitable interface that displays worksheet styles before processing and the processing effect.
 
+## S-EXCEL-010
+
+Status: Confirmed
+
+Statement: RelaxCat can process Excel workbooks in batch. It scans a folder (optionally including subfolders), optimizes each workbook into an output folder while leaving the source workbooks unchanged, continues after a per-file failure, and exposes per-file progress and results.
+
+Confirmation basis: Human instruction, 2026-11-01: “添加批量处理功能”.
+
 ## S-IMPORT-005
 
 Status: Confirmed

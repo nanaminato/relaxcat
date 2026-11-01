@@ -57,6 +57,7 @@
       <StreamGeometry x:Key="IconSliders">M1.9,5.5 L14.1,5.5 M1.9,10.5 L14.1,10.5 M4.5,5.5 A1.5,1.5 0 1,0 7.5,5.5 A1.5,1.5 0 1,0 4.5,5.5 M9.1,10.5 A1.5,1.5 0 1,0 12.1,10.5 A1.5,1.5 0 1,0 9.1,10.5</StreamGeometry>
       <StreamGeometry x:Key="IconCapture">M1.9,5.2 L4.9,5.2 L6.1,3.1 L9.9,3.1 L11.1,5.2 L14.1,5.2 L14.1,13.1 L1.9,13.1 Z M6.7,9.1 A1.9,1.9 0 1,0 10.5,9.1 A1.9,1.9 0 1,0 6.7,9.1</StreamGeometry>
       <StreamGeometry x:Key="IconSheet">M2,3 L14,3 L14,13 L2,13 Z M2,6.3 L14,6.3 M2,9.6 L14,9.6 M6,3 L6,13 M10,3 L10,13</StreamGeometry>
+      <StreamGeometry x:Key="IconBatch">M4,1.9 L13,1.9 L13,10.9 L4,10.9 Z M2,4 L4,4 M2,4 L2,13.9 L11,13.9 L11,11.9</StreamGeometry>
       <StreamGeometry x:Key="IconTrash">M2.2,4.4 L13.8,4.4 M6.2,4.4 L6.2,2.2 L9.8,2.2 L9.8,4.4 M3.9,4.4 L4.8,13.8 L11.2,13.8 L12.1,4.4 M6.7,7.2 L7,11.2 M9.3,7.2 L9,11.2</StreamGeometry>
       <StreamGeometry x:Key="IconCopy">M6.4,6.4 L14,6.4 L14,14 L6.4,14 Z M9.6,6.4 L9.6,2 L2,2 L2,9.6 L6.4,9.6</StreamGeometry>
       <StreamGeometry x:Key="IconRemove">M4.4,4.4 L11.6,11.6 M11.6,4.4 L4.4,11.6</StreamGeometry>
@@ -280,6 +281,12 @@
     </Style>
     <Style Selector="Border.swatch:pointerover">
       <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+    </Style>
+    <Style Selector="Border.batchRow">
+      <Setter Property="Background" Value="{DynamicResource RaisedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="6" />
     </Style>
     <!-- Worksheet selector: quiet pills, the selected sheet uses the accent surface like the nav rail. -->
     <Style Selector="Button.tab">
