@@ -102,7 +102,7 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
 ```
 
-`.xls` 是二进制格式，不在支持范围。第一版只处理 `cellXfs` 的完全重复项，不合并字体/填充/边框/命名样式表。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
+`.xls` 是二进制格式，不在支持范围。第一版只处理 `cellXfs` 的完全重复项，不合并字体/填充/边框/命名样式表。若保存到「下载 / 文档」等受保护目录时报拒绝访问，通常是安全软件拦截了未签名或 Debug 版本写入；请改用项目目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
 
 ## 验证
 

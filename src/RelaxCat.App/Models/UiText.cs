@@ -225,6 +225,7 @@ public sealed class UiText : ObservableModel
         ["ExcelOptimizedSummary"] = ("优化完成：cellXfs {0} → {1}，已写入 {2}", "最適化完了：cellXfs {0} → {1}、{2} に書き込みました"),
         ["ExcelAnalysisFailed"] = ("分析失败：", "分析に失敗："),
         ["ExcelOptimizeFailed"] = ("优化失败：", "最適化に失敗："),
+        ["ExcelOutputAccessDenied"] = ("无法写入输出文件夹：{0}。请改用其他文件夹（例如项目目录），或将 RelaxCat 加入安全软件（如腾讯电脑管家、Windows Defender）的信任名单后重试。", "出力フォルダーに書き込めません：{0}。別のフォルダー（プロジェクト内など）を選ぶか、セキュリティソフト（Tencent PC Manager、Windows Defender など）で RelaxCat を信頼してください。"),
         ["ExcelNoWorkbook"] = ("请选择有效的 .xlsx 或 .xlsm 工作簿", "有効な .xlsx / .xlsm ブックを選択してください"),
         ["ExcelSameFile"] = ("输出文件不能与原文件相同", "出力先は元のブックと同じにできません"),
         ["ExcelPhaseReading"] = ("读取工作簿", "ブックを読み込み中"),

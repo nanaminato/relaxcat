@@ -123,6 +123,12 @@ public sealed partial class MainWindow
                 result = await Task.Run(() => new ExcelStyleOptimizer().Optimize(input, output, reporting, token), token);
             }
             catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ExcelOptimizeCancelled"]; return; }
+            catch (UnauthorizedAccessException)
+            {
+                Workspace.Message = string.Format(Workspace.Text["ExcelOutputAccessDenied"],
+                    Path.GetDirectoryName(output) ?? output);
+                return;
+            }
             catch (Exception error) { Workspace.Message = Workspace.Text["ExcelOptimizeFailed"] + error.Message; return; }
 
             // The optimized file is already published and verified; cancellation from here only skips the preview refresh.

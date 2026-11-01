@@ -21,6 +21,11 @@ static int Run(string[] args)
             _ => Unknown(command)
         };
     }
+    catch (UnauthorizedAccessException error)
+    {
+        Console.Error.WriteLine("error: access denied. Choose a writable output folder or trust this tool in your security software. " + error.Message);
+        return 1;
+    }
     catch (Exception error)
     {
         Console.Error.WriteLine("error: " + error.Message);
