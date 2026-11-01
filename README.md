@@ -110,6 +110,8 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\boo
 dotnet build RelaxCat.sln -c Release
 dotnet test RelaxCat.sln -c Release --no-build
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build
+# 只跑 Excel 样式优化页面流程：生成 artifacts/excel-tool-sample.xlsx、执行分析/优化并截图
+dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel-tool-only
 # 可选：实际启动测试专用 Excel，导出并验证，然后关闭该测试实例
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel
 # 可选：真实 Greenshot 截图链路、鼠标与按键透传、切换、异常退出、关闭清理

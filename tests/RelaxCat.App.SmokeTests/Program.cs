@@ -84,6 +84,14 @@ void Capture(string file)
     frame.Save("artifacts/" + file, PngBitmapEncoderOptions.Default);
 }
 T Control<T>(string name) where T : Control => window.FindControl<T>(name) ?? throw new Exception("Missing " + name);
+// Focused entry point for the Excel style tool page; it still generates the same artifacts as the full suite.
+if (args.Contains("--excel-tool-only"))
+{
+    ExcelToolChecks.Run(window, Complete, Capture, PumpUntil);
+    window.Close(); PumpUntil(() => !window.IsVisible);
+    Console.WriteLine("PASS: Excel tool-only smoke flow.");
+    return;
+}
 
 Check(Label(Control<Button>("ImportButton")) == "导入图片", "Chinese UI missing");
 Check(Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "QuickScale") && !Control<Grid>("HomePage").GetVisualDescendants().OfType<TextBox>().Any(t => t.Name == "RulesEditor"), "Home is missing quick settings or contains detailed settings");
