@@ -70,6 +70,21 @@ public enum ExcelOptimizationPhase { Reading, RewritingStyles, RewritingWorkshee
 
 public sealed record ExcelOptimizationProgress(ExcelOptimizationPhase Phase, int Completed, int Total);
 
+public enum ExcelAnalysisPhase { ReadingStyles, ScanningWorksheets, Projecting }
+
+/// <summary>
+/// Analysis progress. <paramref name="Completed"/> counts finished worksheets while
+/// <paramref name="RowsScanned"/> reports rows inside the current worksheet, so a single
+/// large sheet still produces visible progress.
+/// </summary>
+public sealed record ExcelAnalysisProgress(
+    ExcelAnalysisPhase Phase,
+    int Completed,
+    int Total,
+    string? Worksheet = null,
+    int RowsScanned = 0,
+    int ExpectedRows = 0);
+
 /// <summary>A verification check. <paramref name="Key"/> is a stable token localized by the UI.</summary>
 public sealed record OptimizationCheck(string Key, bool Passed, string Detail);
 

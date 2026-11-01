@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace RelaxCat.Core.Excel;
@@ -23,7 +24,11 @@ internal sealed class StyleDeduplicationPlan
         StylesXml = stylesXml;
     }
 
-    internal static StyleDeduplicationPlan Build(StyleSheetDocument styles)
+    /// <summary>
+    /// <paramref name="retainOriginalKeys"/> keeps the canonical key of every input format for
+    /// post-write verification. Analysis only needs the projected document, so it can skip the keys.
+    /// </summary>
+    internal static StyleDeduplicationPlan Build(StyleSheetDocument styles, bool retainOriginalKeys = true)
     {
         var original = styles.CellXfs;
         var keys = original.Select(OoxmlXml.CanonicalKey).ToArray();
@@ -43,13 +48,26 @@ internal sealed class StyleDeduplicationPlan
             kept.Add(new XElement(original[i]));
         }
 
-        var clone = new XDocument(styles.Document);
-        var cellXfs = OoxmlXml.Child(clone.Root, "cellXfs") ??
-                      throw new InvalidDataException("The workbook style sheet has no cell format table (cellXfs).");
-        cellXfs.RemoveNodes();
-        foreach (var format in kept) cellXfs.Add(format);
-        cellXfs.SetAttributeValue("count", kept.Count.ToString(CultureInfo.InvariantCulture));
-        return new StyleDeduplicationPlan(map, kept, keys, clone, OoxmlXml.Serialize(clone));
+        // Clone only the sections that stay in place. Cloning the whole document would duplicate
+        // tens of thousands of formats just before they are dropped from cellXfs.
+        var cloneRoot = new XElement(styles.Root.Name, styles.Root.Attributes());
+        foreach (var section in styles.Root.Elements())
+        {
+            if (section.Name.LocalName == "cellXfs")
+            {
+                var swapped = new XElement(section.Name,
+                    section.Attributes().Where(attribute => attribute.Name.LocalName != "count"));
+                swapped.SetAttributeValue("count", kept.Count.ToString(CultureInfo.InvariantCulture));
+                foreach (var format in kept) swapped.Add(format);
+                cloneRoot.Add(swapped);
+            }
+            else cloneRoot.Add(new XElement(section));
+        }
+        var clone = styles.Document.Declaration is { } declaration
+            ? new XDocument(declaration, cloneRoot)
+            : new XDocument(cloneRoot);
+        return new StyleDeduplicationPlan(map, kept, retainOriginalKeys ? keys : Array.Empty<string>(),
+            clone, OoxmlXml.Serialize(clone));
     }
 }
 
@@ -62,13 +80,16 @@ internal sealed record WorksheetStyleScan(
 
 internal static class WorksheetStyleScanner
 {
-    internal static WorksheetStyleScan Scan(XDocument document, int cellXfCount, string sheetName)
+    /// <summary>
+    /// Streaming scan of one worksheet part. Only the style references, used range and counts are
+    /// retained, so a sheet with hundreds of thousands of cells never becomes an in-memory tree.
+    /// </summary>
+    internal static WorksheetStyleScan Scan(Stream stream, int cellXfCount, string sheetName,
+        CancellationToken cancellationToken = default, Action<int, int>? rowProgress = null)
     {
-        var root = document.Root ?? throw new InvalidDataException($"Worksheet '{sheetName}' has no root element.");
-        var columns = ReadColumnStyles(root, cellXfCount, sheetName);
+        var columns = new List<(int Minimum, int Maximum, int Style)>();
         var effective = new Dictionary<int, int>();
         var raw = new Dictionary<int, int>();
-        foreach (var (_, _, style) in columns) Increment(raw, style);
         var order = new List<int>();
         var seen = new HashSet<int>();
         var cellCount = 0;
@@ -77,25 +98,82 @@ internal static class WorksheetStyleScanner
         var minimumColumn = int.MaxValue;
         var maximumColumn = 0;
         var rowIndex = 0;
+        var dimension = (string?)null;
+        var expectedRows = 0;
+        var rowsSinceProgress = 0;
 
-        foreach (var row in OoxmlXml.Child(root, "sheetData")?.Elements() ?? Enumerable.Empty<XElement>())
+        var settings = new XmlReaderSettings
         {
-            if (row.Name.LocalName != "row") continue;
-            var rowNumber = OoxmlXml.IntAttribute(row, "r") ?? rowIndex + 1;
+            DtdProcessing = DtdProcessing.Prohibit,
+            XmlResolver = null,
+            CloseInput = false,
+            IgnoreComments = true,
+            IgnoreProcessingInstructions = true,
+            CheckCharacters = false
+        };
+        using var reader = XmlReader.Create(stream, settings);
+        while (reader.Read())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (reader.NodeType != XmlNodeType.Element) continue;
+            switch (reader.LocalName)
+            {
+                case "dimension":
+                    dimension = reader.GetAttribute("ref");
+                    expectedRows = EndRow(dimension);
+                    break;
+                case "col":
+                    if (ParseInt(reader.GetAttribute("style")) is { } style &&
+                        ParseInt(reader.GetAttribute("min")) is { } minimum &&
+                        ParseInt(reader.GetAttribute("max")) is { } maximum &&
+                        minimum >= 1 && maximum >= minimum)
+                    {
+                        Validate(style, cellXfCount, sheetName);
+                        columns.Add((minimum, maximum, style));
+                        Increment(raw, style);
+                    }
+                    break;
+                case "row":
+                    ProcessRow();
+                    break;
+            }
+        }
+        if (rowIndex > 0) rowProgress?.Invoke(rowIndex, expectedRows);
+
+        var usedRange = !string.IsNullOrWhiteSpace(dimension)
+            ? dimension
+            : cellCount > 0
+                ? OoxmlXml.CellReference(minimumRow, minimumColumn) + ":" + OoxmlXml.CellReference(maximumRow, maximumColumn)
+                : "";
+        return new WorksheetStyleScan(usedRange, cellCount, effective, raw, order);
+
+        void ProcessRow()
+        {
+            var rowNumber = ParseInt(reader.GetAttribute("r")) ?? rowIndex + 1;
             rowIndex = rowNumber;
-            var rowStyle = OoxmlXml.IntAttribute(row, "s");
+            var rowStyle = ParseInt(reader.GetAttribute("s"));
             if (rowStyle is { } declaredRowStyle)
             {
                 Validate(declaredRowStyle, cellXfCount, sheetName);
                 Increment(raw, declaredRowStyle);
             }
 
-            var columnIndex = 0;
-            foreach (var cell in row.Elements())
+            var depth = reader.Depth;
+            if (reader.IsEmptyElement)
             {
-                if (cell.Name.LocalName != "c") continue;
+                ReportRow();
+                return;
+            }
+
+            var columnIndex = 0;
+            while (reader.Read())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (reader.NodeType == XmlNodeType.EndElement && reader.Depth == depth) break;
+                if (reader.NodeType != XmlNodeType.Element || reader.LocalName != "c") continue;
+
                 var cellRow = rowNumber;
-                if (OoxmlXml.Attribute(cell, "r") is { } reference)
+                if (reader.GetAttribute("r") is { } reference)
                 {
                     if (TryParseReference(reference, out var parsedRow, out var parsedColumn))
                     {
@@ -106,7 +184,7 @@ internal static class WorksheetStyleScanner
                 }
                 else columnIndex++;
 
-                var ownStyle = OoxmlXml.IntAttribute(cell, "s");
+                var ownStyle = ParseInt(reader.GetAttribute("s"));
                 if (ownStyle is { } declaredStyle)
                 {
                     Validate(declaredStyle, cellXfCount, sheetName);
@@ -121,15 +199,16 @@ internal static class WorksheetStyleScanner
                 minimumColumn = Math.Min(minimumColumn, columnIndex);
                 maximumColumn = Math.Max(maximumColumn, columnIndex);
             }
+            ReportRow();
         }
 
-        var dimension = OoxmlXml.Attribute(OoxmlXml.Child(root, "dimension"), "ref");
-        var usedRange = !string.IsNullOrWhiteSpace(dimension)
-            ? dimension
-            : cellCount > 0
-                ? OoxmlXml.CellReference(minimumRow, minimumColumn) + ":" + OoxmlXml.CellReference(maximumRow, maximumColumn)
-                : "";
-        return new WorksheetStyleScan(usedRange, cellCount, effective, raw, order);
+        void ReportRow()
+        {
+            if (rowProgress is null) return;
+            if (++rowsSinceProgress < 500) return;
+            rowsSinceProgress = 0;
+            rowProgress(rowIndex, expectedRows);
+        }
     }
 
     private static void Validate(int style, int cellXfCount, string sheetName)
@@ -142,28 +221,15 @@ internal static class WorksheetStyleScanner
     private static void Increment(Dictionary<int, int> counts, int style) =>
         counts[style] = counts.GetValueOrDefault(style) + 1;
 
-    private static List<(int Minimum, int Maximum, int Style)> ReadColumnStyles(XElement root, int cellXfCount, string sheetName)
-    {
-        var result = new List<(int, int, int)>();
-        if (OoxmlXml.Child(root, "cols") is not { } columns) return result;
-        foreach (var column in OoxmlXml.Children(columns, "col"))
-        {
-            if (OoxmlXml.IntAttribute(column, "style") is not { } style) continue;
-            var minimum = OoxmlXml.IntAttribute(column, "min") ?? 0;
-            var maximum = OoxmlXml.IntAttribute(column, "max") ?? 0;
-            if (minimum < 1 || maximum < minimum) continue;
-            Validate(style, cellXfCount, sheetName);
-            result.Add((minimum, maximum, style));
-        }
-        return result;
-    }
-
     private static int? ColumnStyle(List<(int Minimum, int Maximum, int Style)> columns, int index)
     {
         foreach (var (minimum, maximum, style) in columns)
             if (index >= minimum && index <= maximum) return style;
         return null;
     }
+
+    private static int? ParseInt(string? value) =>
+        int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : null;
 
     private static bool TryParseReference(string reference, out int row, out int column)
     {
@@ -176,5 +242,14 @@ internal static class WorksheetStyleScanner
             column = column * 26 + (char.ToUpperInvariant(reference[i]) - 'A' + 1);
         return int.TryParse(reference.AsSpan(letters), NumberStyles.None, CultureInfo.InvariantCulture, out row) &&
                row > 0 && column > 0;
+    }
+
+    private static int EndRow(string? dimension)
+    {
+        if (string.IsNullOrWhiteSpace(dimension)) return 0;
+        var last = dimension[(dimension.LastIndexOf(':') + 1)..];
+        var letters = 0;
+        while (letters < last.Length && char.IsAsciiLetter(last[letters])) letters++;
+        return int.TryParse(last.AsSpan(letters), NumberStyles.None, CultureInfo.InvariantCulture, out var row) ? row : 0;
     }
 }

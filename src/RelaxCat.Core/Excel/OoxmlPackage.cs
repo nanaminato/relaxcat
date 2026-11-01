@@ -46,6 +46,8 @@ internal sealed class OoxmlPackage : IDisposable
         return XDocument.Load(reader, LoadOptions.PreserveWhitespace);
     }
 
+    internal Stream OpenPart(string partName) => Require(partName).Open();
+
     internal XDocument? TryReadXml(string partName)
     {
         var entry = Find(partName);

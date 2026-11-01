@@ -60,7 +60,12 @@ public sealed partial class MainWindow
         Workspace.Message = Workspace.Text["ExcelAnalyzing"];
         try
         {
-            var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(input, token), token);
+            var reporting = new Progress<ExcelAnalysisProgress>(report =>
+            {
+                Workspace.Message = Describe(report);
+                Workspace.Progress = AnalysisProgressOf(report);
+            });
+            var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(input, token, reporting), token);
             token.ThrowIfCancellationRequested();
             if (closed) return;
             Workspace.ExcelTool.FilePath = input;
@@ -150,6 +155,30 @@ public sealed partial class MainWindow
         ExcelToolModel.Count(result.InputCellXfCount), ExcelToolModel.Count(result.OutputCellXfCount),
         Path.GetFileName(result.OutputPath));
 
+    private string Describe(ExcelAnalysisProgress report)
+    {
+        if (report.Phase == ExcelAnalysisPhase.ReadingStyles) return Workspace.Text["ExcelPhaseReadingStyles"];
+        if (report.Phase == ExcelAnalysisPhase.Projecting) return Workspace.Text["ExcelPhaseProjection"];
+        var phase = Workspace.Text["ExcelPhaseScanning"];
+        if (report.Worksheet is not { } sheet) return phase;
+        var completed = Math.Min(report.Completed + 1, Math.Max(1, report.Total));
+        var message = $"{phase} · {sheet} ({completed}/{report.Total})";
+        if (report.RowsScanned > 0)
+            message += $" · {ExcelToolModel.Count(report.RowsScanned)} {Workspace.Text["RowsLabel"]}";
+        return message;
+    }
+
+    private static double AnalysisProgressOf(ExcelAnalysisProgress report)
+    {
+        if (report.Phase == ExcelAnalysisPhase.ReadingStyles) return .05;
+        if (report.Phase == ExcelAnalysisPhase.Projecting) return .92;
+        if (report.Total <= 0) return .1;
+        var within = report.ExpectedRows > 0
+            ? Math.Clamp((double)report.RowsScanned / report.ExpectedRows, 0, 1)
+            : 0;
+        return .1 + .8 * Math.Clamp((report.Completed + within) / report.Total, 0, 1);
+    }
+
     private string Describe(ExcelOptimizationProgress report)
     {
         var phase = report.Phase switch
@@ -168,8 +197,8 @@ public sealed partial class MainWindow
         ExcelOptimizationPhase.Reading => .1,
         ExcelOptimizationPhase.RewritingWorksheets => .1 + .5 * report.Completed / Math.Max(1, report.Total),
         ExcelOptimizationPhase.RewritingStyles => .64,
-        ExcelOptimizationPhase.Verifying => .78,
-        ExcelOptimizationPhase.WritingOutput => .9,
+        ExcelOptimizationPhase.Verifying => .7 + .2 * report.Completed / Math.Max(1, report.Total),
+        ExcelOptimizationPhase.WritingOutput => .95,
         _ => .1
     };
 }

@@ -321,6 +321,38 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.True(Luminance(alignedStyle.FontColor) < Luminance("#4472C4"));
     }
 
+    [Fact]
+    public void Analyze_ReportsPerWorksheetAndRowProgress()
+    {
+        var input = CreateSample();
+        var progress = new ProgressCollector<ExcelAnalysisProgress>();
+
+        var analysis = new ExcelStyleAnalyzer().Analyze(input, default, progress);
+
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelAnalysisPhase.ReadingStyles);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelAnalysisPhase.Projecting);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelAnalysisPhase.ScanningWorksheets &&
+                                                    report.Worksheet == "Data" && report.RowsScanned >= 1);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelAnalysisPhase.ScanningWorksheets &&
+                                                    report.Completed == analysis.SheetCount);
+        Assert.All(progress.Reports, report => Assert.InRange(report.Completed, 0, analysis.SheetCount));
+    }
+
+    [Fact]
+    public void Optimize_ReportsPerWorksheetRewritingAndVerification()
+    {
+        var input = CreateSample();
+        var output = PathOf("progress.xlsx");
+        var progress = new ProgressCollector<ExcelOptimizationProgress>();
+
+        var result = new ExcelStyleOptimizer().Optimize(input, output, progress);
+
+        Assert.True(result.Verified);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelOptimizationPhase.RewritingWorksheets && report.Completed == 2);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelOptimizationPhase.Verifying && report.Completed == 2);
+        Assert.Contains(progress.Reports, report => report.Phase == ExcelOptimizationPhase.WritingOutput);
+    }
+
     private static void AssertSameVisualStyles(ExcelStyleAnalysis before, ExcelStyleAnalysis after)
     {
         Assert.Equal(before.Worksheets.Count, after.Worksheets.Count);
@@ -358,4 +390,10 @@ public sealed class ExcelStyleTests : IDisposable
         (0.2126 * Convert.ToInt32(hex.Substring(1, 2), 16)) +
         (0.7152 * Convert.ToInt32(hex.Substring(3, 2), 16)) +
         (0.0722 * Convert.ToInt32(hex.Substring(5, 2), 16));
+
+    private sealed class ProgressCollector<T> : IProgress<T>
+    {
+        public List<T> Reports { get; } = new();
+        public void Report(T value) => Reports.Add(value);
+    }
 }

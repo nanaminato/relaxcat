@@ -15,7 +15,8 @@ public sealed class ExcelStyleAnalyzer
                string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase);
     }
 
-    public ExcelStyleAnalysis Analyze(string path, CancellationToken cancellationToken = default)
+    public ExcelStyleAnalysis Analyze(string path, CancellationToken cancellationToken = default,
+        IProgress<ExcelAnalysisProgress>? progress = null)
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A workbook path is required.", nameof(path));
         var fullPath = Path.GetFullPath(path);
@@ -24,8 +25,9 @@ public sealed class ExcelStyleAnalyzer
             throw new NotSupportedException("Only .xlsx and .xlsm workbooks are supported; .xls is a different binary format.");
 
         using var package = new OoxmlPackage(fullPath);
+        progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.ReadingStyles, 0, 1));
         var styles = StyleSheetDocument.Load(package);
-        var sheetDefinitions = WorkbookStructure.ReadSheets(package);
+        var sheetDefinitions = WorkbookStructure.ReadSheets(package).Where(sheet => sheet.IsWorksheet).ToList();
         cancellationToken.ThrowIfCancellationRequested();
 
         var keys = styles.CellXfs.Select(OoxmlXml.CanonicalKey).ToArray();
@@ -33,11 +35,20 @@ public sealed class ExcelStyleAnalyzer
         var referenced = new HashSet<int>();
         var summaries = new List<WorksheetStyleSummary>();
 
-        foreach (var sheet in sheetDefinitions)
+        for (var index = 0; index < sheetDefinitions.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!sheet.IsWorksheet) continue;
-            var scan = WorksheetStyleScanner.Scan(package.ReadXml(sheet.PartName), styles.CellXfs.Count, sheet.Name);
+            var sheet = sheetDefinitions[index];
+            progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.ScanningWorksheets,
+                index, sheetDefinitions.Count, sheet.Name));
+            WorksheetStyleScan scan;
+            using (var stream = package.OpenPart(sheet.PartName))
+            {
+                scan = WorksheetStyleScanner.Scan(stream, styles.CellXfs.Count, sheet.Name, cancellationToken,
+                    (rows, expectedRows) => progress?.Report(new ExcelAnalysisProgress(
+                        ExcelAnalysisPhase.ScanningWorksheets, index, sheetDefinitions.Count, sheet.Name,
+                        rows, expectedRows)));
+            }
             foreach (var style in scan.EffectiveStyleCounts.Keys) referenced.Add(style);
             foreach (var style in scan.RawStyleCounts.Keys) referenced.Add(style);
 
@@ -47,9 +58,12 @@ public sealed class ExcelStyleAnalyzer
                 usages.Add(new StyleUsage(style, scan.EffectiveStyleCounts.GetValueOrDefault(style), styles.Preview(style)));
             summaries.Add(new WorksheetStyleSummary(sheet.Name, sheet.State != "visible", scan.UsedRange,
                 scan.CellCount, scan.StyleOrder.Count, Math.Max(0, scan.StyleOrder.Count - listed.Length), usages));
+            progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.ScanningWorksheets,
+                index + 1, sheetDefinitions.Count, sheet.Name));
         }
 
-        var plan = StyleDeduplicationPlan.Build(styles);
+        progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.Projecting, 0, 1));
+        var plan = StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false);
         cancellationToken.ThrowIfCancellationRequested();
         var originalStylesBytes = package.LengthOf("xl/styles.xml");
         // With nothing to merge, optimization copies styles.xml verbatim instead of re-serializing it.

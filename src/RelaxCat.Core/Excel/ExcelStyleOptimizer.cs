@@ -57,6 +57,7 @@ public sealed class ExcelStyleOptimizer
                 var document = package.ReadXml(sheet.PartName);
                 remapped += RemapWorksheet(document, plan.Map, styles.CellXfs.Count, sheet.Name);
                 changed[sheet.PartName] = OoxmlXml.Serialize(document);
+                progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingWorksheets, index + 1, worksheets.Count));
             }
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingStyles, worksheets.Count, worksheets.Count));
 
@@ -80,7 +81,9 @@ public sealed class ExcelStyleOptimizer
                 outputStylesBytes = outputPackage.LengthOf("xl/styles.xml");
                 checks.Add(CheckStyleSections(styles.Document, outputStyles.Document));
                 checks.Add(CheckCellXfs(plan, outputStyles));
-                checks.Add(CheckWorksheetReferences(package, outputPackage, worksheets, inputKeys, outputKeys));
+                checks.Add(CheckWorksheetReferences(package, outputPackage, worksheets, inputKeys, outputKeys,
+                    completed => progress?.Report(new ExcelOptimizationProgress(
+                        ExcelOptimizationPhase.Verifying, completed, worksheets.Count))));
                 checks.Add(CheckPreservedParts(package, outputPackage, changed));
             }
             checks.Add(CheckOutputFile(temporary));
@@ -160,19 +163,25 @@ public sealed class ExcelStyleOptimizer
     }
 
     private static OptimizationCheck CheckWorksheetReferences(OoxmlPackage input, OoxmlPackage output,
-        IReadOnlyList<WorkbookSheet> worksheets, IReadOnlyList<string> inputKeys, IReadOnlyList<string> outputKeys)
+        IReadOnlyList<WorkbookSheet> worksheets, IReadOnlyList<string> inputKeys, IReadOnlyList<string> outputKeys,
+        Action<int>? onWorksheetVerified = null)
     {
         var cells = 0;
+        var verified = 0;
         foreach (var sheet in worksheets)
         {
-            var before = WorksheetStyleScanner.Scan(input.ReadXml(sheet.PartName), inputKeys.Count, sheet.Name);
-            var after = WorksheetStyleScanner.Scan(output.ReadXml(sheet.PartName), outputKeys.Count, sheet.Name);
+            WorksheetStyleScan before, after;
+            using (var stream = input.OpenPart(sheet.PartName))
+                before = WorksheetStyleScanner.Scan(stream, inputKeys.Count, sheet.Name);
+            using (var stream = output.OpenPart(sheet.PartName))
+                after = WorksheetStyleScanner.Scan(stream, outputKeys.Count, sheet.Name);
             if (before.CellCount != after.CellCount || before.UsedRange != after.UsedRange)
                 return new OptimizationCheck("references", false, sheet.Name);
             if (!SameUsage(before.EffectiveStyleCounts, after.EffectiveStyleCounts, inputKeys, outputKeys) ||
                 !SameUsage(before.RawStyleCounts, after.RawStyleCounts, inputKeys, outputKeys))
                 return new OptimizationCheck("references", false, sheet.Name + " styles");
             cells += after.CellCount;
+            onWorksheetVerified?.Invoke(++verified);
         }
         return new OptimizationCheck("references", true, cells.ToString("N0", CultureInfo.InvariantCulture));
 

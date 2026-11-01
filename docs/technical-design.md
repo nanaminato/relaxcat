@@ -450,4 +450,6 @@ Implementation boundaries:
 
 Safety model: only `cellXfs` entries with identical normalized XML are merged; all other style tables and package parts are preserved byte-for-byte; the source workbook is never modified; `.xls` is rejected; the output keeps the input package type. After writing, the optimizer verifies the other styles sections, the rebuilt `cellXfs`, worksheet style references (cell, row and column), preserved part lengths and the output package before publishing. Any failure discards the temporary output.
 
+Worksheet analysis and verification stream parts with `XmlReader`, so a large sheet does not become a permanent DOM. Progress is reported per worksheet and, while scanning, per rows within the current sheet. Worksheet rewriting still loads one sheet XML at a time, which bounds its memory by the largest single sheet.
+
 Previews resolve theme colors through `xl/theme/theme1.xml` and indexed colors through the style sheet palette. Analysis and previews deliberately ignore cell values, formulas and comments, so neither reports nor UI expose business content.
