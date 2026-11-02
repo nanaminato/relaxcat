@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <ApplicationIcon>Assets/relaxcat.ico</ApplicationIcon>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <Version>0.3.0</Version>
+    <Version>0.3.1</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
