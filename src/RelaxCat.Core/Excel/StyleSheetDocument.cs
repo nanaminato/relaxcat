@@ -36,6 +36,7 @@ internal sealed class StyleSheetDocument
 
     private readonly Dictionary<int, CellStylePreview> previewCache = new();
 
+    internal byte[] OriginalXml { get; private set; } = Array.Empty<byte>();
     internal XDocument Document { get; }
     internal XElement Root { get; }
     internal List<XElement> Fonts { get; }
@@ -76,7 +77,10 @@ internal sealed class StyleSheetDocument
         var colors = new ColorResolver(
             package.TryReadXml("xl/theme/theme1.xml"),
             OoxmlXml.Child(OoxmlXml.Child(root, "colors"), "indexedColors"));
-        var styles = new StyleSheetDocument(document, root, colors);
+        using var source = package.OpenPart("xl/styles.xml");
+        using var buffer = new MemoryStream();
+        source.CopyTo(buffer);
+        var styles = new StyleSheetDocument(document, root, colors) { OriginalXml = buffer.ToArray() };
         if (styles.CellXfs.Count == 0)
             throw new InvalidDataException("The workbook style sheet does not define any cell formats.");
         return styles;

@@ -67,7 +67,7 @@ internal sealed class StyleDeduplicationPlan
             ? new XDocument(declaration, cloneRoot)
             : new XDocument(cloneRoot);
         return new StyleDeduplicationPlan(map, kept, retainOriginalKeys ? keys : Array.Empty<string>(),
-            clone, OoxmlXml.Serialize(clone));
+            clone, CellXfsByteRewriter.Rewrite(styles.OriginalXml, map));
     }
 }
 

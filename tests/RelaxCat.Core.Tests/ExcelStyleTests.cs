@@ -152,6 +152,48 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.Equal(OoxmlWorkbookFixture.PartNames(input), OoxmlWorkbookFixture.PartNames(output));
     }
 
+    [Theory]
+    [InlineData("utf-8", false)]
+    [InlineData("utf-8", true)]
+    [InlineData("utf-16", true)]
+    [InlineData("utf-16BE", true)]
+    public void Optimize_RewritesOnlyCellXfsBytesAndNeverInflatesStyles(string encodingName, bool bom)
+    {
+        var encoding = Encoding.GetEncoding(encodingName);
+        var prefix = "<?xml version='1.0' encoding='" + encodingName + "'?>\r\n" +
+            "<s:styleSheet xmlns:s='http://schemas.openxmlformats.org/spreadsheetml/2006/main'>" +
+            "<!-- <cellXfs count='999'> --><?keep before?>\r\n" +
+            "<s:fonts count = '1'><s:font><s:name val='中文 &amp; Calibri'/></s:font></s:fonts>";
+        var unique = "<s:xf numFmtId='0' fontId='0' fillId='0' borderId='0' xfId='0'><s:alignment horizontal='left'/></s:xf>";
+        var table = "<s:cellXfs count = '2'>" + unique + unique + "</s:cellXfs>";
+        var suffix = "\r\n<?keep after?><!-- > -->" +
+            "<s:dxfs count='100'>" + string.Concat(Enumerable.Repeat("<s:dxf><s:font><s:b/></s:font></s:dxf>", 100)) +
+            "</s:dxfs></s:styleSheet>\r\n";
+        byte[] Bytes(string value) => encoding.GetBytes(value);
+        var preamble = bom ? encoding.GetPreamble() : Array.Empty<byte>();
+        var original = preamble.Concat(Bytes(prefix + table + suffix)).ToArray();
+        var input = OoxmlWorkbookFixture.Create(PathOf("lexical.xlsx"), SampleStyles(),
+            new SheetSpec("Data", OoxmlWorkbookFixture.Worksheet("A1", "<row r='1'><c r='A1' s='1'/></row>")));
+        using (var archive = System.IO.Compression.ZipFile.Open(input, System.IO.Compression.ZipArchiveMode.Update))
+            archive.GetEntry("xl/styles.xml")!.Delete();
+        OoxmlWorkbookFixture.AddPart(input, "xl/styles.xml", original);
+        var output = PathOf("lexical-output.xlsx");
+
+        var analysis = new ExcelStyleAnalyzer().Analyze(input);
+        var result = new ExcelStyleOptimizer().Optimize(input, output);
+        var actual = OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml");
+
+        Assert.True(result.Verified);
+        Assert.Equal(1, result.OutputCellXfCount);
+        var prefixBytes = preamble.Concat(Bytes(prefix)).ToArray();
+        var suffixBytes = Bytes(suffix);
+        Assert.Equal(prefixBytes, actual[..prefixBytes.Length]);
+        Assert.Equal(suffixBytes, actual[^suffixBytes.Length..]);
+        Assert.Equal(preamble.Concat(Bytes(prefix + "<s:cellXfs count=\"1\">" + unique + "</s:cellXfs>" + suffix)), actual);
+        Assert.True(actual.Length < original.Length);
+        Assert.Equal(actual.Length, analysis.ProjectedStylesXmlBytes);
+    }
+
     [Fact]
     public void Optimize_PreservesMacroAndBinaryParts()
     {
