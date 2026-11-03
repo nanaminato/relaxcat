@@ -36,15 +36,24 @@ internal static class OoxmlXml
 
         static void Append(XElement node, StringBuilder builder)
         {
-            builder.Append('<').Append(node.Name.NamespaceName).Append('|').Append(node.Name.LocalName).Append('|');
+            static void Field(StringBuilder result, string value) => result.Append(value.Length).Append(':').Append(value);
+            builder.Append('<');
+            Field(builder, node.Name.NamespaceName);
+            Field(builder, node.Name.LocalName);
             foreach (var attribute in node.Attributes()
                          .Where(attribute => !attribute.IsNamespaceDeclaration)
                          .OrderBy(attribute => attribute.Name.NamespaceName, StringComparer.Ordinal)
                          .ThenBy(attribute => attribute.Name.LocalName, StringComparer.Ordinal))
-                builder.Append(attribute.Name.NamespaceName).Append(':').Append(attribute.Name.LocalName).Append('=')
-                    .Append(attribute.Value).Append(';');
+            {
+                Field(builder, attribute.Name.NamespaceName);
+                Field(builder, attribute.Name.LocalName);
+                Field(builder, attribute.Value);
+            }
             builder.Append('[');
-            foreach (var child in node.Elements()) Append(child, builder);
+            foreach (var child in node.Nodes())
+                if (child is XElement element) Append(element, builder);
+                else if (child is XText text && !string.IsNullOrWhiteSpace(text.Value))
+                { builder.Append('T'); Field(builder, text.Value); }
             builder.Append(']');
         }
     }

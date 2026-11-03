@@ -58,6 +58,11 @@ public sealed record ExcelStyleAnalysis(
     long ProjectedStylesXmlBytes,
     IReadOnlyList<WorksheetStyleSummary> Worksheets)
 {
+    public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
+    public string? AdvancedOptimizationSkipReason { get; init; }
+    public int ProjectedCellXfCount { get; init; }
+    public int ProjectedCellStyleXfCount { get; init; }
+    public bool HasStyleChanges => TableChanges.Count > 0 || HasDuplicates;
     public int SheetCount => Worksheets.Count;
     public int DuplicateCellXfCount => CellXfCount - UniqueCellXfCount;
     public int UnreferencedCellXfCount => Math.Max(0, CellXfCount - ReferencedCellXfCount);
@@ -108,6 +113,8 @@ public sealed record ExcelOptimizationResult(
     IReadOnlyList<OptimizationCheck> Checks,
     bool Verified)
 {
+    public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
+    public string? AdvancedOptimizationSkipReason { get; init; }
     public int InputCellStyleXfCount { get; init; }
     public int OutputCellStyleXfCount { get; init; }
     public double StylesXmlReductionRatio => InputStylesXmlBytes <= 0 ? 0 :
@@ -122,3 +129,7 @@ public sealed record ExcelOptimizationResult(
 public sealed record StyleSectionDiagnostic(string Name, int Count, long SerializedBytes,
     double SerializedShare, int DuplicateCount, int? ReferencedCount, int? UnreferencedCount);
 public sealed record BaseStyleReference(int Index, int CellXfReferences, int NamedStyleReferences);
+
+/// <summary>Exact component merging is enabled by default; unreachable-definition removal is opt-in.</summary>
+public sealed record ExcelStyleOptimizationOptions(bool DeduplicateComponents = true, bool CollectUnusedStyles = false);
+public sealed record StyleTableChange(string Name, int Before, int After, int DuplicatesRemoved, int UnusedRemoved);

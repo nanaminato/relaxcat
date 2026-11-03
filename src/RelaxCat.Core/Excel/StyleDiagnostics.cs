@@ -7,6 +7,11 @@ internal static class StyleDiagnostics
 {
     internal static IReadOnlyList<BaseStyleReference> References(StyleSheetDocument styles)
     {
+        var numberFormats = OoxmlXml.Child(styles.Root, "numFmts")?.Elements().ToArray() ?? [];
+        var ids = new HashSet<int>();
+        foreach (var format in numberFormats)
+            if (OoxmlXml.IntAttribute(format, "numFmtId") is not { } id || id < 0 || !ids.Add(id) || format.Attribute("formatCode") is null)
+                throw new InvalidDataException("Invalid or duplicate custom number format definition.");
         foreach (var section in styles.Root.Elements())
         {
             if (section.Attribute("count") is { } count &&

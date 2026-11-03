@@ -18,6 +18,8 @@ public sealed record ExcelBatchItemResult(
     bool Verified,
     string? Error)
 {
+    public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = [];
+    public string? AdvancedOptimizationSkipReason { get; init; }
     public bool Succeeded => Status == ExcelBatchItemStatus.Completed;
 }
 
@@ -123,7 +125,8 @@ public static class ExcelWorkbookFinder
 public sealed class ExcelBatchOptimizer
 {
     public ExcelBatchOutcome Optimize(IReadOnlyList<ExcelBatchFile> files, string outputRoot, bool overwrite,
-        IProgress<ExcelBatchProgress>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<ExcelBatchProgress>? progress = null, CancellationToken cancellationToken = default,
+        ExcelStyleOptimizationOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(outputRoot))
             throw new ArgumentException("An output folder is required.", nameof(outputRoot));
@@ -151,10 +154,11 @@ public sealed class ExcelBatchOptimizer
                 if (!string.IsNullOrEmpty(outputDirectory)) Directory.CreateDirectory(outputDirectory);
                 var inner = new InlineProgress<ExcelOptimizationProgress>(phase => progress?.Report(
                     new ExcelBatchProgress(index, files.Count, file.RelativePath, Fraction(phase), null)));
-                var optimized = new ExcelStyleOptimizer().Optimize(file.Path, output, inner, cancellationToken);
+                var optimized = new ExcelStyleOptimizer().Optimize(file.Path, output, inner, cancellationToken, options);
                 result = new ExcelBatchItemResult(file.Path, file.RelativePath, output, ExcelBatchItemStatus.Completed,
                     optimized.InputCellXfCount, optimized.OutputCellXfCount,
-                    optimized.InputFileSize, optimized.OutputFileSize, optimized.Verified, null);
+                    optimized.InputFileSize, optimized.OutputFileSize, optimized.Verified, null)
+                { TableChanges = optimized.TableChanges, AdvancedOptimizationSkipReason = optimized.AdvancedOptimizationSkipReason };
             }
             catch (OperationCanceledException)
             {

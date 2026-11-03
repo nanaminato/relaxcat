@@ -450,7 +450,7 @@ Implementation boundaries:
 - `src/RelaxCat.App/Views/ExcelBatchView.axaml` + `MainWindow.ExcelBatch.cs` — folder batch page with per-file status/progress.
 - `tools/RelaxCat.ExcelTool` — CLI wrapper over the same public API, including folder batch.
 
-Safety model: only `cellXfs` entries with identical normalized XML are merged; all other style tables and package parts are preserved byte-for-byte; the source workbook is never modified; `.xls` is rejected; the output keeps the input package type. After writing, the optimizer verifies the other styles sections, the rebuilt `cellXfs`, worksheet style references (cell, row and column), preserved part lengths and the output package before publishing. Any failure discards the temporary output.
+Safety model: source workbooks are never modified. Merge exact font/fill/border/custom-numFmt definitions only after the conservative package/reference audit; remap base/cell XFs and deduplicate again. Optional GC traces worksheet cell/row/column and named-style roots, preserving default/reserved entries; unknown parts/extensions skip the added stages with an explicit reason. Never delete named styles/dxfs/tableStyles. Patch original style XML lexical spans, preserve other package parts, compare resolved retained cell/named-style definitions and SHA-256 of unchanged parts before publication. See `docs/excel-style-optimizer.md` for the supported graph and opt-in behavior.
 
 Worksheet analysis and verification stream parts with `XmlReader`, so a large sheet does not become a permanent DOM. Progress is reported per worksheet and, while scanning, per rows within the current sheet. Worksheet rewriting still loads one sheet XML at a time, which bounds its memory by the largest single sheet.
 

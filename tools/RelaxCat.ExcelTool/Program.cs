@@ -38,7 +38,7 @@ static int Analyze(string[] args)
 {
     var path = Positional(args);
     var json = args.Contains("--json");
-    var analysis = new ExcelStyleAnalyzer().Analyze(path);
+    var analysis = new ExcelStyleAnalyzer().Analyze(path, options: new ExcelStyleOptimizationOptions(CollectUnusedStyles: args.Contains("--gc")));
     if (json)
     {
         Console.WriteLine(JsonSerializer.Serialize(new
@@ -48,6 +48,10 @@ static int Analyze(string[] args)
             analysis.MacroEnabled,
             analysis.StylesXmlCompressedBytes,
             analysis.Sections,
+            analysis.TableChanges,
+            analysis.ProjectedCellXfCount,
+            analysis.ProjectedCellStyleXfCount,
+            analysis.AdvancedOptimizationSkipReason,
             analysis.BaseStyleReferences,
             analysis.UniqueCellStyleXfCount,
             analysis.CanDeduplicateBaseStyles,
@@ -83,6 +87,9 @@ static int Analyze(string[] args)
     Console.WriteLine("Section sizes: standalone UTF-8 serialization; references: known edges only; unknown = ?");
     foreach (var section in analysis.Sections)
         Console.WriteLine($"  {section.Name}: {section.Count:N0}, {Bytes(section.SerializedBytes)}, {Percent(section.SerializedShare)}, duplicates {section.DuplicateCount:N0}, referenced {section.ReferencedCount?.ToString() ?? "?"}, unreferenced {section.UnreferencedCount?.ToString() ?? "?"}");
+    foreach (var change in analysis.TableChanges)
+        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; duplicates {change.DuplicatesRemoved}, collected {change.UnusedRemoved}");
+    if (analysis.AdvancedOptimizationSkipReason is { } reason) Console.WriteLine("Component merging/GC skipped: " + reason);
     Console.WriteLine("Macros:     " + (analysis.MacroEnabled ? "yes" : "no"));
     Console.WriteLine();
     Console.WriteLine($"Fonts: {Count(analysis.FontCount)}   Fills: {Count(analysis.FillCount)}   Borders: {Count(analysis.BorderCount)}   cellStyleXfs: {Count(analysis.CellStyleXfCount)}");
@@ -115,18 +122,22 @@ static int Optimize(string[] args)
             if (++index >= args.Length) throw new ArgumentException("--output requires a path.");
             output = args[index];
         }
+        else if (argument == "--gc") { }
         else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
         else positional.Add(argument);
     }
     if (positional.Count != 1) throw new ArgumentException("optimize requires exactly one input workbook.");
     if (output is null) throw new ArgumentException("optimize requires --output <path>.");
-    var result = new ExcelStyleOptimizer().Optimize(positional[0], output);
+    var result = new ExcelStyleOptimizer().Optimize(positional[0], output, options: new ExcelStyleOptimizationOptions(CollectUnusedStyles: args.Contains("--gc")));
     Console.WriteLine("Output: " + result.OutputPath);
     Console.WriteLine("File size:  " + Bytes(result.InputFileSize) + " -> " + Bytes(result.OutputFileSize) + "  (" + Percent(result.ReductionRatio) + " fewer cell formats)");
     Console.WriteLine("cellStyleXfs: " + Count(result.InputCellStyleXfCount) + " -> " + Count(result.OutputCellStyleXfCount));
     Console.WriteLine("Uncompressed style data removed: " + Percent(result.StylesXmlReductionRatio));
     Console.WriteLine("cellXfs:    " + Count(result.InputCellXfCount) + " -> " + Count(result.OutputCellXfCount));
     Console.WriteLine("styles.xml: " + Bytes(result.InputStylesXmlBytes) + " -> " + Bytes(result.OutputStylesXmlBytes));
+    foreach (var change in result.TableChanges)
+        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; duplicates {change.DuplicatesRemoved}, collected {change.UnusedRemoved}");
+    if (result.AdvancedOptimizationSkipReason is { } reason) Console.WriteLine("Component merging/GC skipped: " + reason);
     Console.WriteLine("References remapped: " + Count(result.RemappedReferences) + " across " + Count(result.WorksheetCount) + " worksheet(s)");
     Console.WriteLine();
     Console.WriteLine("Verification: " + (result.Verified ? "passed" : "FAILED"));
@@ -157,6 +168,7 @@ static int Batch(string[] args)
         }
         else if (argument == "--no-recursive") recursive = false;
         else if (argument == "--overwrite") overwrite = true;
+        else if (argument == "--gc") { }
         else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
         else if (input is null) input = argument;
         else throw new ArgumentException("batch accepts one input folder.");
@@ -168,7 +180,7 @@ static int Batch(string[] args)
     foreach (var issue in discovery.Issues) Console.WriteLine("  warning: cannot read " + issue);
     if (discovery.Files.Count == 0) return 0;
     var progress = new ConsoleBatchProgress();
-    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, progress);
+    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, progress, options: new ExcelStyleOptimizationOptions(CollectUnusedStyles: args.Contains("--gc")));
     Console.WriteLine();
     Console.WriteLine($"Completed: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Completed):N0}, " +
                       $"skipped: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Skipped):N0}, " +
@@ -190,9 +202,9 @@ static void PrintUsage()
         RelaxCat Excel style tool
 
         Usage:
-          RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json]
-          RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm>
-          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--no-recursive] [--overwrite]
+          RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json] [--gc]
+          RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm> [--gc]
+          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--no-recursive] [--overwrite] [--gc]
 
         analyze   Read-only report of the style table, duplicate cell formats and worksheet styles.
         optimize  Merge XML-identical cell formats into a NEW workbook. The input is never modified.
@@ -201,6 +213,9 @@ static void PrintUsage()
         batch     Optimize every .xlsx/.xlsm found in a folder (recursive by default). Outputs are
                   written as <name>-optimized.<ext> under --output-dir, preserving subdirectories.
                   Existing outputs are skipped unless --overwrite is given; per-file failures continue.
+
+        --gc      Opt in to collecting unreachable styles/components when the reference graph is covered.
+                  Exact font/fill/border/custom-number-format merging is enabled automatically when safe.
 
         Exit codes: 0 success, 1 failure, 2 usage error.
         """);
@@ -230,6 +245,8 @@ internal sealed class ConsoleBatchProgress : IProgress<ExcelBatchProgress>
             ExcelBatchItemStatus.Cancelled => "cancelled",
             _ => "FAILED"
         };
+        if (result.AdvancedOptimizationSkipReason is { } reason)
+            status += " (component merging/GC skipped: " + reason + ")";
         Console.WriteLine($"  [{value.Completed}/{value.Total}] {result.RelativePath}: {status}" +
                           (result.Error is null ? "" : " - " + result.Error));
     }

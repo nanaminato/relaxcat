@@ -65,7 +65,8 @@ public sealed partial class MainWindow
                 Workspace.Message = Describe(report);
                 Workspace.Progress = AnalysisProgressOf(report);
             });
-            var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(input, token, reporting), token);
+            var options = Workspace.ExcelTool.OptimizationOptions;
+            var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(input, token, reporting, options), token);
             token.ThrowIfCancellationRequested();
             if (closed) return;
             Workspace.ExcelTool.FilePath = input;
@@ -110,6 +111,7 @@ public sealed partial class MainWindow
         Workspace.IsBusy = true;
         Workspace.Progress = 0;
         Workspace.Message = Workspace.Text["ExcelOptimizing"];
+        var options = Workspace.ExcelTool.OptimizationOptions;
         try
         {
             var reporting = new Progress<ExcelOptimizationProgress>(report =>
@@ -120,7 +122,7 @@ public sealed partial class MainWindow
             ExcelOptimizationResult result;
             try
             {
-                result = await Task.Run(() => new ExcelStyleOptimizer().Optimize(input, output, reporting, token), token);
+                result = await Task.Run(() => new ExcelStyleOptimizer().Optimize(input, output, reporting, token, options), token);
             }
             catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ExcelOptimizeCancelled"]; return; }
             catch (UnauthorizedAccessException)
@@ -139,7 +141,7 @@ public sealed partial class MainWindow
             try
             {
                 // Re-analyze the optimized copy so the page shows the processed worksheet styles, not only numbers.
-                var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(result.OutputPath, token), token);
+                var analysis = await Task.Run(() => new ExcelStyleAnalyzer().Analyze(result.OutputPath, token, options: options), token);
                 token.ThrowIfCancellationRequested();
                 if (closed) return;
                 Workspace.ExcelTool.ApplyAnalysis(analysis, keepResult: true);

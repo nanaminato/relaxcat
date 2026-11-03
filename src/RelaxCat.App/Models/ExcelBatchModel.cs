@@ -63,6 +63,8 @@ public sealed class ExcelBatchModel : ObservableModel
         }
     }
 
+    private bool collectUnusedStyles;
+    public bool CollectUnusedStyles { get => collectUnusedStyles; set => Set(ref collectUnusedStyles, value); }
     public bool Overwrite { get => overwrite; set => Set(ref overwrite, value); }
     public string Status { get => status; private set => Set(ref status, value); }
     public string Summary { get => summary; private set => Set(ref summary, value); }
@@ -213,6 +215,11 @@ public sealed class ExcelBatchItem : ObservableModel
                     ExcelToolModel.Count(result.InputCellXfCount), ExcelToolModel.Count(result.OutputCellXfCount),
                     ExcelToolModel.Bytes(result.InputBytes), ExcelToolModel.Bytes(result.OutputBytes));
                 DetailText = result.Verified ? detail + " · " + text["BatchVerified"] : detail;
+                if (result.AdvancedOptimizationSkipReason is { } reason)
+                    DetailText += " · " + text["AdvancedSkip_" + reason];
+                else if (result.TableChanges.Count > 0)
+                    DetailText += " · " + string.Join(" · ", result.TableChanges.Where(c => c.Name != "cellXfs")
+                        .Select(c => $"{c.Name}: {c.Before:N0} → {c.After:N0}"));
                 break;
             case ExcelBatchItemStatus.Skipped:
                 StatusText = text["BatchSkipped"];

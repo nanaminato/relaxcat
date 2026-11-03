@@ -46,6 +46,7 @@ internal static class ExcelBatchChecks
         batch.InputFolder = input;
         batch.OutputFolder = output;
         batch.Recursive = true;
+        batch.CollectUnusedStyles = true;
         Dispatcher.UIThread.RunJobs();
         Check(batch.CanScan && !batch.CanRun, "Batch actions were enabled before scanning");
 

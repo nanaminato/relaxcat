@@ -11,7 +11,8 @@ namespace RelaxCat.Core.Excel;
 public sealed class ExcelStyleOptimizer
 {
     public ExcelOptimizationResult Optimize(string inputPath, string outputPath,
-        IProgress<ExcelOptimizationProgress>? progress = null, CancellationToken cancellationToken = default)
+        IProgress<ExcelOptimizationProgress>? progress = null, CancellationToken cancellationToken = default,
+        ExcelStyleOptimizationOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(inputPath)) throw new ArgumentException("A workbook path is required.", nameof(inputPath));
         if (string.IsNullOrWhiteSpace(outputPath)) throw new ArgumentException("An output path is required.", nameof(outputPath));
@@ -40,9 +41,10 @@ public sealed class ExcelStyleOptimizer
             var inputStylesBytes = package.LengthOf("xl/styles.xml");
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.Reading, 0, worksheets.Count));
             cancellationToken.ThrowIfCancellationRequested();
-            var plan = StyleDeduplicationPlan.Build(styles);
+            var context = StyleOptimizationContext.Read(package, styles, worksheets, cancellationToken);
+            var plan = StyleDeduplicationPlan.Build(styles, context: context, options: options, cancellationToken: cancellationToken);
             var inputKeys = plan.OriginalKeys;
-            var outputKeys = plan.Kept.Select(OoxmlXml.CanonicalKey).ToArray();
+            var outputKeys = plan.OutputKeys;
             var hasDuplicates = plan.Changed;
 
             var changed = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
@@ -104,7 +106,9 @@ public sealed class ExcelStyleOptimizer
                 remapped, worksheets.Count, checks, true)
             {
                 InputCellStyleXfCount = styles.CellStyleXfs.Count,
-                OutputCellStyleXfCount = outputBaseCount
+                OutputCellStyleXfCount = outputBaseCount,
+                TableChanges = plan.Changes,
+                AdvancedOptimizationSkipReason = context.SkipReason
             };
         }
         finally
@@ -133,6 +137,7 @@ public sealed class ExcelStyleOptimizer
                 throw new InvalidDataException(
                     $"Worksheet '{sheetName}' references cell format '{attribute.Value}', which the workbook does not define.");
             var replacement = map[style];
+            if (replacement < 0) throw new InvalidDataException("A referenced cell format was collected.");
             if (replacement == style) continue;
             attribute.Value = replacement.ToString(CultureInfo.InvariantCulture);
             remapped++;

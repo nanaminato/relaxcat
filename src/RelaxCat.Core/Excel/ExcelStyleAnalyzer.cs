@@ -16,7 +16,7 @@ public sealed class ExcelStyleAnalyzer
     }
 
     public ExcelStyleAnalysis Analyze(string path, CancellationToken cancellationToken = default,
-        IProgress<ExcelAnalysisProgress>? progress = null)
+        IProgress<ExcelAnalysisProgress>? progress = null, ExcelStyleOptimizationOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("A workbook path is required.", nameof(path));
         var fullPath = Path.GetFullPath(path);
@@ -61,7 +61,13 @@ public sealed class ExcelStyleAnalyzer
         }
 
         progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.Projecting, 0, 1));
-        var plan = StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false);
+        var context = StyleOptimizationContext.Read(package, styles, sheetDefinitions, cancellationToken, new HashSet<int>(referenced));
+        var plan = StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false, context: context, options: options,
+            cancellationToken: cancellationToken);
+        var uniqueCount = options?.CollectUnusedStyles == true
+            ? StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false, context: context,
+                options: options with { CollectUnusedStyles = false }, cancellationToken: cancellationToken).KeptCount
+            : plan.KeptCount;
         cancellationToken.ThrowIfCancellationRequested();
         var originalStylesBytes = package.LengthOf("xl/styles.xml");
         // With nothing to merge, optimization copies styles.xml verbatim instead of re-serializing it.
@@ -69,9 +75,13 @@ public sealed class ExcelStyleAnalyzer
         return new ExcelStyleAnalysis(fullPath, new FileInfo(fullPath).Length,
             IsMacroEnabled(package, fullPath),
             styles.Fonts.Count, styles.Fills.Count, styles.Borders.Count, styles.CellStyleXfs.Count,
-            styles.CellXfs.Count, plan.KeptCount, referenced.Count,
+            styles.CellXfs.Count, uniqueCount, referenced.Count,
             originalStylesBytes, projectedStylesBytes, summaries)
         {
+            ProjectedCellXfCount = plan.KeptCount,
+            ProjectedCellStyleXfCount = OoxmlXml.Child(plan.Document.Root, "cellStyleXfs")?.Elements().Count() ?? 0,
+            TableChanges = plan.Changes,
+            AdvancedOptimizationSkipReason = context.SkipReason,
             StylesXmlCompressedBytes = package.Require("xl/styles.xml").CompressedLength,
             BaseStyleReferences = StyleDiagnostics.References(styles),
             Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles), referenced),

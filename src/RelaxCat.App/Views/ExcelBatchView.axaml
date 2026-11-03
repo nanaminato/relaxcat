@@ -29,6 +29,7 @@
                 </Grid>
               </StackPanel>
               <CheckBox x:Name="BatchRecursiveOption" Content="{Binding Text[BatchRecursive]}" IsChecked="{Binding ExcelTool.Batch.Recursive, Mode=TwoWay}" />
+              <CheckBox Content="{Binding Text[CollectUnusedStyles]}" IsChecked="{Binding ExcelTool.Batch.CollectUnusedStyles, Mode=TwoWay}" ToolTip.Tip="{Binding Text[CollectUnusedStylesHint]}" />
               <CheckBox x:Name="BatchOverwriteOption" Content="{Binding Text[BatchOverwrite]}" IsChecked="{Binding ExcelTool.Batch.Overwrite, Mode=TwoWay}" />
               <TextBlock Classes="muted" Text="{Binding Text[BatchOutputHint]}" TextWrapping="Wrap" FontSize="10" />
               <StackPanel Orientation="Horizontal" Spacing="8">

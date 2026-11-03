@@ -14,6 +14,8 @@ internal sealed class StyleDeduplicationPlan
     internal byte[] StylesXml { get; }
     internal int KeptCount => Kept.Count;
     internal bool Changed { get; private set; }
+    internal IReadOnlyList<string> OutputKeys { get; private set; } = [];
+    internal IReadOnlyList<StyleTableChange> Changes { get; private set; } = [];
     internal static bool CanMergeBaseStyles(StyleSheetDocument styles) =>
         !styles.CellStyleXfs.Any(xf => xf.Attribute("xfId") is not null) &&
         !styles.Root.Elements().Any(e => e.Name.LocalName is not
@@ -37,93 +39,55 @@ internal sealed class StyleDeduplicationPlan
     /// <paramref name="retainOriginalKeys"/> keeps the canonical key of every input format for
     /// post-write verification. Analysis only needs the projected document, so it can skip the keys.
     /// </summary>
-    internal static StyleDeduplicationPlan Build(StyleSheetDocument styles, bool retainOriginalKeys = true)
+    internal static StyleDeduplicationPlan Build(StyleSheetDocument styles, bool retainOriginalKeys = true,
+        StyleOptimizationContext? context = null, ExcelStyleOptimizationOptions? options = null,
+        CancellationToken cancellationToken = default)
     {
-        // Validate both incoming edges before considering a base-format merge.
         StyleDiagnostics.References(styles);
-        var baseMap = Enumerable.Range(0, styles.CellStyleXfs.Count).ToArray();
-        if (CanMergeBaseStyles(styles))
+        var inputKeys = retainOriginalKeys
+            ? styles.CellXfs.Select(xf => StyleTableOptimizer.SemanticKey(styles, xf)).ToArray()
+            : Array.Empty<string>();
+        var optimizer = new StyleTableOptimizer(styles, cancellationToken);
+        optimizer.Optimize(options ?? new ExcelStyleOptimizationOptions(), context);
+        var output = optimizer.Styles;
+        StyleDiagnostics.References(output);
+        var outputKeys = retainOriginalKeys ? output.CellXfs.Select(xf => StyleTableOptimizer.SemanticKey(output, xf)).ToArray() : [];
+        if (retainOriginalKeys)
         {
-            var basePositions = new Dictionary<string, int>(StringComparer.Ordinal);
-            for (var i = 0; i < baseMap.Length; i++)
+            for (var i = 0; i < optimizer.CellMap.Length; i++)
             {
-                var key = OoxmlXml.CanonicalKey(styles.CellStyleXfs[i]);
-                if (!basePositions.TryGetValue(key, out var position))
-                    basePositions[key] = position = basePositions.Count;
-                baseMap[i] = position;
+                cancellationToken.ThrowIfCancellationRequested();
+                var mapped = optimizer.CellMap[i];
+                if (mapped >= 0 && inputKeys[i] != outputKeys[mapped])
+                    throw new InvalidDataException("A retained cell format changed meaning during table optimization.");
             }
+            var oldNames = OoxmlXml.Child(styles.Root, "cellStyles")?.Elements().ToArray() ?? [];
+            var newNames = OoxmlXml.Child(output.Root, "cellStyles")?.Elements().ToArray() ?? [];
+            if (oldNames.Length != newNames.Length) throw new InvalidDataException("Named styles were lost.");
+            for (var i = 0; i < oldNames.Length; i++)
+                if (NamedKey(styles, oldNames[i]) != NamedKey(output, newNames[i]))
+                    throw new InvalidDataException("A named style changed meaning during table optimization.");
         }
-        var baseChanged = baseMap.Distinct().Count() != baseMap.Length;
-        var original = styles.CellXfs.Select(xf =>
+        return new StyleDeduplicationPlan(optimizer.CellMap, output.CellXfs, inputKeys, output.Document, output.OriginalXml)
         {
-            var copy = new XElement(xf);
-            if (baseChanged && copy.Attribute("xfId") is { } reference)
-                reference.Value = baseMap[int.Parse(reference.Value, CultureInfo.InvariantCulture)].ToString(CultureInfo.InvariantCulture);
-            return copy;
-        }).ToList();
-        var keys = original.Select(OoxmlXml.CanonicalKey).ToArray();
-        var map = new int[original.Count];
-        var positions = new Dictionary<string, int>(StringComparer.Ordinal);
-        var kept = new List<XElement>(original.Count);
-        for (var i = 0; i < original.Count; i++)
-        {
-            if (positions.TryGetValue(keys[i], out var existing))
-            {
-                map[i] = existing;
-                continue;
-            }
-            var position = kept.Count;
-            positions[keys[i]] = position;
-            map[i] = position;
-            kept.Add(new XElement(original[i]));
-        }
-
-        // Clone only the sections that stay in place. Cloning the whole document would duplicate
-        // tens of thousands of formats just before they are dropped from cellXfs.
-        var cloneRoot = new XElement(styles.Root.Name, styles.Root.Attributes());
-        foreach (var section in styles.Root.Elements())
-        {
-            if (section.Name.LocalName == "cellXfs")
-            {
-                var swapped = new XElement(section.Name,
-                    section.Attributes().Where(attribute => attribute.Name.LocalName != "count"));
-                swapped.SetAttributeValue("count", kept.Count.ToString(CultureInfo.InvariantCulture));
-                foreach (var format in kept) swapped.Add(format);
-                cloneRoot.Add(swapped);
-            }
-            else if (baseChanged && section.Name.LocalName == "cellStyleXfs")
-            {
-                var copy = new XElement(section);
-                var seen = new HashSet<int>();
-                var index = 0;
-                foreach (var xf in copy.Elements().ToArray())
-                    if (!seen.Add(baseMap[index++])) xf.Remove();
-                copy.SetAttributeValue("count", seen.Count);
-                cloneRoot.Add(copy);
-            }
-            else
-            {
-                var copy = new XElement(section);
-                if (baseChanged && section.Name.LocalName == "cellStyles")
-                    foreach (var style in copy.Elements())
-                        if (style.Attribute("xfId") is { } reference)
-                            reference.Value = baseMap[int.Parse(reference.Value, CultureInfo.InvariantCulture)].ToString(CultureInfo.InvariantCulture);
-                cloneRoot.Add(copy);
-            }
-        }
-        var clone = styles.Document.Declaration is { } declaration
-            ? new XDocument(declaration, cloneRoot)
-            : new XDocument(cloneRoot);
-        var bytes = styles.OriginalXml;
-        if (baseChanged)
-        {
-            bytes = CellXfsByteRewriter.Rewrite(bytes, baseMap, "cellStyleXfs");
-            bytes = CellXfsByteRewriter.RemapBaseReferences(bytes, baseMap);
-        }
-        if (kept.Count != original.Count) bytes = CellXfsByteRewriter.Rewrite(bytes, map);
-        return new StyleDeduplicationPlan(map, kept, retainOriginalKeys ? keys : Array.Empty<string>(), clone, bytes)
-        { Changed = baseChanged || kept.Count != original.Count };
+            Changed = optimizer.Changes.Count > 0,
+            Changes = optimizer.Changes.GroupBy(change => change.Name).Select(group => new StyleTableChange(
+                group.Key, group.First().Before, group.Last().After, group.Sum(c => c.DuplicatesRemoved), group.Sum(c => c.UnusedRemoved))).ToArray(),
+            OutputKeys = outputKeys
+        };
     }
+
+    private static string NamedKey(StyleSheetDocument styles, XElement style)
+    {
+        var copy = new XElement(style);
+        if (copy.Attribute("xfId") is { } attribute)
+        {
+            var reference = new XElement(styles.Root.Name.Namespace + "xf", new XAttribute("xfId", attribute.Value));
+            attribute.Value = StyleTableOptimizer.SemanticKey(styles, reference);
+        }
+        return OoxmlXml.CanonicalKey(copy);
+    }
+
 }
 
 internal sealed record WorksheetStyleScan(

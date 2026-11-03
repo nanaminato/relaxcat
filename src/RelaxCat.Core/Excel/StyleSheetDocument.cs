@@ -86,6 +86,13 @@ internal sealed class StyleSheetDocument
         return styles;
     }
 
+    internal StyleSheetDocument WithXml(byte[] bytes)
+    {
+        using var stream = new MemoryStream(bytes);
+        var document = XDocument.Load(stream, LoadOptions.PreserveWhitespace);
+        return new StyleSheetDocument(document, document.Root!, Colors) { OriginalXml = bytes };
+    }
+
     private static List<XElement> ListOf(XElement root, string containerName, string itemName)
     {
         var container = OoxmlXml.Child(root, containerName);

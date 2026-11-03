@@ -31,6 +31,13 @@ public sealed class ExcelToolModel : ObservableModel
     }
 
     public ExcelBatchModel Batch { get; }
+    private bool collectUnusedStyles;
+    public bool CollectUnusedStyles
+    {
+        get => collectUnusedStyles;
+        set { if (Set(ref collectUnusedStyles, value)) Clear(); }
+    }
+    internal ExcelStyleOptimizationOptions OptimizationOptions => new(CollectUnusedStyles: CollectUnusedStyles);
 
     public string FilePath
     {
@@ -47,7 +54,7 @@ public sealed class ExcelToolModel : ObservableModel
     public string FileName => string.IsNullOrWhiteSpace(filePath) ? "" : Path.GetFileName(filePath);
     public bool CanAnalyze => !string.IsNullOrWhiteSpace(filePath) && File.Exists(filePath) &&
                               ExcelStyleAnalyzer.IsSupported(filePath);
-    public bool CanOptimize => CanAnalyze && analysis?.HasDuplicates == true;
+    public bool CanOptimize => CanAnalyze && analysis?.HasStyleChanges == true;
     public bool HasSummary => summary is not null;
     public bool HasResult => result is not null;
     public bool HasSheets => Sheets.Count > 0;
@@ -148,8 +155,8 @@ public sealed class ExcelToolModel : ObservableModel
         var comparison = optimized is null
             ? new List<ExcelComparisonRow>
             {
-                new(text["RowCellXfs"], Count(value.CellXfCount), Count(value.UniqueCellXfCount)),
-                new("cellStyleXfs", Count(value.CellStyleXfCount), Count(value.CanDeduplicateBaseStyles ? value.UniqueCellStyleXfCount : value.CellStyleXfCount)),
+                new(text["RowCellXfs"], Count(value.CellXfCount), Count(value.ProjectedCellXfCount)),
+                new("cellStyleXfs", Count(value.CellStyleXfCount), Count(value.ProjectedCellStyleXfCount)),
                 new(text["StylesPart"], Bytes(value.StylesXmlBytes), Bytes(value.ProjectedStylesXmlBytes))
             }
             : new List<ExcelComparisonRow>
@@ -186,7 +193,10 @@ public sealed class ExcelToolModel : ObservableModel
             Diagnostics = value.Sections.Select(section => new ExcelMetric(section.Name,
                 $"{Count(section.Count)} · {Bytes(section.SerializedBytes)} · {Percent(section.SerializedShare)}\n" +
                 $"{text["DuplicateFormats"]}: {Count(section.DuplicateCount)} · {text["KnownReferences"]}: {section.ReferencedCount?.ToString("N0") ?? "?"} · {text["UnreferencedFormats"]}: {section.UnreferencedCount?.ToString("N0") ?? "?"}"
-            )).ToList()
+            )).Concat(value.TableChanges.Select(change => new ExcelMetric(change.Name + " · " + text["TableChange"],
+                $"{Count(change.Before)} → {Count(change.After)} · {text["DuplicateFormats"]}: {Count(change.DuplicatesRemoved)} · {text["UnusedRemoved"]}: {Count(change.UnusedRemoved)}")))
+                .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
+                    ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason])).ToList()
         };
     }
 
@@ -203,8 +213,12 @@ public sealed class ExcelToolModel : ObservableModel
                 new(text["CellXfs"], Count(value.InputCellXfCount) + " → " + Count(value.OutputCellXfCount)),
                 new(text["StylesPart"], Bytes(value.InputStylesXmlBytes) + " → " + Bytes(value.OutputStylesXmlBytes)),
                 new("cellStyleXfs", Count(value.InputCellStyleXfCount) + " → " + Count(value.OutputCellStyleXfCount)),
-                new(text["StyleDataReduction"], Percent(value.StylesXmlReductionRatio))
-            },
+                new(text["StyleDataReduction"], Percent(value.StylesXmlReductionRatio)),
+                new(text["UnusedRemoved"], Count(value.TableChanges.Sum(change => change.UnusedRemoved)))
+            }.Concat(value.TableChanges.Where(change => change.Name is not ("cellXfs" or "cellStyleXfs"))
+                .Select(change => new ExcelMetric(change.Name, Count(change.Before) + " → " + Count(change.After))))
+             .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
+                 ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason])).ToList(),
             checks,
             value.Verified ? string.Format(CultureInfo.CurrentCulture, text["VerificationPassed"], checks.Count) : text["VerificationFailed"],
             value.Verified);

@@ -31,7 +31,7 @@ internal static class CellXfsByteRewriter
             {
                 tableDepth = depth;
                 var count = Regex.Match(tag, "(?<=\\s)count\\s*=\\s*(['\"])[^'\"]*\\1");
-                var replacement = "count=\"" + map.Distinct().Count().ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"";
+                var replacement = "count=\"" + map.Where(id => id >= 0).Distinct().Count().ToString(System.Globalization.CultureInfo.InvariantCulture) + "\"";
                 if (count.Success) edits.Add((token.Index + count.Index, count.Length, replacement));
                 else edits.Add((token.Index + tag.Length - (empty ? 2 : 1), 0, " " + replacement));
             }
@@ -40,7 +40,8 @@ internal static class CellXfsByteRewriter
 
             if (tableDepth >= 0 && name == item && depth == tableDepth + 1 && (closing || empty))
             {
-                if (!seen.Add(map[index++]))
+                var mapped = map[index++];
+                if (mapped < 0 || !seen.Add(mapped))
                     edits.Add((formatStart, token.Index + token.Length - formatStart, ""));
             }
             if (closing && depth == tableDepth) break;
@@ -81,31 +82,26 @@ internal static class CellXfsByteRewriter
         return encoding;
     }
 
-    internal static byte[] RemapBaseReferences(byte[] original, int[] map)
+    // Element ordinals follow XDocument.Root.DescendantsAndSelf(), independent of prefixes.
+    // Only numeric style attributes are patched; all untouched source spans remain verbatim.
+    internal static byte[] PatchAttributes(byte[] original, IReadOnlyDictionary<(int Element, string Attribute), int> patches)
     {
+        if (patches.Count == 0) return original;
         var encoding = DetectEncoding(original);
         var text = encoding.GetString(original);
-        var parents = new Stack<string>();
+        var ordinal = -1;
         var result = Regex.Replace(text,
             "<!--.*?-->|<!\\[CDATA\\[.*?\\]\\]>|<\\?.*?\\?>|</?[^\\s/>]+(?:[^>\"']|\"[^\"]*\"|'[^']*')*>", token =>
         {
             var tag = token.Value;
-            if (tag.StartsWith("<!") || tag.StartsWith("<?")) return tag;
-            var closing = tag.StartsWith("</");
-            var empty = tag.EndsWith("/>");
-            var name = Regex.Match(tag, "^</?([^\\s/>]+)").Groups[1].Value.Split(':')[^1];
-            if (closing) { parents.Pop(); return tag; }
-            if (parents.Count == 2 && ((parents.Peek() == "cellXfs" && name == "xf") ||
-                                      (parents.Peek() == "cellStyles" && name == "cellStyle")))
-                tag = Regex.Replace(tag, "(?<=\\s)xfId\\s*=\\s*(['\"])([^'\"]*)\\1", attribute =>
-                {
-                    var id = int.Parse(attribute.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
-                    if (id >= map.Length) throw new InvalidDataException("Invalid base style reference.");
-                    return id == map[id] ? attribute.Value : "xfId=" + attribute.Groups[1].Value +
-                        map[id].ToString(System.Globalization.CultureInfo.InvariantCulture) + attribute.Groups[1].Value;
-                });
-            if (!empty) parents.Push(name);
-            return tag;
+            if (tag.StartsWith("<!") || tag.StartsWith("<?") || tag.StartsWith("</")) return tag;
+            ordinal++;
+            return Regex.Replace(tag, "(?<=\\s)([A-Za-z_][A-Za-z0-9_.:-]*)\\s*=\\s*(['\"])([^'\"]*)\\2", attribute =>
+            {
+                if (!patches.TryGetValue((ordinal, attribute.Groups[1].Value), out var id)) return attribute.Value;
+                return attribute.Groups[1].Value + "=" + attribute.Groups[2].Value +
+                    id.ToString(System.Globalization.CultureInfo.InvariantCulture) + attribute.Groups[2].Value;
+            });
         }, RegexOptions.Singleline);
         return encoding.GetBytes(result);
     }

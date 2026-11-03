@@ -118,6 +118,21 @@ internal static class ExcelToolChecks
 
         complete(window.AnalyzeExcelWorkbookAsync(input));
         pumpUntil(() => window.Workspace.ExcelTool.HasSummary);
+        // GC changes invalidate the projection; analysis and optimization must use the same option.
+        var gcOption = excelPage.FindControl<CheckBox>("CollectUnusedStylesOption")!;
+        gcOption.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(tool.CollectUnusedStyles && !tool.HasSummary && !tool.CanOptimize,
+            "GC toggle left an obsolete projection usable");
+        complete(window.AnalyzeExcelWorkbookAsync(input));
+        Check(tool.HasSummary && tool.CanOptimize, "GC analysis did not restore the actions");
+        var gcOutput = Path.GetFullPath("artifacts/excel-tool-gc.xlsx");
+        complete(window.OptimizeExcelWorkbookAsync(input, gcOutput));
+        Check(tool.HasResult && tool.Result!.Verified, "GC was not passed through the desktop workflow");
+        capture("excel-tool-gc-light.png");
+        gcOption.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        complete(window.AnalyzeExcelWorkbookAsync(input));
         Click(window.FindControl<Button>("HomeButton")!);
         window.Workspace.LanguageIndex = language;
         window.Workspace.ThemeIndex = theme;

@@ -259,3 +259,11 @@ Status: Confirmed
 Statement: Images and folders can be dropped onto the RelaxCat window and enter the same import workflow as manual import. A dropped folder contributes the images of its whole subtree, including subfolders, in one action.
 
 Confirmation basis: Human instruction, 2026-10-21: “拖入多张图片或者文件夹（递归子文件夹内的图片）时将图片导入到工作区”.
+
+## S-EXCEL-011
+
+Status: Confirmed
+
+Statement: Extend the offline Excel style optimizer with exact bottom-level component deduplication and conservative garbage collection of unreachable style definitions. Only remove definitions when their dependencies are proven covered; preserve definitions with unknown dependencies, the original workbook, and workbook formatting/behavior.
+
+Confirmation basis: Human instruction, 2026-11-03: after discussing GC and component deduplication benefits and dependency risks, “那直接实现吧”.

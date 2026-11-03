@@ -12,6 +12,16 @@ public sealed class UiText : ObservableModel
     public string this[string key] => Entries.TryGetValue(key, out var value) ? (Japanese ? value.Ja : value.Zh) : key;
     private static readonly Dictionary<string, (string Zh, string Ja)> Entries = new()
     {
+        ["CollectUnusedStyles"] = ("清理未引用样式（GC）", "未参照スタイルを削除（GC）"),
+        ["CollectUnusedStylesHint"] = ("仅在引用图完整时清理；保留默认项和命名样式。更改后请重新分析。", "参照グラフが完全な場合のみ削除。既定項目と名前付きスタイルを保持。変更後は再分析してください。"),
+        ["UnusedRemoved"] = ("清理项", "未参照削除"),
+        ["TableChange"] = ("处理数量", "処理件数"),
+        ["AdvancedOptimization"] = ("组件去重 / GC", "部品重複排除 / GC"),
+        ["AdvancedAvailable"] = ("引用图已覆盖", "参照グラフを確認済み"),
+        ["AdvancedSkip_styleExtensions"] = ("已跳过：样式含未知扩展", "スキップ：スタイルに未知の拡張"),
+        ["AdvancedSkip_unsupportedParts"] = ("已跳过：包含未覆盖部件", "スキップ：未対応のパーツあり"),
+        ["AdvancedSkip_packageExtensions"] = ("已跳过：工作簿含扩展", "スキップ：ブックに拡張あり"),
+        ["AdvancedSkip_unsupportedReferences"] = ("已跳过：存在未覆盖引用", "スキップ：未対応の参照あり"),
         ["StyleDataReduction"] = ("样式数据减少（未压缩）", "スタイルデータ削減（非圧縮）"),
         ["UniqueBaseFormats"] = ("唯一基础 XF", "一意の基底 XF"),
         ["BaseDeduplication"] = ("基础 XF 去重", "基底 XF の重複排除"),
@@ -257,8 +267,8 @@ public sealed class UiText : ObservableModel
         ["Verification"] = ("校验", "検証"),
         ["VerificationPassed"] = ("{0} 项校验全部通过", "{0} 項目の検証にすべて合格"),
         ["VerificationFailed"] = ("校验未通过", "検証に失敗"),
-        ["CheckStylesSections"] = ("样式表其它分区保持不变", "スタイルシートの他のセクションを保持"),
-        ["CheckCellXfs"] = ("单元格格式表内容一致", "セル書式テーブルの内容が一致"),
+        ["CheckStylesSections"] = ("样式分区符合优化映射", "スタイル区分が最適化マップと一致"),
+        ["CheckCellXfs"] = ("格式表符合优化映射", "書式テーブルが最適化マップと一致"),
         ["CheckReferences"] = ("工作表样式引用一致", "シートのスタイル参照が一致"),
         ["CheckParts"] = ("其它部件原样保留", "その他のパーツをそのまま保持"),
         ["CheckPackage"] = ("输出工作簿有效", "出力ブックが有効"),

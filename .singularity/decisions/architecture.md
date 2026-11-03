@@ -325,3 +325,17 @@ Decision: Extend D-EXCEL-OPT-001 with read-only section diagnostics and exact st
 Reason: A small cellXfs table can reference tens of thousands of base XFs; exact base-format merging addresses this source of redundant data without changing effective formats or assuming unknown dependencies can be dropped. No new human intent is introduced.
 
 Evidence: `docs/excel-style-optimizer-improvements.md`, `src/RelaxCat.Core/Excel/StyleDiagnostics.cs`, `src/RelaxCat.Core/Excel/StyleDeduplicationPlan.cs`, `tests/RelaxCat.Core.Tests/ExcelStyleTests.cs`. Synthetic tests cover 48,846 base XFs; company-side Excel/TestHelper round-trip remains external acceptance.
+
+## D-EXCEL-OPT-005
+
+Status: Active
+
+Upstream: S-EXCEL-009, S-EXCEL-010, S-EXCEL-011
+
+Decision: Extend D-EXCEL-OPT-004's retention rule with opt-in GC. Default to exact font/fill/border/custom-numFmt merging when a conservative package/reference audit succeeds. GC roots are worksheet raw and effective cell/row/column format references, cellXfs[0], cellStyleXfs[0], every named style, fonts[0], borders[0], and fills[0..1]. Collect unreachable cellXfs, then base XFs, then components; deduplicate components, base XFs and cell XFs in dependency order. Custom numFmt IDs are sparse keys, not table offsets: retain the first ID, remap XF users, and never reinterpret built-in IDs. Skip numFmt edits when differential formats contain independent inline numFmt definitions. Keep named styles, dxfs, tableStyles, indexed colors, and all non-style package parts.
+
+Decision: Require a closed supported-part inventory and reject extensions or references outside the modeled graph for the added component/GC stages. Pivot/table/drawing/VBA/custom parts currently skip these stages with a visible reason; existing exact XF deduplication remains available. Default GC off in API, single-file UI, batch UI and CLI; expose --gc for analyze/optimize/batch. Changing the single-file option invalidates its projection. Report per-table duplicate removal separately from unreachable removal, and compare resolved component/base definitions for every retained cell XF and named style before publishing.
+
+Reason: The human explicitly authorized both improvements. Structural duplicate components can mask duplicate XFs; unreachable unique definitions require a distinct reachability proof. Preserving default/reserved slots and conservatively skipping unmodeled dependencies avoids assuming that diagnostic non-use alone proves safe deletion.
+
+Evidence: `src/RelaxCat.Core/Excel/StyleOptimizationContext.cs`, `src/RelaxCat.Core/Excel/StyleTableOptimizer.cs`, `tests/RelaxCat.Core.Tests/ExcelStyleComponentTests.cs`, `docs/excel-style-optimizer.md`.

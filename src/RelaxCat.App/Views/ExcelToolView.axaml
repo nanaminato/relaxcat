@@ -57,6 +57,9 @@
                 <Button x:Name="AnalyzeButton" Classes="primary" Content="{Binding Text[Analyze]}" Click="AnalyzeClicked" IsEnabled="{Binding ExcelTool.CanAnalyze}" />
                 <Button x:Name="OptimizeButton" Content="{Binding Text[OptimizeSaveAs]}" Click="OptimizeClicked" IsEnabled="{Binding ExcelTool.CanOptimize}" />
               </StackPanel>
+              <CheckBox x:Name="CollectUnusedStylesOption" Content="{Binding Text[CollectUnusedStyles]}"
+                        IsChecked="{Binding ExcelTool.CollectUnusedStyles, Mode=TwoWay}"
+                        ToolTip.Tip="{Binding Text[CollectUnusedStylesHint]}" />
               <TextBlock Classes="muted" Text="{Binding Text[AnalyzeHint]}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>

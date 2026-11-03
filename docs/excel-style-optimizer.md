@@ -5,13 +5,13 @@
 > 设计来源：[nanaminato/todolist PR #2](https://github.com/nanaminato/todolist/pull/2) 的
 > `ideas/excel-style-deduplicator.md`，按 RelaxCat 的架构落地为 Core 库、桌面页和 CLI。
 >
-> 产品意图：`S-EXCEL-009`；派生架构决策：`D-EXCEL-OPT-001`、`D-EXCEL-OPT-002`。
+> 产品意图：`S-EXCEL-009`、`S-EXCEL-011`；派生架构决策：`D-EXCEL-OPT-001`、`D-EXCEL-OPT-002`。
 
 ## 背景
 
 长期编辑、跨工作簿复制粘贴或由某些工具生成的 Excel 文件，可能积累大量重复的单元格格式
 （`xl/styles.xml` 中的 `cellXfs`），导致文件异常膨胀、保存和编辑卡顿。实际案例中一个使用
-区域很小的工作簿，`styles.xml` 解压后接近 10 MB，`cellXfs` 约 48,845 个。
+区域很小的工作簿，`styles.xml` 解压后接近 10 MB。后续检查发现主要膨胀可能位于 `cellStyleXfs`，而非 `cellXfs`；必须以分区诊断为准。
 
 该问题适合完全本地、离线的诊断和修复。RelaxCat 将其作为独立功能提供，不依赖 Excel COM，
 也不要求打开 Excel。
@@ -47,7 +47,7 @@
 | 60,000 个 `cellXfs`（rich），`styles.xml` 10.25 MB，10,000 单元格 | 0.64 s | — | 99 MB / 178 MB |
 | 48,845 个 `cellXfs`，200,000 单元格 | 0.49 s | 0.91 s | 61 MB / 112 MB（分析） |
 
-因此“600 KB 文件、解压后 10 MB 样式表”的典型情况在 1 秒量级；工作簿越大，瓶颈通常是
+以上为旧版算法的历史基线，不代表新增引用审计、GC 和语义校验的耗时；工作簿越大，瓶颈通常是
 样式表解析和单个超大工作表的 XML 重写，而不是单元格数量本身。
 
 ## 批量处理
@@ -89,7 +89,7 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
 样式预览会解析主题色（`xl/theme/theme1.xml`）、索引色与 `tint`，因此显示的填充/字体颜色
 与 Excel 中的实际效果一致。报告和界面都不读取、不输出单元格值、公式或批注。
 
-## 优化规则（第一版）
+## 优化规则
 
 只做可以证明等价的合并：
 
@@ -100,14 +100,13 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
    - `<c s="...">`（单元格样式）
    - `<row s="...">`（整行样式，包含未显式设置样式的单元格继承）
    - `<col style="...">`（列样式）
-4. 未被工作表引用的**唯一**格式也保留，避免影响文件中可能存在的隐藏依赖；只去掉重复项。
+4. 默认保留未被引用的唯一格式；显式启用 GC 且依赖审计通过时，才删除不可达项（详见后文）。
 5. 其它 OOXML 部件（含 `xl/vbaProject.bin`、图片、批注、数据透视表、外部链接等）按字节原样
    复制；`.xlsm` 必须继续输出 `.xlsm`，`.xlsx` 必须继续输出 `.xlsx`。
-6. 没有重复格式时不做无意义的重写：直接复制原包为新的已验证文件，`styles.xml` 保持原字节。
+6. 没有任何可执行的去重/GC 变化时，`styles.xml` 保持原字节，仍验证新输出包。
 7. 永不覆盖原文件：输出路径与输入相同时直接拒绝。
 
-第一版不合并 `fonts` / `fills` / `borders` / `cellStyleXfs`，只统计数量。这些表的引用关系
-更多（差分格式、命名样式等），留待后续在更严格的等价证明下处理。
+以上 XF 合并规则与后文组件去重/可选 GC 共同执行；未知依赖会使新增处理阶段保守跳过。
 
 加载 `styles.xml` 时会校验 `CT_Stylesheet` 的分区顺序（`numFmts` → `fonts` → … → `extLst`）。
 顺序错误的文件 Excel 会当作损坏并修复；RelaxCat 直接拒绝处理这类文件，避免在不可靠的输入上
@@ -119,13 +118,13 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
 
 | 检查 | 内容 |
 | --- | --- |
-| `stylesSections` | `styles.xml` 中除 `cellXfs` 外的所有分区规范化后与输入一致 |
+| `stylesSections` | 输出样式分区规范化后与组件/XF/GC 重写计划一致 |
 | `cellXfs` | 输出 `cellXfs` 与去重计划完全一致，`count` 属性与子元素数量一致 |
 | `references` | 每个工作表的单元格数、使用范围、实际样式使用次数（按规范化格式键聚合）、`c/row/col` 原始样式引用次数、合并区域列表都与输入一致 |
-| `parts` | 所有未修改的包部件存在且长度不变（VBA、图片等） |
+| `parts` | 所有未修改的包部件存在、长度不变且 SHA-256 一致（VBA、图片等） |
 | `package` | 输出文件存在且非空 |
 
-此外，重建后的 `cellXfs` 必须逐个与保留的第一份格式规范化相等；工作表引用数按样式键比较，
+此外，所有保留 cell XF 和命名样式的展开组件/基础 XF 结构必须与原定义一致；工作表引用数按展开后的样式键比较，
 因此漏改、错改或遗留的越界 `s` 值都会被发现。工作表重写只修改样式索引，`mergeCells`、公式、
 值、批注、条件格式等非样式内容原样保留；校验会额外比较每个工作表的合并区域列表。
 
@@ -205,4 +204,24 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
   - 由 Excel 自身生成的含公式、日期、边框和数字格式的工作簿，优化后逐项校验通过；用 COM
     对比 482 个单元格的公式/值、字体、填充、边框、对齐和数字格式，全部一致。
 
-2026-11-03：加入分区诊断、独立 ZIP 压缩大小、基础 XF 引用图和完全重复去重。详细大小口径、保守边界及 85 个核心用例/桌面冒烟验证见 [改进实施记录](excel-style-optimizer-improvements.md#实施记录2026-11-03)。未引用唯一项及底层组件保留；公司侧 Excel/TestHelper round-trip 尚待验证。
+2026-11-03：加入分区诊断、独立 ZIP 压缩大小、基础 XF 引用图和完全重复去重。详细大小口径、保守边界及 85 个核心用例/桌面冒烟验证见 [改进实施记录](excel-style-optimizer-improvements.md#实施记录2026-11-03)。未开启 GC 时保留未引用唯一项；公司侧 Excel/TestHelper round-trip 尚待验证。
+
+## 组件去重与 GC
+
+组件去重默认启用：对 `fonts`、`fills`、`borders` 的完全相同定义建立旧索引到新索引的映射，重映射 cellXfs 与 cellStyleXfs；对自定义 `numFmts` 比较除 `numFmtId` 外的全部结构，保留首个实际 ID（它不是数组下标），更新 XF 引用。之后继续合并完全相同的基础 XF 与单元格 XF；不做视觉相似合并。规范化键以长度分隔字段，避免格式代码中的标点形成键碰撞。
+
+勾选「清理未引用样式（GC）」后重新分析，可预览并清理可证明不可达的定义。默认不勾选；单文件页切换该选项会清除旧预测，批量页有独立开关。CLI 三种命令均支持 `--gc`，例如：
+
+```powershell
+dotnet run --project tools/RelaxCat.ExcelTool -- analyze input.xlsx --gc --json
+dotnet run --project tools/RelaxCat.ExcelTool -- optimize input.xlsx --output output.xlsx --gc
+dotnet run --project tools/RelaxCat.ExcelTool -- batch input-folder --output-dir output-folder --gc
+```
+
+GC 按依赖顺序执行：保留工作表单元格/行/列的原始及有效样式引用、cellXfs[0]，再保留这些 XF 与全部命名样式引用的基础 XF，以及 cellStyleXfs[0]；最后保留存活 XF 所引用的组件。fonts[0]、borders[0]、fills[0..1] 是额外保留根。命名样式、差分样式、表格样式、索引颜色不会清理或合并。差分样式含独立内联 numFmt 时，整个全局 numFmts 分区保留。
+
+新增处理采用保守包清单：支持标准工作簿、普通工作表、共享字符串、主题、计算链及文档属性等核心部件。含透视表、表格、图形、VBA、自定义部件或未知扩展/引用时，新增组件去重与 GC 跳过，UI/CLI/批量逐文件结果给出原因；原有完全重复 XF 去重仍可执行。因此 `.xlsm` 的 VBA 保留，但目前不启用新增组件/GC 阶段。跳过不是宣称这些部件一定有依赖，而是当前尚未覆盖其完整依赖。
+
+`TableChanges` 提供各表处理前后数量、完全重复移除数和未引用移除数；`ProjectedCellXfCount`/`ProjectedCellStyleXfCount` 是实际预计输出数，与唯一数量分开。未压缩字节减少量仍是主要体积指标。输出前对保留的每个 cell XF 和每个命名样式比较展开后的组件/基础 XF 结构，并验证引用范围及非目标部件 SHA-256。源文件始终保持不变。
+
+参考：[Microsoft CellFormat 文档](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.cellformat)定义 `fontId` 等组件索引及 `xfId` 基础样式引用；实际保守支持边界由本项目引用审计实现决定。
