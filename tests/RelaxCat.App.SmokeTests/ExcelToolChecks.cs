@@ -1,6 +1,11 @@
 using System.IO.Compression;
 using System.Text;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Presenters;
+using Avalonia.Layout;
+using RelaxCat.Core.Excel;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -133,11 +138,50 @@ internal static class ExcelToolChecks
         gcOption.IsChecked = false;
         Dispatcher.UIThread.RunJobs();
         complete(window.AnalyzeExcelWorkbookAsync(input));
+        // Exercise real overflow in both directions with many sheets and a large style gallery.
+        var sampleAnalysis = new ExcelStyleAnalyzer().Analyze(input);
+        var firstSheet = sampleAnalysis.Worksheets[0];
+        var crowded = firstSheet with
+        {
+            Styles = Enumerable.Range(0, 400).Select(i => firstSheet.Styles[i % firstSheet.Styles.Count]).ToArray(),
+            DistinctStyleCount = 400
+        };
+        var sheets = Enumerable.Range(1, 40).Select(i => (i == 1 ? crowded : firstSheet) with
+            { Name = "Worksheet " + i.ToString("D2") + " — long name" }).ToArray();
+        tool.ApplyAnalysis(sampleAnalysis with { Worksheets = sheets });
+        Dispatcher.UIThread.RunJobs();
+        var tabsScroll = excelPage.FindControl<ScrollViewer>("SheetTabsScroll")!;
+        var stylesScroll = excelPage.FindControl<ScrollViewer>("SheetStylesScroll")!;
+        CheckScrollGutter(tabsScroll, Orientation.Horizontal);
+        CheckScrollGutter(stylesScroll, Orientation.Vertical);
+        capture("excel-tool-many-sheets-light.png");
+        var lastTab = excelPage.FindControl<ItemsControl>("SheetTabs")!.GetVisualDescendants().OfType<Button>().Last();
+        Click(lastTab);
+        lastTab.BringIntoView();
+        Dispatcher.UIThread.RunJobs();
+        Check(tool.SelectedSheet!.Name == sheets[^1].Name && tabsScroll.Offset.X > 0,
+            "Last worksheet was not selectable/reachable after horizontal scrolling");
+        CheckScrollGutter(tabsScroll, Orientation.Horizontal);
+        window.Workspace.ThemeIndex = 0;
+        Dispatcher.UIThread.RunJobs();
+        capture("excel-tool-many-sheets-dark.png");
+        complete(window.AnalyzeExcelWorkbookAsync(input));
         Click(window.FindControl<Button>("HomeButton")!);
         window.Workspace.LanguageIndex = language;
         window.Workspace.ThemeIndex = theme;
         Dispatcher.UIThread.RunJobs();
         Console.WriteLine("PASS: Excel style analysis, worksheet style previews, verified deduplication, same-file refusal and bilingual refresh.");
+    }
+
+    private static void CheckScrollGutter(ScrollViewer viewer, Orientation orientation)
+    {
+        var bar = viewer.GetVisualDescendants().OfType<ScrollBar>().Single(b => b.Orientation == orientation);
+        var presenter = viewer.GetVisualDescendants().OfType<ScrollContentPresenter>().First();
+        Check(bar.IsVisible, "Overflow scrollbar was not visible");
+        var barRect = new Rect(bar.TranslatePoint(default, viewer)!.Value, bar.Bounds.Size);
+        var contentRect = new Rect(presenter.TranslatePoint(default, viewer)!.Value, presenter.Bounds.Size);
+        Check(orientation == Orientation.Horizontal ? contentRect.Bottom <= barRect.Top + .5 : contentRect.Right <= barRect.Left + .5,
+            "Scrollbar overlaps worksheet content: " + orientation);
     }
 
     private static string Metric(ExcelToolModel tool, string label) =>

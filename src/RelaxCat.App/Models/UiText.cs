@@ -1,297 +1,72 @@
+using System.Diagnostics;
+using System.Text.Json;
+using System.Text;
+
 namespace RelaxCat.App.Models;
 
-// All product text lives here; indexer bindings update together when language changes.
+/// <summary>Stable resource keys backed by JSON files shipped beside the application.</summary>
 public sealed class UiText : ObservableModel
 {
+    private static readonly Lazy<LanguageCatalog> DefaultCatalog = new(() =>
+        LanguageCatalog.Load(Path.Combine(AppContext.BaseDirectory, "Localization")));
+    private readonly LanguageCatalog catalog;
     private bool japanese;
+
+    public UiText() : this(DefaultCatalog.Value) { }
+    internal UiText(string directory) : this(LanguageCatalog.Load(directory)) { }
+    private UiText(LanguageCatalog catalog) => this.catalog = catalog;
+
     public bool Japanese
     {
         get => japanese;
         set { if (Set(ref japanese, value)) { Notify("Item"); Notify("Item[]"); } }
     }
-    public string this[string key] => Entries.TryGetValue(key, out var value) ? (Japanese ? value.Ja : value.Zh) : key;
-    private static readonly Dictionary<string, (string Zh, string Ja)> Entries = new()
+
+    // Chinese is the baseline; an absent/blank Japanese entry falls back to it, then to the key.
+    public string this[string key] => catalog.Get(key, Japanese);
+
+    private sealed record LanguageCatalog(IReadOnlyDictionary<string, string> Chinese, IReadOnlyDictionary<string, string> Japanese)
     {
-        ["CollectUnusedStyles"] = ("清理未引用样式（GC）", "未参照スタイルを削除（GC）"),
-        ["CollectUnusedStylesHint"] = ("仅在引用图完整时清理；保留默认项和命名样式。更改后请重新分析。", "参照グラフが完全な場合のみ削除。既定項目と名前付きスタイルを保持。変更後は再分析してください。"),
-        ["UnusedRemoved"] = ("清理项", "未参照削除"),
-        ["TableChange"] = ("处理数量", "処理件数"),
-        ["AdvancedOptimization"] = ("组件去重 / GC", "部品重複排除 / GC"),
-        ["AdvancedAvailable"] = ("引用图已覆盖", "参照グラフを確認済み"),
-        ["AdvancedSkip_styleExtensions"] = ("已跳过：样式含未知扩展", "スキップ：スタイルに未知の拡張"),
-        ["AdvancedSkip_unsupportedParts"] = ("已跳过：包含未覆盖部件", "スキップ：未対応のパーツあり"),
-        ["AdvancedSkip_packageExtensions"] = ("已跳过：工作簿含扩展", "スキップ：ブックに拡張あり"),
-        ["AdvancedSkip_unsupportedReferences"] = ("已跳过：存在未覆盖引用", "スキップ：未対応の参照あり"),
-        ["StyleDataReduction"] = ("样式数据减少（未压缩）", "スタイルデータ削減（非圧縮）"),
-        ["UniqueBaseFormats"] = ("唯一基础 XF", "一意の基底 XF"),
-        ["BaseDeduplication"] = ("基础 XF 去重", "基底 XF の重複排除"),
-        ["BaseDedupAvailable"] = ("可用（仅完全重复项）", "利用可能（完全一致のみ）"),
-        ["BaseDedupSkipped"] = ("跳过（存在未知依赖）", "スキップ（未知の依存関係）"),
-        ["StylesCompressed"] = ("styles.xml ZIP 压缩大小", "styles.xml ZIP 圧縮サイズ"),
-        ["BaseReferences"] = ("被引用基础 XF（已知引用）", "参照された基底 XF（既知の参照）"),
-        ["KnownReferences"] = ("已知引用项", "既知の参照項目"),
-        ["SectionDiagnostics"] = ("样式分区诊断", "スタイル区分の診断"),
-        ["SectionDiagnosticHint"] = ("大小为独立 UTF-8 序列化字节数，占比基于各分区序列化总量；引用仅统计已知边，? 表示未知。未引用不等于可安全删除。", "サイズは単独 UTF-8 シリアライズのバイト数、割合は区分の合計に基づきます。参照は既知のもののみ、? は不明。未参照でも安全に削除できるとは限りません。"),
-        ["SectionDiagnostic"] = ("独立 UTF-8 序列化大小", "単独 UTF-8 シリアライズサイズ"),
-        ["Workspace"] = ("图片工作台", "画像ワークスペース"),
-        ["Settings"] = ("设置", "設定"),
-        ["Tagline"] = ("从图片到整齐的工作簿", "画像から整ったワークブックへ"),
-        ["Import"] = ("导入图片", "画像を追加"),
-        ["Export"] = ("导出到 Excel", "Excel に出力"),
-        ["Cancel"] = ("取消", "キャンセル"),
-        ["Theme"] = ("切换明暗", "テーマを切替"),
-        ["ThemeHint"] = ("在明亮与黑暗主题之间切换", "ライトテーマとダークテーマを切り替えます"),
-        ["GalleryHint"] = ("勾选要导出的图片，点击缩略图放大预览。也可以直接拖入图片或文件夹。", "出力する画像を選択。サムネイルをクリックして拡大表示。画像やフォルダーを直接ドロップすることもできます。"),
-        ["Count"] = ("共 {0} 张 · 待导出 {1} 张", "全 {0} 枚 · 出力対象 {1} 枚"),
-        ["DesignScale"] = ("默认缩放比例", "既定の倍率"),
-        ["Compact"] = ("节省空间排列", "省スペース配置"),
-        ["MoreSettings"] = ("详细设置 →", "詳細設定 →"),
-        ["EmptyTitle"] = ("让图片各就其位", "画像を、きれいに整える"),
-        ["EmptyHint"] = ("导入截图或图片，或直接把图片、文件夹拖进窗口。", "画像やフォルダーを追加するか、ウィンドウに直接ドロップしてください。"),
-        ["EmptyFormats"] = ("支持 PNG · JPEG · BMP", "PNG · JPEG · BMP 対応"),
-        ["DropHere"] = ("松开即可导入", "ドロップして取り込む"),
-        ["DropHint"] = ("支持多张图片与文件夹，子文件夹内的图片会一并导入 · PNG · JPEG · BMP", "複数の画像やフォルダーに対応。サブフォルダー内の画像もまとめて取り込みます · PNG · JPEG · BMP"),
-        ["DropNoImages"] = ("拖入的内容中没有可导入的图片（PNG · JPEG · BMP）", "ドロップされた内容に取り込める画像がありません（PNG · JPEG · BMP）"),
-        ["DropErrors"] = ("部分拖入内容无法导入：", "一部の項目を取り込めませんでした："),
-        ["DropNotFound"] = ("找不到", "見つかりません"),
-        ["DropUnreadable"] = ("无法读取", "読み取れません"),
-        ["DropBusy"] = ("正在导入或导出，请完成后再拖入", "読み込みまたは出力中です。完了後にドロップしてください"),
-        ["Include"] = ("参与导出", "出力対象"),
-        ["Copy"] = ("复制", "コピー"),
-        ["CopyHint"] = ("复制原始图片到剪贴板", "元画像をクリップボードにコピー"),
-        ["Remove"] = ("移除", "削除"),
-        ["RemoveAll"] = ("全部移除", "すべて削除"),
-        ["RemoveAllHint"] = ("清空工作区，保留源文件和 Excel 中已导出的图片", "ワークスペースを空にします。元ファイルと出力済み画像は保持されます"),
-        ["WorkspaceCleared"] = ("已清空工作区", "ワークスペースを空にしました"),
-        ["SortOrder"] = ("排序", "並び順"),
-        ["ImportOrder"] = ("导入顺序", "追加順"),
-        ["TimeAscending"] = ("时间：从早到晚", "日時：古い順"),
-        ["TimeDescending"] = ("时间：从晚到早", "日時：新しい順"),
-        ["SortTimeHint"] = ("按文件修改时间排序，新导入的图片自动排列；导出顺序与工作区一致", "ファイルの更新日時で自動整列します。表示順で出力します"),
-        ["RemoveHint"] = ("从队列移除，保留源文件", "リストから削除（元ファイルは保持）"),
-        ["Preview"] = ("放大预览", "拡大プレビュー"),
-        ["Close"] = ("关闭预览", "プレビューを閉じる"),
-        ["Previous"] = ("上一张", "前の画像"),
-        ["Next"] = ("下一张", "次の画像"),
-        ["Fit"] = ("适应窗口", "ウィンドウに合わせる"),
-        ["PreviewHint"] = ("← → 切换图片 · Esc 关闭 · 放大后可滚动查看", "← → で画像切替 · Esc で閉じる · 拡大後はスクロール可能"),
-        ["Loading"] = ("正在加载预览…", "プレビューを読み込み中…"),
-        ["SettingsHint"] = ("配置图片布局、Excel 导出与截图集成。", "画像配置、Excel 出力、キャプチャ連携を設定します。"),
-        ["SizingTab"] = ("尺寸与规则", "サイズとルール"),
-        ["ExcelTab"] = ("Excel 排版", "Excel レイアウト"),
-        ["AppearanceTab"] = ("外观与语言", "外観と言語"),
-        ["DesignWidth"] = ("设计宽度", "設計幅"),
-        ["DesignHeight"] = ("设计高度", "設計高さ"),
-        ["SizeHint"] = ("设计宽高使用 96 DPI 逻辑像素。图片只改变显示尺寸，不重采样源文件。", "設計サイズは 96 DPI の論理ピクセル。元画像を再サンプリングせず表示サイズを調整します。"),
-        ["MaxEnlargement"] = ("最大放大倍数", "最大拡大率"),
-        ["Rules"] = ("自定义缩放规则", "カスタム拡大縮小ルール"),
-        ["RulesHint"] = ("每条规则：一行条件，下一行 scale = 数值。首条命中生效；and 优先于 or。", "条件の次の行に scale = 数値。最初に一致したルールを適用。and は or より優先。"),
-        ["RulesPlaceholder"] = ("width >= 1920 or height >= 1080\nscale = 0.5", "width >= 1920 or height >= 1080\nscale = 0.5"),
-        ["HorizontalGap"] = ("水平间距", "横間隔"),
-        ["CellSection"] = ("单元格与间距", "セルと間隔"),
-        ["VerticalGap"] = ("垂直间距", "縦間隔"),
-        ["Points"] = ("磅（pt）", "ポイント（pt）"),
-        ["Cells"] = ("单元格", "セル"),
-        ["CellGapHint"] = ("单元格单位按实际列宽、行高计算，支持小数。水平间距仅在节省空间排列时生效；修改应用于后续导出。", "セル単位は実際の列幅と行の高さで計算します。横間隔は省スペース配置時のみ有効です。変更は次のエクスポートに適用されます。"),
-        ["SelectAllPictures"] = ("导出后选中工作表全部图片", "出力後にシート内の全画像を選択"),
-        ["SelectPicturesHint"] = ("成功导出后在 Excel 中选中全部图片，便于统一移动或调整；不改变图片队列的勾选。", "出力成功後、Excel 内の全画像を選択して一括操作できます。画像リストのチェック状態は変わりません。"),
-        ["RowHeight"] = ("行高（pt）", "行の高さ（pt）"),
-        ["ColumnWidth"] = ("列宽（字符）", "列幅（文字）"),
-        ["Template"] = ("Excel 模板", "Excel テンプレート"),
-        ["TemplateHint"] = ("留空使用 Excel 默认模板。导出会重新规范目标工作表行高与列宽。", "空欄では Excel 標準テンプレートを使用。出力時に行の高さと列幅を設定します。"),
-        ["Browse"] = ("浏览…", "参照…"),
-        ["Invalid"] = ("设置有误：", "設定エラー："),
-        ["Appearance"] = ("界面主题", "テーマ"),
-        ["Dark"] = ("深色", "ダーク"),
-        ["Light"] = ("浅色", "ライト"),
-        ["Language"] = ("界面语言", "表示言語"),
-        ["SettingsLoadError"] = ("读取设置失败：", "設定の読み込みに失敗："),
-        ["SettingsRecovered"] = ("设置文件损坏，已从备份恢复", "設定ファイルが破損していたため、バックアップから復元しました"),
-        ["SettingsSaveError"] = ("保存设置失败：", "設定の保存に失敗："),
-        ["SessionHint"] = ("更改会自动保存", "変更は自動保存されます"),
-        ["WorksheetSection"] = ("工作表", "ワークシート"),
-        ["StartCellSection"] = ("图片起始位置", "画像の開始位置"),
-        ["StartRow"] = ("起始行", "開始行"),
-        ["StartColumn"] = ("起始列", "開始列"),
-        ["StartCellHint"] = ("行列从 1 开始，列 1 对应 A 列。导出前清空目标工作表中的图片，再从指定单元格左上角重新排版。", "行・列は 1 から指定（列 1 は A 列）。出力前に対象シートの画像を削除し、指定セルの左上から配置し直します。"),
-        ["StartCellError"] = ("起始行须为 1–1048576 的整数，起始列须为 1–16384 的整数。", "開始行は 1–1048576、開始列は 1–16384 の整数で指定してください。"),
-        ["ShowGridlines"] = ("显示工作表网格线", "ワークシートの枠線を表示"),
-        ["Ready"] = ("就绪", "準備完了"),
-        ["Importing"] = ("正在导入", "読み込み中"),
-        ["Imported"] = ("导入完成", "読み込み完了"),
-        ["ImportErrors"] = ("部分图片导入失败：", "一部の画像を読み込めませんでした："),
-        ["ImportCancelled"] = ("已取消，已导入图片保留", "キャンセル済み。追加済み画像は保持されます"),
-        ["LocalOnly"] = ("仅支持本地图片", "ローカル画像のみ対応"),
-        ["PreparingExcel"] = ("正在准备 Excel…", "Excel を準備中…"),
-        ["Exporting"] = ("正在导出", "出力中"),
-        ["Exported"] = ("导出完成，请在 Excel 中保存工作簿", "出力完了。Excel でブックを保存してください"),
-        ["ExportCancelled"] = ("导出已取消，已插入图片保留", "出力をキャンセルしました。挿入済み画像は保持されます"),
-        ["ExportError"] = ("导出失败（可重试）：", "出力失敗（再試行可）："),
-        ["NoSelection"] = ("请至少勾选一张参与导出的图片", "出力対象の画像を少なくとも 1 枚選択してください"),
-        ["NumberError"] = ("请输入有效正数（间距可以为零）", "有効な正数を入力してください（間隔はゼロ可）"),
-        ["ExcelRangeError"] = ("行高需不超过 409 pt，列宽需不超过 255 字符", "行の高さは 409 pt 以下、列幅は 255 文字以下にしてください"),
-        ["Copied"] = ("图片已复制到剪贴板", "画像をクリップボードにコピーしました"),
-        ["CopyError"] = ("复制失败：", "コピー失敗："),
-        ["ClipboardUnavailable"] = ("剪贴板不可用", "クリップボードを利用できません"),
-        ["PreviewError"] = ("预览失败：", "プレビュー失敗："),
-        ["CaptureTab"] = ("截图与监控", "キャプチャと監視"),
-        ["CaptureProvider"] = ("截图来源", "キャプチャ元"),
-        ["CaptureOff"] = ("关闭", "無効"),
-        ["CaptureFolderOnly"] = ("仅监控文件夹", "フォルダー監視のみ"),
-        ["CaptureGreenshot"] = ("Greenshot（随应用捆绑）", "Greenshot（同梱版）"),
-        ["CaptureFolder"] = ("截图 / 监控文件夹", "保存・監視フォルダー"),
-        ["CaptureFolderHint"] = ("只导入启动监控后新增或更新的 PNG、JPEG、BMP。等待写入完成并去重；忙碌时排队导入。", "監視開始後に追加・更新された PNG・JPEG・BMP を取り込みます。書き込み完了を待ち、重複を除去。処理中は待機します。"),
-        ["CaptureGreenshotHint"] = ("Greenshot 使用独立配置，后续启动不会覆盖。快捷键和文件输出请在 Greenshot 中设置；启动时读取其保存目录进行监控。已选择集成时，RelaxCat 下次启动会自动运行 Greenshot 并监控。请先关闭其他 Greenshot 实例。", "Greenshot の独立した設定を保持します。キーとファイル出力は Greenshot で設定してください。次回起動時に自動実行し、保存先を監視します。別の Greenshot は先に終了してください。"),
-        ["CaptureRegionKey"] = ("区域截图快捷键", "範囲キャプチャのキー"),
-        ["CaptureWindowKey"] = ("活动窗口快捷键", "アクティブウィンドウのキー"),
-        ["CaptureFullscreenKey"] = ("全屏截图快捷键", "全画面キャプチャのキー"),
-        ["CaptureApply"] = ("应用并启动", "適用して開始"),
-        ["CaptureStop"] = ("停止监控", "監視を停止"),
-        ["CaptureStopped"] = ("截图监控未启动", "キャプチャ監視は停止中"),
-        ["CaptureStarting"] = ("正在启动截图监控…", "キャプチャ監視を開始中…"),
-        ["CaptureFolderRunning"] = ("文件夹监控中", "フォルダーを監視中"),
-        ["CaptureGreenshotRunning"] = ("Greenshot 与文件夹监控运行中", "Greenshot とフォルダー監視は実行中"),
-        ["CaptureError"] = ("截图监控错误：", "キャプチャ監視エラー："),
-        ["CaptureGreenshotExited"] = ("Greenshot 意外退出，监控已停止；可重新应用启动", "Greenshot が予期せず終了しました。監視を停止しました。再度適用して開始できます"),
-        ["CaptureFolderRequired"] = ("请设置有效的监控文件夹", "有効な監視フォルダーを指定してください"),
-        ["CaptureKeysDistinct"] = ("三种截图快捷键不能重复", "3 種類のキャプチャキーは別々に設定してください"),
-        ["CaptureKeyModifier"] = ("字母或数字截图快捷键需要 Ctrl、Alt 或 Win 修饰键", "英数字のキーには Ctrl・Alt・Win の修飾キーが必要です"),
-        ["CaptureValid"] = ("截图设置有效，点击应用并启动后生效", "キャプチャ設定は有効です。「適用して開始」で反映されます"),
-        ["CaptureOtherInstance"] = ("其他 Greenshot 已运行；请先手动关闭，或选择仅监控文件夹。", "別の Greenshot が実行中です。先に手動で終了するか、フォルダー監視のみを選んでください。"),
-        ["ExcelToolTab"] = ("Excel 样式优化", "Excel スタイル最適化"),
-        ["ExcelToolNav"] = ("Excel 优化", "Excel 最適化"),
-        ["ExcelBatchNav"] = ("批量优化", "一括最適化"),
-        ["ExcelBatchTab"] = ("Excel 批量优化", "Excel 一括最適化"),
-        ["BatchHint"] = ("递归扫描输入文件夹中的 .xlsx / .xlsm，逐个优化到输出文件夹；原文件不修改，单个文件失败会继续处理其余文件。", "入力フォルダー内の .xlsx / .xlsm を再帰的に検索し、順番に出力フォルダーへ最適化します。元ファイルは変更せず、1 ファイルの失敗後も残りを続行します。"),
-        ["BatchInputFolder"] = ("输入文件夹", "入力フォルダー"),
-        ["BatchSection"] = ("批量设置", "一括設定"),
-        ["BatchOutputFolder"] = ("输出文件夹", "出力フォルダー"),
-        ["BatchRecursive"] = ("包含子文件夹", "サブフォルダーを含める"),
-        ["BatchOverwrite"] = ("覆盖已存在的输出", "既存の出力を上書き"),
-        ["BatchOutputHint"] = ("输出文件名追加 -optimized 后缀，并保留子文件夹结构；默认跳过已存在的输出。", "出力名に -optimized を付け、サブフォルダー構造を保ちます。既存の出力は既定でスキップします。"),
-        ["BatchScan"] = ("扫描工作簿", "ブックを検索"),
-        ["BatchRun"] = ("开始批量优化", "一括最適化を開始"),
-        ["BatchIdle"] = ("选择输入文件夹后扫描", "入力フォルダーを選択して検索してください"),
-        ["BatchReady"] = ("已扫描，可以开始批量优化", "検索済み。一括最適化を開始できます"),
-        ["BatchNoFiles"] = ("没有找到 .xlsx / .xlsm 工作簿", "対象の .xlsx / .xlsm ブックが見つかりません"),
-        ["BatchFound"] = ("找到 {0} 个工作簿", "{0} 個のブックが見つかりました"),
-        ["BatchIssues"] = ("部分文件夹无法读取：{0}", "一部のフォルダーを読み取れませんでした：{0}"),
-        ["BatchIssuesTitle"] = ("读取问题", "読み取りの問題"),
-        ["BatchResults"] = ("处理结果", "処理結果"),
-        ["BatchPending"] = ("待处理", "待機中"),
-        ["BatchCompleted"] = ("完成", "完了"),
-        ["BatchSkipped"] = ("已跳过", "スキップ"),
-        ["BatchFailed"] = ("失败", "失敗"),
-        ["BatchCancelled"] = ("已取消", "キャンセル"),
-        ["BatchSkippedReason"] = ("输出文件已存在", "出力ファイルが既に存在します"),
-        ["BatchResultDetail"] = ("cellXfs {0} → {1} · {2} → {3}", "cellXfs {0} → {1} · {2} → {3}"),
-        ["BatchVerified"] = ("校验通过", "検証合格"),
-        ["BatchSummary"] = ("完成 {0} · 跳过 {1} · 失败 {2}", "完了 {0} · スキップ {1} · 失敗 {2}"),
-        ["BatchSummaryCancelled"] = ("已取消 · 完成 {0} · 跳过 {1} · 失败 {2}", "キャンセル · 完了 {0} · スキップ {1} · 失敗 {2}"),
-        ["BatchDone"] = ("批量优化完成", "一括最適化が完了しました"),
-        ["BatchProcessing"] = ("正在处理 {0}（{1}/{2}）", "{0} を処理中（{1}/{2}）"),
-        ["BatchScanning"] = ("正在扫描文件夹…", "フォルダーを検索中…"),
-        ["BatchStarting"] = ("正在准备批量优化…", "一括最適化を準備中…"),
-        ["BatchScanCancelled"] = ("扫描已取消", "検索をキャンセルしました"),
-        ["BatchInputRequired"] = ("请选择包含 .xlsx / .xlsm 的输入文件夹", ".xlsx / .xlsm を含む入力フォルダーを選択してください"),
-        ["BatchOutputRequired"] = ("请选择输出文件夹", "出力フォルダーを選択してください"),
-        ["BatchScanFailed"] = ("扫描失败：", "検索に失敗："),
-        ["BatchRunFailed"] = ("批量优化失败：", "一括最適化に失敗："),
-        ["BatchEmpty"] = ("选择文件夹并扫描后，这里会显示待处理的文件和处理进度。", "フォルダーを選択して検索すると、処理対象と進捗が表示されます。"),
-        ["ExcelToolHint"] = ("分析 .xlsx / .xlsm 工作簿的样式表，合并完全相同的单元格格式。原文件不会被修改：结果写入新工作簿，处理前后都会显示各工作表的样式。", ".xlsx / .xlsm ブックのスタイルシートを分析し、完全に同じセル書式を統合します。元ファイルは変更せず、結果は新しいブックに書き込みます。処理の前後で各シートのスタイルを表示します。"),
-        ["WorkbookSection"] = ("工作簿", "ブック"),
-        ["WorkbookPathHint"] = ("选择或输入 .xlsx / .xlsm 路径", ".xlsx / .xlsm のパスを指定"),
-        ["Analyze"] = ("分析", "分析"),
-        ["OptimizeSaveAs"] = ("优化并另存为…", "最適化して別名保存…"),
-        ["AnalyzeHint"] = ("分析只读取样式表，不改动文件。优化会在校验通过后写入新文件，然后自动分析新文件以显示处理效果。", "分析はスタイルシートのみを読み取り、ファイルを変更しません。最適化は検証に合格した後に新しいファイルへ書き込み、その後で新しいファイルを自動分析して結果を表示します。"),
-        ["ExcelToolEmptyTitle"] = ("先分析一个工作簿", "まずブックを分析します"),
-        ["ExcelToolEmptyHint"] = ("选择 .xlsx 或 .xlsm 工作簿后点击「分析」，即可查看工作表的样式与可优化的重复格式。", ".xlsx / .xlsm ブックを選んで「分析」を押すと、シートのスタイルと統合できる重複書式を確認できます。"),
-        ["FileSize"] = ("文件大小", "ファイルサイズ"),
-        ["StylesPart"] = ("styles.xml", "styles.xml"),
-        ["CellXfs"] = ("cellXfs", "cellXfs"),
-        ["UniqueFormats"] = ("唯一格式", "一意の書式"),
-        ["DuplicateFormats"] = ("可去重格式", "重複書式"),
-        ["UnreferencedFormats"] = ("工作表未引用", "シート未参照"),
-        ["StyleTableParts"] = ("字体 · 填充 · 边框", "フォント・塗りつぶし・罫線"),
-        ["MacroWorkbook"] = ("含宏工作簿", "マクロ付きブック"),
-        ["BeforeAfterSection"] = ("处理效果", "処理効果"),
-        ["BeforeColumn"] = ("优化前", "最適化前"),
-        ["AfterColumn"] = ("优化后（预计）", "最適化後（予測）"),
-        ["AfterColumnActual"] = ("优化后", "最適化後"),
-        ["ReducedFormats"] = ("已减少格式", "削減した書式"),
-        ["ReductionRatio"] = ("可减少格式", "削減できる書式"),
-        ["ProjectionHint"] = ("「优化后」由分析计算得到，用于预估；实际结果以优化完成为准。", "「最適化後」は分析による予測値です。実際の結果は最適化完了後の表示を確認してください。"),
-        ["WorksheetStyles"] = ("工作表中的样式", "シート内のスタイル"),
-        ["WorksheetCount"] = ("工作表", "ワークシート"),
-        ["RowCellXfs"] = ("cellXfs 数量", "cellXfs 数"),
-        ["UsedRange"] = ("使用范围", "使用範囲"),
-        ["CellsLabel"] = ("单元格", "セル"),
-        ["StylesLabel"] = ("使用样式", "使用スタイル"),
-        ["SheetHidden"] = ("隐藏", "非表示"),
-        ["NoStylesInSheet"] = ("该工作表没有使用任何自定义格式", "このシートはカスタム書式を使用していません"),
-        ["MoreStyles"] = ("其余 {0} 种样式未显示", "残り {0} 種類のスタイルは表示していません"),
-        ["FormatLabel"] = ("格式 #{0}", "書式 #{0}"),
-        ["NormalFormat"] = ("常规", "標準"),
-        ["CellUsage"] = ("{0} 个单元格", "{0} セル"),
-        ["FontLabel"] = ("字体", "フォント"),
-        ["NumberFormatLabel"] = ("数字格式", "数値書式"),
-        ["BorderLabel"] = ("边框", "罫線"),
-        ["AlignmentLabel"] = ("对齐", "配置"),
-        ["FillLabel"] = ("填充", "塗りつぶし"),
-        ["BoldLabel"] = ("加粗", "太字"),
-        ["ItalicLabel"] = ("斜体", "斜体"),
-        ["UnderlineLabel"] = ("下划线", "下線"),
-        ["StrikeLabel"] = ("删除线", "取り消し線"),
-        ["NoBorder"] = ("无", "なし"),
-        ["NoFill"] = ("无填充", "塗りつぶしなし"),
-        ["LeftSide"] = ("左", "左"),
-        ["RightSide"] = ("右", "右"),
-        ["TopSide"] = ("上", "上"),
-        ["BottomSide"] = ("下", "下"),
-        ["AlignGeneral"] = ("常规", "標準"),
-        ["AlignLeft"] = ("左", "左"),
-        ["AlignCenter"] = ("居中", "中央"),
-        ["AlignRight"] = ("右", "右"),
-        ["AlignFill"] = ("填充", "塗りつぶし"),
-        ["AlignJustify"] = ("两端对齐", "両端揃え"),
-        ["AlignCenterContinuous"] = ("跨列居中", "選択範囲内中央"),
-        ["AlignDistributed"] = ("分散对齐", "均等割付"),
-        ["AlignBottom"] = ("靠下", "下"),
-        ["AlignTop"] = ("靠上", "上"),
-        ["AlignJustifyVertical"] = ("两端", "両端"),
-        ["AlignDistributedVertical"] = ("分散", "均等"),
-        ["ResultSection"] = ("优化结果", "最適化結果"),
-        ["OutputFile"] = ("输出文件", "出力ファイル"),
-        ["OpenOutputFolder"] = ("打开所在文件夹", "フォルダーを開く"),
-        ["OpenFolderFailed"] = ("打开文件夹失败：", "フォルダーを開けませんでした："),
-        ["Verification"] = ("校验", "検証"),
-        ["VerificationPassed"] = ("{0} 项校验全部通过", "{0} 項目の検証にすべて合格"),
-        ["VerificationFailed"] = ("校验未通过", "検証に失敗"),
-        ["CheckStylesSections"] = ("样式分区符合优化映射", "スタイル区分が最適化マップと一致"),
-        ["CheckCellXfs"] = ("格式表符合优化映射", "書式テーブルが最適化マップと一致"),
-        ["CheckReferences"] = ("工作表样式引用一致", "シートのスタイル参照が一致"),
-        ["CheckParts"] = ("其它部件原样保留", "その他のパーツをそのまま保持"),
-        ["CheckPackage"] = ("输出工作簿有效", "出力ブックが有効"),
-        ["ExcelAnalyzing"] = ("正在分析工作簿…", "ブックを分析中…"),
-        ["ExcelOptimizing"] = ("正在优化工作簿…", "ブックを最適化中…"),
-        ["ExcelAnalyzed"] = ("分析完成", "分析が完了しました"),
-        ["ExcelAnalyzedDuplicates"] = ("分析完成：发现 {0} 个可合并的重复格式", "分析完了：統合できる重複書式が {0} 個あります"),
-        ["ExcelAnalyzeCancelled"] = ("分析已取消", "分析をキャンセルしました"),
-        ["ExcelOptimizeCancelled"] = ("优化已取消，未写入文件", "最適化をキャンセルしました。ファイルは書き込まれていません"),
-        ["ExcelOptimizedSummary"] = ("优化完成：cellXfs {0} → {1}，已写入 {2}", "最適化完了：cellXfs {0} → {1}、{2} に書き込みました"),
-        ["ExcelAnalysisFailed"] = ("分析失败：", "分析に失敗："),
-        ["ExcelOptimizeFailed"] = ("优化失败：", "最適化に失敗："),
-        ["ExcelOutputAccessDenied"] = ("无法写入输出文件夹：{0}。请改用其他文件夹（例如项目目录），或将 RelaxCat 加入安全软件（如腾讯电脑管家、Windows Defender）的信任名单后重试。", "出力フォルダーに書き込めません：{0}。別のフォルダー（プロジェクト内など）を選ぶか、セキュリティソフト（Tencent PC Manager、Windows Defender など）で RelaxCat を信頼してください。"),
-        ["ExcelNoWorkbook"] = ("请选择有效的 .xlsx 或 .xlsm 工作簿", "有効な .xlsx / .xlsm ブックを選択してください"),
-        ["ExcelSameFile"] = ("输出文件不能与原文件相同", "出力先は元のブックと同じにできません"),
-        ["ExcelPhaseReading"] = ("读取工作簿", "ブックを読み込み中"),
-        ["ExcelPhaseReadingStyles"] = ("读取样式表", "スタイルシートを読み込み中"),
-        ["ExcelPhaseScanning"] = ("分析工作表", "シートを分析中"),
-        ["ExcelPhaseProjection"] = ("计算优化后大小", "最適化後のサイズを計算中"),
-        ["RowsLabel"] = ("行", "行"),
-        ["ExcelPhaseRewriting"] = ("更新工作表引用", "シートの参照を更新中"),
-        ["ExcelPhaseStyles"] = ("重建样式表", "スタイルシートを再構築中"),
-        ["ExcelPhaseVerifying"] = ("校验优化结果", "最適化結果を検証中"),
-        ["ExcelPhaseWriting"] = ("写入新工作簿", "新しいブックを書き込み中"),
-    };
+        internal static LanguageCatalog Load(string directory)
+        {
+            var chinese = Read(Path.Combine(directory, "zh-CN.json"));
+            IReadOnlyDictionary<string, string> japanese;
+            try { japanese = Read(Path.Combine(directory, "ja-JP.json")); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+            {
+                Trace.TraceWarning("Cannot load ja-JP language pack; using zh-CN. {0}", error.Message);
+                japanese = new Dictionary<string, string>();
+            }
+            // External packs can lag behind the baseline. Reject invalid composite formats
+            // per key so a translator cannot break a later string.Format call.
+            japanese = japanese.Where(entry => chinese.TryGetValue(entry.Key, out var baseline) &&
+                CompatibleFormat(baseline, entry.Value)).ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+            return new LanguageCatalog(chinese, japanese);
+        }
+
+        internal string Get(string key, bool japanese)
+        {
+            if (japanese && Japanese.TryGetValue(key, out var translated) && !string.IsNullOrWhiteSpace(translated)) return translated;
+            return Chinese.TryGetValue(key, out var baseline) && !string.IsNullOrWhiteSpace(baseline) ? baseline : key;
+        }
+
+        private static bool CompatibleFormat(string baseline, string translation)
+        {
+            try { return CompositeFormat.Parse(baseline).MinimumArgumentCount == CompositeFormat.Parse(translation).MinimumArgumentCount; }
+            catch (FormatException) { return false; }
+        }
+
+        private static IReadOnlyDictionary<string, string> Read(string path)
+        {
+            using var stream = File.OpenRead(path);
+            using var document = JsonDocument.Parse(stream);
+            if (document.RootElement.ValueKind != JsonValueKind.Object)
+                throw new InvalidDataException($"Language pack '{path}' must contain an object of string entries.");
+            var entries = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var entry in document.RootElement.EnumerateObject())
+                if (entry.Value.ValueKind != JsonValueKind.String || !entries.TryAdd(entry.Name, entry.Value.GetString()!))
+                    throw new InvalidDataException($"Invalid or duplicate resource key '{entry.Name}' in '{path}'.");
+            return entries;
+        }
+    }
 }

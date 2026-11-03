@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <AvaloniaResource Include="Assets/*" />
+    <Content Include="Localization/*.json" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../../vendor/greenshot/*" Link="Providers/Greenshot/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

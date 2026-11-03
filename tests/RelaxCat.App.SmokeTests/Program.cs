@@ -17,6 +17,7 @@ using RelaxCat.Core.Layout;
 AppBuilder.Configure<DesktopApp>().UseHeadless(new AvaloniaHeadlessPlatformOptions
     { UseHeadlessDrawing = false }).UseSkia().SetupWithoutStarting();
 Directory.CreateDirectory("artifacts");
+LocalizationChecks.Run();
 var settingsPath = Path.GetFullPath("artifacts/settings-" + Guid.NewGuid().ToString("N") + ".json");
 var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
 using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))

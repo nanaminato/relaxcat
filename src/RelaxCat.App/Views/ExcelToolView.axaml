@@ -160,7 +160,7 @@
 
           <Grid IsVisible="{Binding ExcelTool.HasSummary}" RowDefinitions="Auto,Auto,*">
             <Border Padding="14,10" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
-              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+              <ScrollViewer x:Name="SheetTabsScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" AllowAutoHide="False">
                 <ItemsControl x:Name="SheetTabs" ItemsSource="{Binding ExcelTool.Sheets}">
                   <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                   <ItemsControl.ItemTemplate>
@@ -198,7 +198,7 @@
               </StackPanel>
             </Grid>
 
-            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="20,0,20,20">
+            <ScrollViewer x:Name="SheetStylesScroll" Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False" Padding="20,0,20,20">
               <StackPanel Spacing="8">
                 <ItemsControl ItemsSource="{Binding ExcelTool.SelectedSheet.Styles}" ItemTemplate="{StaticResource SwatchTemplate}">
                   <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>

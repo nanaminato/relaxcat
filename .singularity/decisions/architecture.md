@@ -339,3 +339,27 @@ Decision: Require a closed supported-part inventory and reject extensions or ref
 Reason: The human explicitly authorized both improvements. Structural duplicate components can mask duplicate XFs; unreachable unique definitions require a distinct reachability proof. Preserving default/reserved slots and conservatively skipping unmodeled dependencies avoids assuming that diagnostic non-use alone proves safe deletion.
 
 Evidence: `src/RelaxCat.Core/Excel/StyleOptimizationContext.cs`, `src/RelaxCat.Core/Excel/StyleTableOptimizer.cs`, `tests/RelaxCat.Core.Tests/ExcelStyleComponentTests.cs`, `docs/excel-style-optimizer.md`.
+
+## D-I18N-001
+
+Status: Active
+
+Upstream: S-I18N-001, S-SETTINGS-001
+
+Decision: Store Simplified Chinese/Japanese UI translations in external UTF-8 JSON packs (Localization/zh-CN.json and ja-JP.json), copied beside build/publish output including single-file publishing. Keep stable UiText indexer keys and language-change notifications so persisted language selection and derived displays continue to work. Cache packs per process; Japanese missing/invalid entries fall back to the Chinese baseline, then the key. Validate shipped key sets, composite-format parameters and literal source references. No source-code translation table remains.
+
+Reason: The human requested external JSON on 2026-11-03 and suggested RelaxKonOS as a reference. This is a derived implementation of maintainable localization rather than a change of supported languages.
+
+Evidence: `docs/localization.md`, `src/RelaxCat.App/Models/UiText.cs`, `tools/verify-localization.py`, `tests/RelaxCat.App.SmokeTests/LocalizationChecks.cs`.
+
+## D-UI-005
+
+Status: Active
+
+Upstream: S-UI-001, S-EXCEL-009
+
+Decision: Reserve scrollbar layout space for the Excel worksheet tab strip and style gallery instead of overlaying their contents. Retain automatic visibility when there is no overflow. Verify both scrollbar/content bounds and the reachability of the last tab with many worksheets.
+
+Reason: The human reported that scrollbars can obscure worksheet displays when the workbook is large.
+
+Evidence: `src/RelaxCat.App/Views/ExcelToolView.axaml`, `tests/RelaxCat.App.SmokeTests/ExcelToolChecks.cs`.

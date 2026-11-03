@@ -143,3 +143,5 @@ Core 测试包含 Excel 样式分析、去重映射、包保留、合并单元�
 本项目采用 [The Unlicense](LICENSE)，将作品贡献到公共领域：可自由复制、修改、分发、商用或闭源再分发，无需署名。软件按现状提供，不附带任何担保。
 
 随应用分发的 Greenshot 是独立的第三方程序，遵循 **GPL v3**，不受上述授权影响。分发时须保留其许可证与对应的未修改源码，详见 [`vendor/greenshot/README.md`](vendor/greenshot/README.md)。界面与图像处理依赖（Avalonia、SkiaSharp 等）以 MIT 许可发布，具体版本与许可声明见各自的 NuGet 包。
+
+界面翻译维护在外部 `Localization/zh-CN.json` 与 `ja-JP.json`，构建/发布时复制到应用目录。语言包格式、回退行为及校验命令见 [本地化说明](docs/localization.md)。
