@@ -12,6 +12,17 @@ public sealed class UiText : ObservableModel
     public string this[string key] => Entries.TryGetValue(key, out var value) ? (Japanese ? value.Ja : value.Zh) : key;
     private static readonly Dictionary<string, (string Zh, string Ja)> Entries = new()
     {
+        ["StyleDataReduction"] = ("样式数据减少（未压缩）", "スタイルデータ削減（非圧縮）"),
+        ["UniqueBaseFormats"] = ("唯一基础 XF", "一意の基底 XF"),
+        ["BaseDeduplication"] = ("基础 XF 去重", "基底 XF の重複排除"),
+        ["BaseDedupAvailable"] = ("可用（仅完全重复项）", "利用可能（完全一致のみ）"),
+        ["BaseDedupSkipped"] = ("跳过（存在未知依赖）", "スキップ（未知の依存関係）"),
+        ["StylesCompressed"] = ("styles.xml ZIP 压缩大小", "styles.xml ZIP 圧縮サイズ"),
+        ["BaseReferences"] = ("被引用基础 XF（已知引用）", "参照された基底 XF（既知の参照）"),
+        ["KnownReferences"] = ("已知引用项", "既知の参照項目"),
+        ["SectionDiagnostics"] = ("样式分区诊断", "スタイル区分の診断"),
+        ["SectionDiagnosticHint"] = ("大小为独立 UTF-8 序列化字节数，占比基于各分区序列化总量；引用仅统计已知边，? 表示未知。未引用不等于可安全删除。", "サイズは単独 UTF-8 シリアライズのバイト数、割合は区分の合計に基づきます。参照は既知のもののみ、? は不明。未参照でも安全に削除できるとは限りません。"),
+        ["SectionDiagnostic"] = ("独立 UTF-8 序列化大小", "単独 UTF-8 シリアライズサイズ"),
         ["Workspace"] = ("图片工作台", "画像ワークスペース"),
         ["Settings"] = ("设置", "設定"),
         ["Tagline"] = ("从图片到整齐的工作簿", "画像から整ったワークブックへ"),

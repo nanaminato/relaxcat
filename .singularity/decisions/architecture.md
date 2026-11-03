@@ -313,3 +313,15 @@ Decision: Implement folder batch processing in Core (`ExcelWorkbookFinder`, `Exc
 Reason: Batch runs must be predictable and non-destructive: a generated output folder must not be rescanned, a rerun must not silently replace previous results, and one corrupt workbook must not abort a large folder. Keeping discovery/runner in Core makes the UI and CLI share the same semantics and allows tests without Avalonia or Excel.
 
 Evidence: `src/RelaxCat.Core/Excel/ExcelBatch.cs`, `src/RelaxCat.App/Views/ExcelBatchView.axaml`, `src/RelaxCat.App/MainWindow.ExcelBatch.cs`, `src/RelaxCat.App/Models/ExcelBatchModel.cs`, `tools/RelaxCat.ExcelTool/Program.cs`, `tests/RelaxCat.Core.Tests/ExcelBatchTests.cs`, `tests/RelaxCat.App.SmokeTests/ExcelBatchChecks.cs`.
+
+## D-EXCEL-OPT-004
+
+Status: Active
+
+Upstream: S-EXCEL-009, S-EXCEL-010
+
+Decision: Extend D-EXCEL-OPT-001 with read-only section diagnostics and exact structural cellStyleXfs deduplication. Validate cellXfs.xfId and cellStyles.xfId, retain the first identical base XF, remap both edges, then deduplicate cellXfs. Patch original XML lexical spans and preserve encoding; rewrite a worksheet only when its indices change. Skip base merges when unknown style extensions/dependencies are present. Keep all unique unreferenced definitions and all component tables; diagnostic reachability alone does not authorize garbage collection. Display actual uncompressed styles bytes separately from ZIP bytes and label standalone section serialization sizes explicitly. Verify unchanged package part contents with SHA-256 before publication.
+
+Reason: A small cellXfs table can reference tens of thousands of base XFs; exact base-format merging addresses this source of redundant data without changing effective formats or assuming unknown dependencies can be dropped. No new human intent is introduced.
+
+Evidence: `docs/excel-style-optimizer-improvements.md`, `src/RelaxCat.Core/Excel/StyleDiagnostics.cs`, `src/RelaxCat.Core/Excel/StyleDeduplicationPlan.cs`, `tests/RelaxCat.Core.Tests/ExcelStyleTests.cs`. Synthetic tests cover 48,846 base XFs; company-side Excel/TestHelper round-trip remains external acceptance.

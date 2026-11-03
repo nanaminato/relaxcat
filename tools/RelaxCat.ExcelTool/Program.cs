@@ -46,6 +46,11 @@ static int Analyze(string[] args)
             analysis.Path,
             analysis.FileSize,
             analysis.MacroEnabled,
+            analysis.StylesXmlCompressedBytes,
+            analysis.Sections,
+            analysis.BaseStyleReferences,
+            analysis.UniqueCellStyleXfCount,
+            analysis.CanDeduplicateBaseStyles,
             analysis.StylesXmlBytes,
             analysis.ProjectedStylesXmlBytes,
             analysis.FontCount,
@@ -73,6 +78,11 @@ static int Analyze(string[] args)
     Console.WriteLine("Workbook:   " + analysis.Path);
     Console.WriteLine("File size:  " + Bytes(analysis.FileSize));
     Console.WriteLine("styles.xml: " + Bytes(analysis.StylesXmlBytes) + "  (projected " + Bytes(analysis.ProjectedStylesXmlBytes) + ")");
+    Console.WriteLine("styles.xml ZIP compressed: " + Bytes(analysis.StylesXmlCompressedBytes));
+    Console.WriteLine("cellStyleXfs unique: " + Count(analysis.UniqueCellStyleXfCount));
+    Console.WriteLine("Section sizes: standalone UTF-8 serialization; references: known edges only; unknown = ?");
+    foreach (var section in analysis.Sections)
+        Console.WriteLine($"  {section.Name}: {section.Count:N0}, {Bytes(section.SerializedBytes)}, {Percent(section.SerializedShare)}, duplicates {section.DuplicateCount:N0}, referenced {section.ReferencedCount?.ToString() ?? "?"}, unreferenced {section.UnreferencedCount?.ToString() ?? "?"}");
     Console.WriteLine("Macros:     " + (analysis.MacroEnabled ? "yes" : "no"));
     Console.WriteLine();
     Console.WriteLine($"Fonts: {Count(analysis.FontCount)}   Fills: {Count(analysis.FillCount)}   Borders: {Count(analysis.BorderCount)}   cellStyleXfs: {Count(analysis.CellStyleXfCount)}");
@@ -113,6 +123,8 @@ static int Optimize(string[] args)
     var result = new ExcelStyleOptimizer().Optimize(positional[0], output);
     Console.WriteLine("Output: " + result.OutputPath);
     Console.WriteLine("File size:  " + Bytes(result.InputFileSize) + " -> " + Bytes(result.OutputFileSize) + "  (" + Percent(result.ReductionRatio) + " fewer cell formats)");
+    Console.WriteLine("cellStyleXfs: " + Count(result.InputCellStyleXfCount) + " -> " + Count(result.OutputCellStyleXfCount));
+    Console.WriteLine("Uncompressed style data removed: " + Percent(result.StylesXmlReductionRatio));
     Console.WriteLine("cellXfs:    " + Count(result.InputCellXfCount) + " -> " + Count(result.OutputCellXfCount));
     Console.WriteLine("styles.xml: " + Bytes(result.InputStylesXmlBytes) + " -> " + Bytes(result.OutputStylesXmlBytes));
     Console.WriteLine("References remapped: " + Count(result.RemappedReferences) + " across " + Count(result.WorksheetCount) + " worksheet(s)");

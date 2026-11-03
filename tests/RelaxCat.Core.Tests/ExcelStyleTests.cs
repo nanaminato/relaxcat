@@ -67,6 +67,105 @@ public sealed class ExcelStyleTests : IDisposable
         <row r="3" s="3"><c r="C3"><v>4</v></c></row>
         """);
 
+
+
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    public void BaseOnlyMergePreservesEncodingSurroundingBytesAndWorksheets(string encodingName)
+    {
+        var encoding = Encoding.GetEncoding(encodingName);
+        var source = OoxmlWorkbookFixture.StylesXml(OoxmlWorkbookFixture.CellXfs(DefaultXf))
+            .Replace("encoding=\"UTF-8\"", $"encoding=\"{encodingName}\"");
+        const string baseXf = "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>";
+        source = source.Replace("<cellStyleXfs count=\"1\">" + baseXf,
+            "<cellStyleXfs count=\"2\">" + baseXf + baseXf);
+        source = source.Replace("xfId=\"0\"", "xfId=\"1\"");
+        var input = OoxmlWorkbookFixture.Create(PathOf("base-only.xlsx"), source,
+            new SheetSpec("Sheet", OoxmlWorkbookFixture.Worksheet("A1", "<row r=\"1\"><c r=\"A1\"/></row>")));
+        using (var archive = System.IO.Compression.ZipFile.Open(input, System.IO.Compression.ZipArchiveMode.Update))
+        {
+            archive.GetEntry("xl/styles.xml")!.Delete();
+        }
+        var bytes = encoding.GetPreamble().Concat(encoding.GetBytes(source)).ToArray();
+        OoxmlWorkbookFixture.AddPart(input, "xl/styles.xml", bytes);
+        Assert.True(new ExcelStyleAnalyzer().Analyze(input).HasDuplicates);
+        var output = PathOf("base-only-output.xlsx");
+        Assert.True(new ExcelStyleOptimizer().Optimize(input, output).Verified);
+        var expected = source.Replace("<cellStyleXfs count=\"2\">" + baseXf + baseXf,
+            "<cellStyleXfs count=\"1\">" + baseXf).Replace("xfId=\"1\"", "xfId=\"0\"");
+        Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(expected)), OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml"));
+        Assert.Equal(OoxmlWorkbookFixture.ReadPart(input, "xl/worksheets/sheet1.xml"),
+            OoxmlWorkbookFixture.ReadPart(output, "xl/worksheets/sheet1.xml"));
+    }
+
+    [Fact]
+    public void BaseMergeSkipsUnknownExtensionDependencies()
+    {
+        var source = SampleStyles().Replace("<cellStyleXfs count=\"1\">", "<cellStyleXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>")
+            .Replace("</styleSheet>", "<extLst><ext uri=\"synthetic\"><custom xmlns=\"urn:unknown\" xfId=\"1\"/></ext></extLst></styleSheet>");
+        var input = OoxmlWorkbookFixture.Create(PathOf("extension.xlsx"), source);
+        var analysis = new ExcelStyleAnalyzer().Analyze(input);
+        Assert.False(analysis.CanDeduplicateBaseStyles);
+        Assert.Equal(1, analysis.UniqueCellStyleXfCount);
+        var output = PathOf("extension-output.xlsx");
+        new ExcelStyleOptimizer().Optimize(input, output);
+        Assert.Equal(2, new ExcelStyleAnalyzer().Analyze(output).CellStyleXfCount);
+    }
+
+    [Fact]
+    public void Optimize_LargeBaseTableRemapsBothEdgesAndCollapsesCellFormats()
+    {
+        const int count = 48846;
+        var styles = OoxmlWorkbookFixture.StylesXml(OoxmlWorkbookFixture.CellXfs(
+            DefaultXf, DefaultXf.Replace("xfId=\"0\"", $"xfId=\"{count - 1}\"")));
+        styles = styles.Replace("<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>",
+            $"<cellStyleXfs count=\"{count}\">" + string.Concat(Enumerable.Repeat(
+                "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>", count)) + "</cellStyleXfs>");
+        styles = styles.Replace("name=\"Normal\" xfId=\"0\"", $"name=\"Normal\" xfId=\"{count - 1}\"");
+        var input = OoxmlWorkbookFixture.Create(PathOf("pathological.xlsm"), styles,
+            new SheetSpec("Synthetic", OoxmlWorkbookFixture.Worksheet("A1", "<row r=\"1\"><c r=\"A1\" s=\"1\"/></row>")));
+        OoxmlWorkbookFixture.AddPart(input, "xl/vbaProject.bin", [1, 3, 5, 7]);
+        var original = File.ReadAllBytes(input);
+        var analysis = new ExcelStyleAnalyzer().Analyze(input);
+        Assert.Equal(count, analysis.CellStyleXfCount);
+        Assert.Equal(1, analysis.UniqueCellStyleXfCount);
+        Assert.Equal(1, analysis.BaseStyleReferences[^1].CellXfReferences);
+        Assert.Equal(1, analysis.BaseStyleReferences[^1].NamedStyleReferences);
+        var section = analysis.Sections.Single(s => s.Name == "cellStyleXfs");
+        Assert.Equal(count - 1, section.DuplicateCount);
+        Assert.Equal(count - 2, section.UnreferencedCount);
+        Assert.True(analysis.StylesXmlCompressedBytes < analysis.StylesXmlBytes);
+        var output = PathOf("optimized.xlsm");
+        var result = new ExcelStyleOptimizer().Optimize(input, output);
+        Assert.True(result.Verified);
+        Assert.Equal(1, result.OutputCellXfCount);
+        Assert.Equal(analysis.ProjectedStylesXmlBytes, result.OutputStylesXmlBytes);
+        var after = new ExcelStyleAnalyzer().Analyze(output);
+        Assert.Equal(1, after.CellStyleXfCount);
+        Assert.Equal(1, after.BaseStyleReferences[0].NamedStyleReferences);
+        Assert.Equal(original, File.ReadAllBytes(input));
+        Assert.Equal(new byte[] { 1, 3, 5, 7 }, OoxmlWorkbookFixture.ReadPart(output, "xl/vbaProject.bin"));
+        var second = PathOf("second.xlsm");
+        new ExcelStyleOptimizer().Optimize(output, second);
+        Assert.Equal(OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml"), OoxmlWorkbookFixture.ReadPart(second, "xl/styles.xml"));
+    }
+
+    [Theory]
+    [InlineData("cellXfs")]
+    [InlineData("cellStyles")]
+    public void InvalidBaseReferenceIsRejected(string section)
+    {
+        var document = XDocument.Parse(SampleStyles());
+        document.Root!.Elements().Single(e => e.Name.LocalName == section).Elements().First().SetAttributeValue("xfId", "999");
+        var input = OoxmlWorkbookFixture.Create(PathOf("invalid-base.xlsx"), document.ToString());
+        Assert.Throws<InvalidDataException>(() => new ExcelStyleAnalyzer().Analyze(input));
+        var output = PathOf("rejected.xlsx");
+        Assert.Throws<InvalidDataException>(() => new ExcelStyleOptimizer().Optimize(input, output));
+        Assert.False(File.Exists(output));
+    }
+
     [Fact]
     public void Analyze_CountsStylesAndPreviewsWorksheetFormats()
     {
@@ -163,7 +262,10 @@ public sealed class ExcelStyleTests : IDisposable
         var prefix = "<?xml version='1.0' encoding='" + encodingName + "'?>\r\n" +
             "<s:styleSheet xmlns:s='http://schemas.openxmlformats.org/spreadsheetml/2006/main'>" +
             "<!-- <cellXfs count='999'> --><?keep before?>\r\n" +
-            "<s:fonts count = '1'><s:font><s:name val='中文 &amp; Calibri'/></s:font></s:fonts>";
+            "<s:fonts count = '1'><s:font><s:name val='中文 &amp; Calibri'/></s:font></s:fonts>" +
+            "<s:fills count='1'><s:fill><s:patternFill patternType='none'/></s:fill></s:fills>" +
+            "<s:borders count='1'><s:border/></s:borders>" +
+            "<s:cellStyleXfs count='1'><s:xf numFmtId='0' fontId='0' fillId='0' borderId='0'/></s:cellStyleXfs>";
         var unique = "<s:xf numFmtId='0' fontId='0' fillId='0' borderId='0' xfId='0'><s:alignment horizontal='left'/></s:xf>";
         var table = "<s:cellXfs count = '2'>" + unique + unique + "</s:cellXfs>";
         var suffix = "\r\n<?keep after?><!-- > -->" +

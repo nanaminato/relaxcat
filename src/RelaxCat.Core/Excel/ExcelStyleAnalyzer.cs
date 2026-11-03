@@ -30,8 +30,6 @@ public sealed class ExcelStyleAnalyzer
         var sheetDefinitions = WorkbookStructure.ReadSheets(package).Where(sheet => sheet.IsWorksheet).ToList();
         cancellationToken.ThrowIfCancellationRequested();
 
-        var keys = styles.CellXfs.Select(OoxmlXml.CanonicalKey).ToArray();
-        var uniqueCount = new HashSet<string>(keys, StringComparer.Ordinal).Count;
         var referenced = new HashSet<int>();
         var summaries = new List<WorksheetStyleSummary>();
 
@@ -67,12 +65,19 @@ public sealed class ExcelStyleAnalyzer
         cancellationToken.ThrowIfCancellationRequested();
         var originalStylesBytes = package.LengthOf("xl/styles.xml");
         // With nothing to merge, optimization copies styles.xml verbatim instead of re-serializing it.
-        var projectedStylesBytes = plan.KeptCount == styles.CellXfs.Count ? originalStylesBytes : plan.StylesXml.Length;
+        var projectedStylesBytes = plan.StylesXml.Length;
         return new ExcelStyleAnalysis(fullPath, new FileInfo(fullPath).Length,
             IsMacroEnabled(package, fullPath),
             styles.Fonts.Count, styles.Fills.Count, styles.Borders.Count, styles.CellStyleXfs.Count,
-            styles.CellXfs.Count, uniqueCount, referenced.Count,
-            originalStylesBytes, projectedStylesBytes, summaries);
+            styles.CellXfs.Count, plan.KeptCount, referenced.Count,
+            originalStylesBytes, projectedStylesBytes, summaries)
+        {
+            StylesXmlCompressedBytes = package.Require("xl/styles.xml").CompressedLength,
+            BaseStyleReferences = StyleDiagnostics.References(styles),
+            Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles), referenced),
+            UniqueCellStyleXfCount = styles.CellStyleXfs.Select(OoxmlXml.CanonicalKey).Distinct(StringComparer.Ordinal).Count(),
+            CanDeduplicateBaseStyles = StyleDeduplicationPlan.CanMergeBaseStyles(styles)
+        };
     }
 
     internal static bool IsMacroEnabled(OoxmlPackage package, string path) =>

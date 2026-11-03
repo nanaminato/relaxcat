@@ -52,6 +52,9 @@ internal static class ExcelToolChecks
         Check(Metric(tool, "可去重格式") == "1,190", "Duplicate format metric is wrong: " + Metric(tool, "可去重格式"));
         Check(Metric(tool, "cellXfs") == "1,200", "cellXfs metric is wrong");
         Check(window.Workspace.ExcelTool.CanOptimize, "Duplicate formats did not enable optimization");
+        Check(Metric(tool, "styles.xml ZIP 压缩大小").Length > 0, "Compressed style bytes were not displayed separately");
+        Check(tool.Summary!.Diagnostics.Any(row => row.Label == "cellStyleXfs" && row.Value.Contains("已知引用项")),
+            "Base style section diagnostics were not localized or displayed");
         Check(excelPage.FindControl<ItemsControl>("SheetTabs")!.GetVisualDescendants().OfType<Button>().Count() == 2,
             "Worksheet tabs were not rendered");
         var swatchCount = excelPage.GetVisualDescendants().OfType<Border>().Count(border => border.Classes.Contains("swatch"));
@@ -86,6 +89,8 @@ internal static class ExcelToolChecks
         window.Workspace.LanguageIndex = 1;
         Dispatcher.UIThread.RunJobs();
         Check(Metric(tool, "ファイルサイズ").Length > 0, "Japanese metric labels did not refresh");
+        Check(tool.Summary!.Diagnostics.Any(row => row.Label == "cellStyleXfs" && row.Value.Contains("既知の参照項目")),
+            "Japanese diagnostics did not refresh");
         Check(tool.SelectedSheet!.Styles[0].Details.Contains("フォント"), "Japanese style details did not refresh");
         Check(Label(excelPage.FindControl<Button>("OptimizeButton")!).StartsWith("最適化"), "Japanese action label missing");
         window.Workspace.ThemeIndex = 1;

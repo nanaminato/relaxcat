@@ -43,7 +43,7 @@ public sealed class ExcelStyleOptimizer
             var plan = StyleDeduplicationPlan.Build(styles);
             var inputKeys = plan.OriginalKeys;
             var outputKeys = plan.Kept.Select(OoxmlXml.CanonicalKey).ToArray();
-            var hasDuplicates = plan.KeptCount != styles.CellXfs.Count;
+            var hasDuplicates = plan.Changed;
 
             var changed = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
             if (hasDuplicates) changed["xl/styles.xml"] = plan.StylesXml;
@@ -55,8 +55,9 @@ public sealed class ExcelStyleOptimizer
                 progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingWorksheets, index, worksheets.Count));
                 if (!hasDuplicates) continue;
                 var document = package.ReadXml(sheet.PartName);
-                remapped += RemapWorksheet(document, plan.Map, styles.CellXfs.Count, sheet.Name);
-                changed[sheet.PartName] = OoxmlXml.Serialize(document);
+                var sheetRemapped = RemapWorksheet(document, plan.Map, styles.CellXfs.Count, sheet.Name);
+                remapped += sheetRemapped;
+                if (sheetRemapped > 0) changed[sheet.PartName] = OoxmlXml.Serialize(document);
                 progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingWorksheets, index + 1, worksheets.Count));
             }
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingStyles, worksheets.Count, worksheets.Count));
@@ -74,12 +75,15 @@ public sealed class ExcelStyleOptimizer
 
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.Verifying, 0, worksheets.Count));
             long outputStylesBytes;
+            int outputBaseCount;
             var checks = new List<OptimizationCheck>();
             using (var outputPackage = new OoxmlPackage(temporary))
             {
                 var outputStyles = StyleSheetDocument.Load(outputPackage);
+                StyleDiagnostics.References(outputStyles);
+                outputBaseCount = outputStyles.CellStyleXfs.Count;
                 outputStylesBytes = outputPackage.LengthOf("xl/styles.xml");
-                checks.Add(CheckStyleSections(styles.Document, outputStyles.Document));
+                checks.Add(CheckStyleSections(plan.Document, outputStyles.Document));
                 checks.Add(CheckCellXfs(plan, outputStyles));
                 checks.Add(CheckWorksheetReferences(package, outputPackage, worksheets, inputKeys, outputKeys,
                     completed => progress?.Report(new ExcelOptimizationProgress(
@@ -97,7 +101,11 @@ public sealed class ExcelStyleOptimizer
             File.Move(temporary, output, overwrite: true);
             return new ExcelOptimizationResult(input, output, inputFileSize, new FileInfo(output).Length,
                 styles.CellXfs.Count, plan.KeptCount, inputStylesBytes, outputStylesBytes,
-                remapped, worksheets.Count, checks, true);
+                remapped, worksheets.Count, checks, true)
+            {
+                InputCellStyleXfCount = styles.CellStyleXfs.Count,
+                OutputCellStyleXfCount = outputBaseCount
+            };
         }
         finally
         {
@@ -221,6 +229,11 @@ public sealed class ExcelStyleOptimizer
                 return new OptimizationCheck("parts", false, "missing " + entry.FullName);
             if (changed.ContainsKey(entry.FullName)) continue;
             if (other.Length != entry.Length)
+                return new OptimizationCheck("parts", false, entry.FullName);
+            using var before = entry.Open();
+            using var after = other.Open();
+            if (!System.Security.Cryptography.SHA256.HashData(before).AsSpan().SequenceEqual(
+                    System.Security.Cryptography.SHA256.HashData(after)))
                 return new OptimizationCheck("parts", false, entry.FullName);
             preserved++;
         }

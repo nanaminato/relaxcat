@@ -168,7 +168,7 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
 ## 限制与非目标
 
 - 只支持 OOXML 工作簿 `.xlsx` / `.xlsm`；`.xls`（BIFF 二进制）不支持。
-- 只合并 `cellXfs` 的完全重复项；不做“语义等价但 XML 不同”的归一化（例如把不同写法但效果
+- 合并 `cellXfs` 及可证明引用完整的 `cellStyleXfs` 完全重复项；基础 XF 的两种引用（`cellXfs.xfId` / `cellStyles.xfId`）同步重映射。存在未知扩展时保留基础 XF。不做“语义等价但 XML 不同”的归一化（例如把不同写法但效果
   相同的边框强行合并）。
 - 样式预览用于辨认格式：渐变填充取第一个色标，主题 `tint` 使用标准 HLS 近似，渐变/图案填充
   的显示可能与 Excel 有细微差异；优化本身不改变任何颜色或格式定义。
@@ -204,3 +204,5 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input 
   - 优化前后各取 30 个单元格，填充色、粗体、字体色等一致；
   - 由 Excel 自身生成的含公式、日期、边框和数字格式的工作簿，优化后逐项校验通过；用 COM
     对比 482 个单元格的公式/值、字体、填充、边框、对齐和数字格式，全部一致。
+
+2026-11-03：加入分区诊断、独立 ZIP 压缩大小、基础 XF 引用图和完全重复去重。详细大小口径、保守边界及 85 个核心用例/桌面冒烟验证见 [改进实施记录](excel-style-optimizer-improvements.md#实施记录2026-11-03)。未引用唯一项及底层组件保留；公司侧 Excel/TestHelper round-trip 尚待验证。

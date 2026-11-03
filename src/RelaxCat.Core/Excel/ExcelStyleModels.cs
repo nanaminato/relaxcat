@@ -62,7 +62,13 @@ public sealed record ExcelStyleAnalysis(
     public int DuplicateCellXfCount => CellXfCount - UniqueCellXfCount;
     public int UnreferencedCellXfCount => Math.Max(0, CellXfCount - ReferencedCellXfCount);
     public double ReductionRatio => CellXfCount <= 0 ? 0 : (double)DuplicateCellXfCount / CellXfCount;
-    public bool HasDuplicates => DuplicateCellXfCount > 0;
+    public long StylesXmlCompressedBytes { get; init; }
+    public IReadOnlyList<StyleSectionDiagnostic> Sections { get; init; } = Array.Empty<StyleSectionDiagnostic>();
+    public IReadOnlyList<BaseStyleReference> BaseStyleReferences { get; init; } = Array.Empty<BaseStyleReference>();
+    public int UniqueCellStyleXfCount { get; init; }
+    public bool CanDeduplicateBaseStyles { get; init; }
+    public bool HasDuplicates => DuplicateCellXfCount > 0 ||
+        (CanDeduplicateBaseStyles && UniqueCellStyleXfCount < CellStyleXfCount);
     public bool IsExcelFormatLimitRisk => UniqueCellXfCount > 64000;
 }
 
@@ -102,7 +108,17 @@ public sealed record ExcelOptimizationResult(
     IReadOnlyList<OptimizationCheck> Checks,
     bool Verified)
 {
+    public int InputCellStyleXfCount { get; init; }
+    public int OutputCellStyleXfCount { get; init; }
+    public double StylesXmlReductionRatio => InputStylesXmlBytes <= 0 ? 0 :
+        (double)(InputStylesXmlBytes - OutputStylesXmlBytes) / InputStylesXmlBytes;
     public int RemovedCellXfCount => InputCellXfCount - OutputCellXfCount;
     public long SizeDelta => InputFileSize - OutputFileSize;
     public double ReductionRatio => InputCellXfCount <= 0 ? 0 : (double)RemovedCellXfCount / InputCellXfCount;
 }
+
+/// <summary>Section bytes are standalone UTF-8 serialization sizes, not ZIP sizes or exact source spans.
+/// Null reference counts mean coverage is unknown; unreferenced never implies safe to delete.</summary>
+public sealed record StyleSectionDiagnostic(string Name, int Count, long SerializedBytes,
+    double SerializedShare, int DuplicateCount, int? ReferencedCount, int? UnreferencedCount);
+public sealed record BaseStyleReference(int Index, int CellXfReferences, int NamedStyleReferences);

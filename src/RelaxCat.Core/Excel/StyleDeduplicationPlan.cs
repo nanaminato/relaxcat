@@ -13,6 +13,15 @@ internal sealed class StyleDeduplicationPlan
     internal XDocument Document { get; }
     internal byte[] StylesXml { get; }
     internal int KeptCount => Kept.Count;
+    internal bool Changed { get; private set; }
+    internal static bool CanMergeBaseStyles(StyleSheetDocument styles) =>
+        !styles.CellStyleXfs.Any(xf => xf.Attribute("xfId") is not null) &&
+        !styles.Root.Elements().Any(e => e.Name.LocalName is not
+            ("numFmts" or "fonts" or "fills" or "borders" or "cellStyleXfs" or "cellXfs" or
+             "cellStyles" or "dxfs" or "tableStyles" or "colors")) &&
+        !styles.Root.Descendants().Any(e => e.Name.Namespace != styles.Root.Name.Namespace || e.Name.LocalName == "extLst") &&
+        !styles.Root.DescendantsAndSelf().Attributes().Any(a => !a.IsNamespaceDeclaration && a.Name.NamespaceName.Length > 0);
+
 
     private StyleDeduplicationPlan(int[] map, IReadOnlyList<XElement> kept, IReadOnlyList<string> originalKeys,
         XDocument document, byte[] stylesXml)
@@ -30,7 +39,28 @@ internal sealed class StyleDeduplicationPlan
     /// </summary>
     internal static StyleDeduplicationPlan Build(StyleSheetDocument styles, bool retainOriginalKeys = true)
     {
-        var original = styles.CellXfs;
+        // Validate both incoming edges before considering a base-format merge.
+        StyleDiagnostics.References(styles);
+        var baseMap = Enumerable.Range(0, styles.CellStyleXfs.Count).ToArray();
+        if (CanMergeBaseStyles(styles))
+        {
+            var basePositions = new Dictionary<string, int>(StringComparer.Ordinal);
+            for (var i = 0; i < baseMap.Length; i++)
+            {
+                var key = OoxmlXml.CanonicalKey(styles.CellStyleXfs[i]);
+                if (!basePositions.TryGetValue(key, out var position))
+                    basePositions[key] = position = basePositions.Count;
+                baseMap[i] = position;
+            }
+        }
+        var baseChanged = baseMap.Distinct().Count() != baseMap.Length;
+        var original = styles.CellXfs.Select(xf =>
+        {
+            var copy = new XElement(xf);
+            if (baseChanged && copy.Attribute("xfId") is { } reference)
+                reference.Value = baseMap[int.Parse(reference.Value, CultureInfo.InvariantCulture)].ToString(CultureInfo.InvariantCulture);
+            return copy;
+        }).ToList();
         var keys = original.Select(OoxmlXml.CanonicalKey).ToArray();
         var map = new int[original.Count];
         var positions = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -61,13 +91,38 @@ internal sealed class StyleDeduplicationPlan
                 foreach (var format in kept) swapped.Add(format);
                 cloneRoot.Add(swapped);
             }
-            else cloneRoot.Add(new XElement(section));
+            else if (baseChanged && section.Name.LocalName == "cellStyleXfs")
+            {
+                var copy = new XElement(section);
+                var seen = new HashSet<int>();
+                var index = 0;
+                foreach (var xf in copy.Elements().ToArray())
+                    if (!seen.Add(baseMap[index++])) xf.Remove();
+                copy.SetAttributeValue("count", seen.Count);
+                cloneRoot.Add(copy);
+            }
+            else
+            {
+                var copy = new XElement(section);
+                if (baseChanged && section.Name.LocalName == "cellStyles")
+                    foreach (var style in copy.Elements())
+                        if (style.Attribute("xfId") is { } reference)
+                            reference.Value = baseMap[int.Parse(reference.Value, CultureInfo.InvariantCulture)].ToString(CultureInfo.InvariantCulture);
+                cloneRoot.Add(copy);
+            }
         }
         var clone = styles.Document.Declaration is { } declaration
             ? new XDocument(declaration, cloneRoot)
             : new XDocument(cloneRoot);
-        return new StyleDeduplicationPlan(map, kept, retainOriginalKeys ? keys : Array.Empty<string>(),
-            clone, CellXfsByteRewriter.Rewrite(styles.OriginalXml, map));
+        var bytes = styles.OriginalXml;
+        if (baseChanged)
+        {
+            bytes = CellXfsByteRewriter.Rewrite(bytes, baseMap, "cellStyleXfs");
+            bytes = CellXfsByteRewriter.RemapBaseReferences(bytes, baseMap);
+        }
+        if (kept.Count != original.Count) bytes = CellXfsByteRewriter.Rewrite(bytes, map);
+        return new StyleDeduplicationPlan(map, kept, retainOriginalKeys ? keys : Array.Empty<string>(), clone, bytes)
+        { Changed = baseChanged || kept.Count != original.Count };
     }
 }
 

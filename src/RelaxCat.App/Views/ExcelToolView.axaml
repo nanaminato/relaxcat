@@ -121,6 +121,21 @@
                              Foreground="{DynamicResource AccentInkBrush}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
+              <Expander Header="{Binding Text[SectionDiagnostics]}" HorizontalAlignment="Stretch">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Text[SectionDiagnosticHint]}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
+                  <ItemsControl ItemsSource="{Binding ExcelTool.Summary.Diagnostics}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="models:ExcelMetric">
+                        <StackPanel Spacing="3" Margin="0,5">
+                          <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="12" />
+                          <TextBlock Text="{Binding Value}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Expander>
               <TextBlock Classes="muted" FontSize="10" Text="{Binding Text[ProjectionHint]}" TextWrapping="Wrap"
                          IsVisible="{Binding !ExcelTool.HasResult}" />
             </StackPanel>

@@ -149,24 +149,31 @@ public sealed class ExcelToolModel : ObservableModel
             ? new List<ExcelComparisonRow>
             {
                 new(text["RowCellXfs"], Count(value.CellXfCount), Count(value.UniqueCellXfCount)),
+                new("cellStyleXfs", Count(value.CellStyleXfCount), Count(value.CanDeduplicateBaseStyles ? value.UniqueCellStyleXfCount : value.CellStyleXfCount)),
                 new(text["StylesPart"], Bytes(value.StylesXmlBytes), Bytes(value.ProjectedStylesXmlBytes))
             }
             : new List<ExcelComparisonRow>
             {
                 new(text["RowCellXfs"], Count(optimized.InputCellXfCount), Count(optimized.OutputCellXfCount)),
+                new("cellStyleXfs", Count(optimized.InputCellStyleXfCount), Count(optimized.OutputCellStyleXfCount)),
                 new(text["StylesPart"], Bytes(optimized.InputStylesXmlBytes), Bytes(optimized.OutputStylesXmlBytes))
             };
         return new ExcelWorkbookSummary(
             value.Path,
             Path.GetFileName(value.Path),
             value.MacroEnabled ? text["MacroWorkbook"] : "",
-            optimized is null ? text["ReductionRatio"] : text["ReducedFormats"],
+            text["StyleDataReduction"],
             optimized is null ? text["AfterColumn"] : text["AfterColumnActual"],
-            Percent(optimized?.ReductionRatio ?? value.ReductionRatio),
+            Percent(optimized?.StylesXmlReductionRatio ?? (value.StylesXmlBytes == 0 ? 0 :
+                (double)(value.StylesXmlBytes - value.ProjectedStylesXmlBytes) / value.StylesXmlBytes)),
             new List<ExcelMetric>
             {
                 new(text["FileSize"], Bytes(value.FileSize)),
                 new(text["StylesPart"], Bytes(value.StylesXmlBytes)),
+                new(text["StylesCompressed"], Bytes(value.StylesXmlCompressedBytes)),
+                new(text["UniqueBaseFormats"], Count(value.UniqueCellStyleXfCount)),
+                new(text["BaseDeduplication"], value.CanDeduplicateBaseStyles ? text["BaseDedupAvailable"] : text["BaseDedupSkipped"]),
+                new(text["BaseReferences"], Count(value.BaseStyleReferences.Count(r => r.CellXfReferences + r.NamedStyleReferences > 0))),
                 new(text["CellXfs"], Count(value.CellXfCount)),
                 new(text["UniqueFormats"], Count(value.UniqueCellXfCount)),
                 new(text["DuplicateFormats"], Count(value.DuplicateCellXfCount)),
@@ -174,7 +181,13 @@ public sealed class ExcelToolModel : ObservableModel
                 new(text["StyleTableParts"], $"{Count(value.FontCount)} · {Count(value.FillCount)} · {Count(value.BorderCount)}"),
                 new(text["WorksheetCount"], Count(value.SheetCount))
             },
-            comparison);
+            comparison)
+        {
+            Diagnostics = value.Sections.Select(section => new ExcelMetric(section.Name,
+                $"{Count(section.Count)} · {Bytes(section.SerializedBytes)} · {Percent(section.SerializedShare)}\n" +
+                $"{text["DuplicateFormats"]}: {Count(section.DuplicateCount)} · {text["KnownReferences"]}: {section.ReferencedCount?.ToString("N0") ?? "?"} · {text["UnreferencedFormats"]}: {section.UnreferencedCount?.ToString("N0") ?? "?"}"
+            )).ToList()
+        };
     }
 
     private ExcelToolResult BuildResult(ExcelOptimizationResult value)
@@ -189,7 +202,8 @@ public sealed class ExcelToolModel : ObservableModel
                 new(text["FileSize"], Bytes(value.InputFileSize) + " → " + Bytes(value.OutputFileSize)),
                 new(text["CellXfs"], Count(value.InputCellXfCount) + " → " + Count(value.OutputCellXfCount)),
                 new(text["StylesPart"], Bytes(value.InputStylesXmlBytes) + " → " + Bytes(value.OutputStylesXmlBytes)),
-                new(text["ReducedFormats"], Percent(value.ReductionRatio))
+                new("cellStyleXfs", Count(value.InputCellStyleXfCount) + " → " + Count(value.OutputCellStyleXfCount)),
+                new(text["StyleDataReduction"], Percent(value.StylesXmlReductionRatio))
             },
             checks,
             value.Verified ? string.Format(CultureInfo.CurrentCulture, text["VerificationPassed"], checks.Count) : text["VerificationFailed"],
@@ -241,6 +255,7 @@ public sealed class ExcelWorkbookSummary
     public string ReductionText { get; }
     public IReadOnlyList<ExcelMetric> Metrics { get; }
     public IReadOnlyList<ExcelComparisonRow> Comparison { get; }
+    public IReadOnlyList<ExcelMetric> Diagnostics { get; init; } = Array.Empty<ExcelMetric>();
 }
 
 public sealed class ExcelSheetSummary : ObservableModel
