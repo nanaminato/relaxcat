@@ -267,3 +267,11 @@ Status: Confirmed
 Statement: Extend the offline Excel style optimizer with exact bottom-level component deduplication and conservative garbage collection of unreachable style definitions. Only remove definitions when their dependencies are proven covered; preserve definitions with unknown dependencies, the original workbook, and workbook formatting/behavior.
 
 Confirmation basis: Human instruction, 2026-11-03: after discussing GC and component deduplication benefits and dependency risks, “那直接实现吧”.
+
+## S-I18N-002
+
+Status: Confirmed
+
+Statement: RelaxCat also provides complete English and Korean interface language packs in addition to Simplified Chinese and Japanese, using the external JSON localization mechanism.
+
+Confirmation basis: Human instruction, 2026-11-03: “添加英语和韩语吧”.

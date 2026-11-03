@@ -11,12 +11,12 @@ namespace RelaxCat.App.Models;
 public sealed class WorkspaceModel : ObservableModel, IDisposable
 {
     private bool settingsOpen, busy, previewOpen, previewLoading, dropActive, excelToolOpen, excelBatchOpen;
-    private int languageIndex, themeIndex;
+    private int themeIndex;
     private string message = "";
     private double progress, previewZoom = 1;
     private ImageItem? previewItem;
     private Bitmap? previewBitmap;
-    public UiText Text { get; } = new();
+    public UiText Text { get; }
     public SettingsModel Settings { get; } = new();
     public CaptureSettings Capture { get; } = new();
     public ExcelToolModel ExcelTool { get; }
@@ -24,8 +24,10 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     private readonly SettingsStore store;
     private readonly DispatcherTimer saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private bool settingsDirty;
-    public WorkspaceModel(SettingsStore? store = null)
+    public WorkspaceModel(SettingsStore? store = null) : this(store, new UiText()) { }
+    internal WorkspaceModel(SettingsStore? store, UiText text)
     {
+        Text = text;
         ExcelTool = new ExcelToolModel(Text);
         ThemeChoices = new[] { new LocalizedOption(Text, "Dark"), new LocalizedOption(Text, "Light") };
         SortOrderChoices = new[] { new LocalizedOption(Text, "ImportOrder"), new LocalizedOption(Text, "TimeAscending"), new LocalizedOption(Text, "TimeDescending") };
@@ -38,7 +40,10 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
             if (this.store.Load() is { } saved)
             {
                 Settings = saved.Settings; Capture = saved.Capture;
-                LanguageIndex = saved.LanguageIndex; ThemeIndex = saved.ThemeIndex;
+                // Old snapshots used a two-value index; new snapshots persist a stable culture ID.
+                Text.CurrentCulture = saved.LanguageCulture ?? (saved.LanguageIndex == 1 ? "ja-JP" : UiText.DefaultCulture);
+                ThemeIndex = saved.ThemeIndex;
+                Message = Text["Ready"];
             }
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
@@ -50,7 +55,13 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         Settings.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(SettingsModel.SortOrderIndex)) SortImages(); };
         Settings.PropertyChanged += SaveSettings;
         Capture.PropertyChanged += SaveSettings;
-        Text.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(UiText.Japanese)) ExcelTool.RefreshLanguage(); };
+        Text.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(UiText.CurrentCulture)) return;
+            ExcelTool.RefreshLanguage();
+            Notify(nameof(LanguageIndex)); Notify(nameof(Summary)); Notify(nameof(CaptureStatus));
+            Message = Text["Ready"];
+        };
         PropertyChanged += (_, e) => { if (e.PropertyName is nameof(LanguageIndex) or nameof(ThemeIndex)) SaveSettings(this, e); };
         Images.CollectionChanged += (_, e) =>
         {
@@ -91,17 +102,14 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public void ShowExcelBatch() { SettingsOpen = false; ExcelToolOpen = false; ExcelBatchOpen = true; }
     public int LanguageIndex
     {
-        get => languageIndex;
+        get => Text.AvailableLanguages.ToList().FindIndex(language => language.Culture == Text.CurrentCulture);
         set
         {
-            if (value is < 0 or > 1) return;
-            if (!Set(ref languageIndex, value)) return;
-            Text.Japanese = value == 1; Notify(nameof(Summary));
-            Notify(nameof(CaptureStatus));
-            Message = Text["Ready"];
+            if (value < 0 || value >= Text.AvailableLanguages.Count) return;
+            Text.CurrentCulture = Text.AvailableLanguages[value].Culture;
         }
     }
-    public string[] Languages { get; } = { "简体中文", "日本語" };
+    public IReadOnlyList<string> Languages => Text.AvailableLanguages.Select(language => language.DisplayName).ToArray();
     public LocalizedOption[] ThemeChoices { get; }
     public LocalizedOption[] SortOrderChoices { get; }
     public LocalizedOption[] GapUnitChoices { get; }

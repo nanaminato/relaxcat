@@ -18,7 +18,7 @@ public sealed class CaptureSettings : ObservableModel
     {
         var provider = (CaptureProviderKind)ProviderIndex;
         var basic = new CaptureOptions(provider, "", CaptureShortcut.Parse("PrintScreen"), CaptureShortcut.Parse("Alt+PrintScreen"),
-            CaptureShortcut.Parse("Ctrl+PrintScreen"), text.Japanese ? "ja-JP" : "zh-CN");
+            CaptureShortcut.Parse("Ctrl+PrintScreen"), text.CurrentCulture);
         if (provider == CaptureProviderKind.Off) return basic;
         if (string.IsNullOrWhiteSpace(Folder) || Folder.IndexOfAny(new[] { '\r', '\n' }) >= 0) throw new ArgumentException(text["CaptureFolderRequired"]);
         var result = basic with { Folder = Path.GetFullPath(Folder) };

@@ -8,11 +8,11 @@ public sealed class SettingsStore
     private readonly string path;
     public bool RecoveredFromBackup { get; private set; }
     public SettingsStore(string? path = null) => this.path = path ?? Path.Combine(GreenshotBundle.DefaultStateRoot, "settings.json");
-    public sealed record Snapshot(SettingsModel Settings, CaptureSettings Capture, int LanguageIndex, int ThemeIndex, int SchemaVersion = 1);
+    public sealed record Snapshot(SettingsModel Settings, CaptureSettings Capture, int LanguageIndex, int ThemeIndex, int SchemaVersion = 1, string? LanguageCulture = null);
     private static Snapshot Read(string file)
     {
         var snapshot = JsonSerializer.Deserialize<Snapshot>(File.ReadAllText(file));
-        if (snapshot is null || snapshot.Settings is null || snapshot.Capture is null || snapshot.SchemaVersion is < 0 or > 1)
+        if (snapshot is null || snapshot.Settings is null || snapshot.Capture is null || snapshot.SchemaVersion is < 0 or > 2)
             throw new JsonException("Unsupported or incomplete settings file.");
         foreach (var model in new object[] { snapshot.Settings, snapshot.Capture })
             if (model.GetType().GetProperties().Any(p => p.PropertyType == typeof(string) && p.GetValue(model) is null))
@@ -35,7 +35,7 @@ public sealed class SettingsStore
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temporary = path + ".tmp";
-        File.WriteAllText(temporary, JsonSerializer.Serialize(new Snapshot(model.Settings, model.Capture, model.LanguageIndex, model.ThemeIndex), new JsonSerializerOptions { WriteIndented = true }));
+        File.WriteAllText(temporary, JsonSerializer.Serialize(new Snapshot(model.Settings, model.Capture, model.LanguageIndex, model.ThemeIndex, 2, model.Text.CurrentCulture), new JsonSerializerOptions { WriteIndented = true }));
         // Never replace a healthy backup with a corrupt primary file.
         if (File.Exists(path))
         {

@@ -363,3 +363,15 @@ Decision: Reserve scrollbar layout space for the Excel worksheet tab strip and s
 Reason: The human reported that scrollbars can obscure worksheet displays when the workbook is large.
 
 Evidence: `src/RelaxCat.App/Views/ExcelToolView.axaml`, `tests/RelaxCat.App.SmokeTests/ExcelToolChecks.cs`.
+
+## D-I18N-002
+
+Status: Active
+
+Upstream: S-I18N-001, S-SETTINGS-001
+
+Decision: Extend D-I18N-001 with automatic discovery of Localization/*.json. Each pack declares culture, displayName, optional sortOrder and a strings object. Derive the settings language list from valid packs, sort deterministically, and use a culture-code CurrentCulture rather than a Japanese boolean. Preserve zh-CN as the required fallback baseline. Invalid optional packs are skipped; invalid/missing translation entries fall back per key. Language preferences persist a stable LanguageCulture with schema 2, migrating legacy two-value indices only when no culture was stored. Updating/removing/reordering packs does not reinterpret an existing culture preference. Resource verification also discovers packs dynamically.
+
+Reason: The human requested JSON-only extensibility after discussing adding English/Korean. No complete extra language translations are implied by implementing discovery; they can be added independently as JSON packs.
+
+Evidence: `docs/localization.md`, `src/RelaxCat.App/Models/UiText.cs`, `src/RelaxCat.App/Models/SettingsStore.cs`, `tests/RelaxCat.App.SmokeTests/LocalizationChecks.cs` (temporary English/Korean packs and real settings selector).

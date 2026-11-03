@@ -101,6 +101,17 @@ internal static class ExcelToolChecks
         window.Workspace.ThemeIndex = 1;
         Dispatcher.UIThread.RunJobs();
         capture("excel-tool-result-ja.png");
+        foreach (var languageOption in window.Workspace.Text.AvailableLanguages.Where(option => option.Culture is not ("zh-CN" or "ja-JP")))
+        {
+            window.Workspace.Text.CurrentCulture = languageOption.Culture;
+            Dispatcher.UIThread.RunJobs();
+            var text = window.Workspace.Text;
+            Check(tool.Summary!.Metrics.Any(metric => metric.Label == text["FileSize"]), "Metric labels did not refresh: " + languageOption.Culture);
+            Check(tool.SelectedSheet!.Styles[0].Details.Contains(text["FontLabel"]), "Style details did not refresh: " + languageOption.Culture);
+            Check(Label(excelPage.FindControl<Button>("OptimizeButton")!) == text["OptimizeSaveAs"], "Action label did not refresh: " + languageOption.Culture);
+            capture("excel-tool-result-" + languageOption.Culture + ".png");
+        }
+
 
         window.Workspace.LanguageIndex = 0;
         window.Workspace.ThemeIndex = 1;
