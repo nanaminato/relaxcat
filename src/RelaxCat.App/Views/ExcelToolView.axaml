@@ -60,6 +60,14 @@
               <CheckBox x:Name="CollectUnusedStylesOption" Content="{Binding Text[CollectUnusedStyles]}"
                         IsChecked="{Binding ExcelTool.CollectUnusedStyles, Mode=TwoWay}"
                         ToolTip.Tip="{Binding Text[CollectUnusedStylesHint]}" />
+              <CheckBox x:Name="RemoveCopiedNamedStylesOption"
+                        IsChecked="{Binding ExcelTool.RemoveCopiedNamedStyles, Mode=TwoWay}"
+                        ToolTip.Tip="{Binding Text[RemoveCopiedNamedStylesHint]}">
+                <TextBlock Text="{Binding Text[RemoveCopiedNamedStyles]}" TextWrapping="Wrap" />
+              </CheckBox>
+              <TextBlock x:Name="NamedStyleCleanupWarning" Classes="muted" FontSize="11"
+                         Text="{Binding Text[RemoveCopiedNamedStylesHint]}" TextWrapping="Wrap"
+                         IsVisible="{Binding ExcelTool.RemoveCopiedNamedStyles}" />
               <TextBlock Classes="muted" Text="{Binding Text[AnalyzeHint]}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>

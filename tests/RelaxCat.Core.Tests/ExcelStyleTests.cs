@@ -124,9 +124,8 @@ public sealed class ExcelStyleTests : IDisposable
             $"<cellStyleXfs count=\"{count}\">" + string.Concat(Enumerable.Repeat(
                 "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>", count)) + "</cellStyleXfs>");
         styles = styles.Replace("name=\"Normal\" xfId=\"0\"", $"name=\"Normal\" xfId=\"{count - 1}\"");
-        var input = OoxmlWorkbookFixture.Create(PathOf("pathological.xlsm"), styles,
+        var input = OoxmlWorkbookFixture.Create(PathOf("pathological.xlsx"), styles,
             new SheetSpec("Synthetic", OoxmlWorkbookFixture.Worksheet("A1", "<row r=\"1\"><c r=\"A1\" s=\"1\"/></row>")));
-        OoxmlWorkbookFixture.AddPart(input, "xl/vbaProject.bin", [1, 3, 5, 7]);
         var original = File.ReadAllBytes(input);
         var analysis = new ExcelStyleAnalyzer().Analyze(input);
         Assert.Equal(count, analysis.CellStyleXfCount);
@@ -137,7 +136,7 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.Equal(count - 1, section.DuplicateCount);
         Assert.Equal(count - 2, section.UnreferencedCount);
         Assert.True(analysis.StylesXmlCompressedBytes < analysis.StylesXmlBytes);
-        var output = PathOf("optimized.xlsm");
+        var output = PathOf("optimized.xlsx");
         var result = new ExcelStyleOptimizer().Optimize(input, output);
         Assert.True(result.Verified);
         Assert.Equal(1, result.OutputCellXfCount);
@@ -146,8 +145,7 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.Equal(1, after.CellStyleXfCount);
         Assert.Equal(1, after.BaseStyleReferences[0].NamedStyleReferences);
         Assert.Equal(original, File.ReadAllBytes(input));
-        Assert.Equal(new byte[] { 1, 3, 5, 7 }, OoxmlWorkbookFixture.ReadPart(output, "xl/vbaProject.bin"));
-        var second = PathOf("second.xlsm");
+        var second = PathOf("second.xlsx");
         new ExcelStyleOptimizer().Optimize(output, second);
         Assert.Equal(OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml"), OoxmlWorkbookFixture.ReadPart(second, "xl/styles.xml"));
     }

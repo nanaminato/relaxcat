@@ -128,7 +128,7 @@ internal sealed class StyleSheetDocument
         var (borders, borderColor, borderThickness) =
             ResolveBorder(At(Borders, IndexOf(xf, baseXf, "applyBorder", "borderId")));
         var numberFormat = NumberFormatCode(IndexOf(xf, baseXf, "applyNumberFormat", "numFmtId"));
-        var alignment = OoxmlXml.Attribute(xf, "applyAlignment") == "0"
+        var alignment = OoxmlXml.Attribute(xf, "applyAlignment") is "0" or "false"
             ? OoxmlXml.Child(baseXf, "alignment") ?? OoxmlXml.Child(xf, "alignment")
             : OoxmlXml.Child(xf, "alignment");
         var horizontal = Horizontal(OoxmlXml.Attribute(alignment, "horizontal"));
@@ -159,7 +159,7 @@ internal sealed class StyleSheetDocument
     private static int IndexOf(XElement xf, XElement? baseXf, string applyName, string idName)
     {
         var own = OoxmlXml.IntAttribute(xf, idName) ?? 0;
-        return OoxmlXml.Attribute(xf, applyName) == "0" && baseXf is not null
+        return OoxmlXml.Attribute(xf, applyName) is "0" or "false" && baseXf is not null
             ? OoxmlXml.IntAttribute(baseXf, idName) ?? own
             : own;
     }

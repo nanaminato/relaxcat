@@ -24,6 +24,11 @@ internal static class ExcelBatchChecks
         Check(window.Workspace.HomeOpen == false, "Batch navigation did not open its page");
 
         var batch = window.Workspace.ExcelTool.Batch;
+        var copiedNamesOption = page.FindControl<CheckBox>("BatchRemoveCopiedNamedStylesOption")!;
+        var copiedNamesWarning = page.FindControl<TextBlock>("BatchNamedStyleCleanupWarning")!;
+        Check(copiedNamesOption.IsChecked == false && !batch.RemoveCopiedNamedStyles &&
+              !batch.OptimizationOptions.RemoveCopiedNamedStyles && !copiedNamesWarning.IsVisible,
+            "Batch copied-name cleanup must default to disabled");
         var input = Path.GetFullPath("artifacts/batch-input");
         var output = Path.GetFullPath("artifacts/batch-output");
         if (Directory.Exists(input)) Directory.Delete(input, true);
@@ -92,6 +97,26 @@ internal static class ExcelBatchChecks
         window.Workspace.LanguageIndex = 0;
         window.Workspace.ThemeIndex = 1;
         Dispatcher.UIThread.RunJobs();
+
+        // Changing cleanup options keeps the scan but clears stale results; the next run uses the new choice.
+        copiedNamesOption.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(batch.RemoveCopiedNamedStyles && batch.OptimizationOptions.RemoveCopiedNamedStyles &&
+              copiedNamesWarning.IsVisible && batch.Status == window.Workspace.Text["BatchReady"] &&
+              batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
+            "Batch copied-name toggle did not clear old results or show its warning");
+        ExcelToolChecks.CreateNamedStyleWorkbook(Path.Combine(input, "a.xlsx"));
+        batch.Overwrite = true;
+        complete(window.RunExcelBatchAsync());
+        Check(batch.Items.Single(item => item.RelativePath == "a.xlsx").DetailText.Contains(
+                window.Workspace.Text["ConditionalNamedStyleRemovals"] + ": 1"),
+            "Batch copied-name cleanup was not applied or reported");
+        capture("excel-batch-named-style-result-light.png");
+        copiedNamesOption.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Check(!copiedNamesWarning.IsVisible && batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
+            "Disabling batch copied-name cleanup left stale results visible");
+        batch.Overwrite = false;
 
         Click(window.FindControl<Button>("HomeButton")!);
         window.Workspace.LanguageIndex = language;

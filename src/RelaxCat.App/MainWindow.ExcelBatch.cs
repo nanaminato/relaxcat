@@ -87,7 +87,7 @@ public sealed partial class MainWindow
                     Workspace.Message = string.Format(Workspace.Text["BatchProcessing"], file,
                         Math.Max(1, current), report.Total);
             });
-            var options = new ExcelStyleOptimizationOptions(CollectUnusedStyles: batch.CollectUnusedStyles);
+            var options = batch.OptimizationOptions;
             var result = await Task.Run(() => new ExcelBatchOptimizer()
                 .Optimize(files, batch.OutputFolder, batch.Overwrite, reporting, token, options), token);
             if (closed) return;

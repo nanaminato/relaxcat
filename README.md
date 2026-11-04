@@ -104,6 +104,8 @@ scale = 0.9
 - 单个文件失败不影响其余文件，结果列表逐个显示完成、跳过、失败和校验状态；
 - 状态栏显示当前文件与整体进度，可随时取消；原文件始终不修改。
 
+默认保留所有命名样式。高级 CLI 选项 `--remove-copied-named-styles` 可清理严格匹配 `已有自定义名称_正整数` 且格式等价、没有额外元数据的候选名称；先用 `analyze --json --remove-copied-named-styles` 审核候选。**名称可能被外部程序或模板引用，后缀不是未使用证明。** 内置、隐藏及带额外元数据的样式保留；含 VBA 或未知依赖时跳过全部索引变更。此选项与 `--gc` 独立，默认关闭。测试范围和限制见 [`样式引用图验证`](docs/excel-style-graph-validation.md)。
+
 命令行工具复用同一套核心逻辑：
 
 ```powershell
@@ -117,7 +119,7 @@ dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\boo
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output
 ```
 
-`.xls` 是二进制格式，不在支持范围。组件去重默认开启；GC 默认关闭，CLI 的 analyze/optimize/batch 均支持 `--gc`。新增处理遇到透视表、VBA 或未知依赖时保守跳过并报告原因；命名样式始终保留。若保存到「下载 / 文档」等受保护目录时报拒绝访问，通常是安全软件拦截了未签名或 Debug 版本写入；请改用项目目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
+`.xls` 是二进制格式，不在支持范围。组件去重默认开启；GC 默认关闭，CLI 的 analyze/optimize/batch 均支持 `--gc`。新增处理遇到透视表、VBA 或未知依赖时保守跳过并报告原因；默认保留命名样式。若保存到「下载 / 文档」等受保护目录时报拒绝访问，通常是安全软件拦截了未签名或 Debug 版本写入；请改用项目目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
 
 ## 验证
 

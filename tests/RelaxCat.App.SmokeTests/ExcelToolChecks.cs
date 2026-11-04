@@ -27,6 +27,11 @@ internal static class ExcelToolChecks
 
         var excelPage = window.FindControl<RelaxCat.App.Views.ExcelToolView>("ExcelToolPage") ??
                         throw new Exception("Missing Excel tool page");
+        var copiedNamesOption = excelPage.FindControl<CheckBox>("RemoveCopiedNamedStylesOption")!;
+        var copiedNamesWarning = excelPage.FindControl<TextBlock>("NamedStyleCleanupWarning")!;
+        Check(copiedNamesOption.IsChecked == false && !window.Workspace.ExcelTool.RemoveCopiedNamedStyles &&
+              !window.Workspace.ExcelTool.OptimizationOptions.RemoveCopiedNamedStyles && !copiedNamesWarning.IsVisible,
+            "Copied-name cleanup must be opt-in and default to disabled");
         Click(window.FindControl<Button>("ExcelToolButton")!);
         pumpUntil(() => excelPage.IsVisible && !window.Workspace.HomeOpen);
         Check(window.Workspace.ExcelToolOpen && window.Workspace.SettingsOpen == false, "Excel tool navigation did not open its page");
@@ -109,6 +114,9 @@ internal static class ExcelToolChecks
             Check(tool.Summary!.Metrics.Any(metric => metric.Label == text["FileSize"]), "Metric labels did not refresh: " + languageOption.Culture);
             Check(tool.SelectedSheet!.Styles[0].Details.Contains(text["FontLabel"]), "Style details did not refresh: " + languageOption.Culture);
             Check(Label(excelPage.FindControl<Button>("OptimizeButton")!) == text["OptimizeSaveAs"], "Action label did not refresh: " + languageOption.Culture);
+            Check(((TextBlock)copiedNamesOption.Content!).Text == text["RemoveCopiedNamedStyles"] &&
+                  copiedNamesWarning.Text == text["RemoveCopiedNamedStylesHint"],
+                "Copied-name option and risk warning did not refresh: " + languageOption.Culture);
             capture("excel-tool-result-" + languageOption.Culture + ".png");
         }
 
@@ -148,6 +156,39 @@ internal static class ExcelToolChecks
         capture("excel-tool-gc-light.png");
         gcOption.IsChecked = false;
         Dispatcher.UIThread.RunJobs();
+
+        // Risky copied-name removal is separate from GC and invalidates both analysis and results.
+        var namedInput = Path.GetFullPath("artifacts/excel-tool-named-styles.xlsx");
+        var namedOutput = Path.GetFullPath("artifacts/excel-tool-named-styles-optimized.xlsx");
+        CreateNamedStyleWorkbook(namedInput);
+        complete(window.AnalyzeExcelWorkbookAsync(namedInput));
+        Check(tool.Summary!.Diagnostics.Single(row => row.Label == window.Workspace.Text["ConditionalNamedStyleRemovals"]).Value == "0",
+            "Default analysis unexpectedly removes copied style names");
+        copiedNamesOption.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(tool.RemoveCopiedNamedStyles && tool.OptimizationOptions.RemoveCopiedNamedStyles &&
+              !tool.CollectUnusedStyles && !tool.HasSummary && !tool.CanOptimize && copiedNamesWarning.IsVisible,
+            "Copied-name toggle did not invalidate analysis or show the risk warning");
+        complete(window.AnalyzeExcelWorkbookAsync(namedInput));
+        Check(tool.Summary!.Diagnostics.Single(row => row.Label == window.Workspace.Text["ConditionalNamedStyleRemovals"]).Value == "1",
+            "Copied-name analysis did not report the conditional removal");
+        Check(tool.Summary.Diagnostics.Single(row => row.Label == window.Workspace.Text["NamedStyleCleanupCandidates"]).Value.Contains("Custom_1"),
+            "Copied-name analysis did not show the name proposed for removal");
+        excelPage.FindControl<TextBox>("WorkbookPathInput")!.Text = input;
+        Dispatcher.UIThread.RunJobs();
+        Check(tool.FilePath == input && tool.CanAnalyze && !tool.CanOptimize && !tool.HasSummary && !tool.HasResult,
+            "Changing the workbook path left another workbook's analysis usable");
+        complete(window.AnalyzeExcelWorkbookAsync(namedInput));
+        Check(tool.CanOptimize, "Analyzing the selected workbook did not restore optimization");
+        complete(window.OptimizeExcelWorkbookAsync(namedInput, namedOutput));
+        Check(tool.HasResult && tool.Result!.Verified && tool.Result.Metrics.Any(metric =>
+                metric.Label == window.Workspace.Text["ConditionalNamedStyleRemovals"] && metric.Value == "1"),
+            "Copied-name cleanup was not passed through the desktop workflow");
+        capture("excel-tool-named-style-result-light.png");
+        copiedNamesOption.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Check(!tool.HasSummary && !tool.HasResult && !tool.CanOptimize && !copiedNamesWarning.IsVisible,
+            "Disabling copied-name cleanup left obsolete results visible");
         complete(window.AnalyzeExcelWorkbookAsync(input));
         // Exercise real overflow in both directions with many sheets and a large style gallery.
         var sampleAnalysis = new ExcelStyleAnalyzer().Analyze(input);
@@ -263,6 +304,20 @@ internal static class ExcelToolChecks
         Add(archive, "xl/styles.xml", styles);
         Add(archive, "xl/worksheets/sheet1.xml", sheet);
         Add(archive, "xl/worksheets/sheet2.xml", hidden);
+    }
+
+    internal static void CreateNamedStyleWorkbook(string path)
+    {
+        CreateWorkbook(path);
+        using var archive = ZipFile.Open(path, ZipArchiveMode.Update);
+        var entry = archive.GetEntry("xl/styles.xml")!;
+        string styles;
+        using (var reader = new StreamReader(entry.Open())) styles = reader.ReadToEnd();
+        styles = styles.Replace("<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>",
+            "<cellStyles count=\"3\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>" +
+            "<cellStyle name=\"Custom\" xfId=\"0\"/><cellStyle name=\"Custom_1\" xfId=\"0\"/></cellStyles>");
+        entry.Delete();
+        Add(archive, "xl/styles.xml", styles);
     }
 
     private static string BuildStyles()

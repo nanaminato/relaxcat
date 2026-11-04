@@ -4,7 +4,12 @@
   "sortOrder": 0,
   "strings": {
     "CollectUnusedStyles": "清理未引用样式（GC）",
-    "CollectUnusedStylesHint": "仅在引用图完整时清理；保留默认项和命名样式。更改后请重新分析。",
+    "CollectUnusedStylesHint": "仅在所有依赖均已确认时清理。保留默认项和命名样式，除非另行启用复制名称清理。更改选项后请重新分析。",
+    "RemoveCopiedNamedStyles": "清理复制的样式名称（有风险）",
+    "RemoveCopiedNamedStylesHint": "默认关闭。名称后缀仅用于启发式判断，不能证明样式未被使用；外部程序或模板可能引用这些名称。保留内置样式和带元数据的样式；存在 VBA、扩展或未知依赖时跳过清理。请检查分析结果并保留原始工作簿。更改选项后请重新分析。",
+    "ConditionalNamedStyleRemovals": "复制名称清理数（需启用）",
+    "NamedStyleCleanupCandidates": "拟清理的样式名称",
+    "NamedStyleCandidateCount": "共 {0} 个候选项 · 显示 {1} 个",
     "UnusedRemoved": "清理项",
     "TableChange": "处理数量",
     "AdvancedOptimization": "组件去重 / GC",

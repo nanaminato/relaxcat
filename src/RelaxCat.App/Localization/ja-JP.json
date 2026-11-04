@@ -4,7 +4,12 @@
   "sortOrder": 10,
   "strings": {
     "CollectUnusedStyles": "未参照スタイルを削除（GC）",
-    "CollectUnusedStylesHint": "参照グラフが完全な場合のみ削除。既定項目と名前付きスタイルを保持。変更後は再分析してください。",
+    "CollectUnusedStylesHint": "すべての依存関係を確認できる場合のみ削除します。既定項目と名前付きスタイルは、複製名の削除を別途有効にしない限り保持します。オプション変更後は再分析してください。",
+    "RemoveCopiedNamedStyles": "複製されたスタイル名を削除（リスクあり）",
+    "RemoveCopiedNamedStylesHint": "既定では無効です。名前の接尾辞は推測の手掛かりであり、未使用の証明ではありません。外部プログラムやテンプレートが名前を参照している可能性があります。組み込みスタイルとメタデータ付きスタイルは保持し、VBA・拡張・不明な依存関係がある場合は削除を行いません。分析結果を確認し、元のブックを保管してください。オプション変更後は再分析してください。",
+    "ConditionalNamedStyleRemovals": "複製名の削除数（要有効化）",
+    "NamedStyleCleanupCandidates": "削除候補のスタイル名",
+    "NamedStyleCandidateCount": "候補 {0} 件 · {1} 件を表示",
     "UnusedRemoved": "未参照削除",
     "TableChange": "処理件数",
     "AdvancedOptimization": "部品重複排除 / GC",

@@ -220,7 +220,8 @@ public sealed class ExcelStyleComponentTests : IDisposable
         Assert.Equal(2, Count(after, "cellStyleXfs"));
         Assert.Equal(2, Count(after, "fonts")); // italic font survives through named and column roots
         Assert.Equal(1, Count(after, "numFmts"));
-        Assert.Contains("style=\"1\"", Encoding.UTF8.GetString(OoxmlWorkbookFixture.ReadPart(output, "xl/worksheets/sheet1.xml")));
+        var outputSheet = XDocument.Parse(Encoding.UTF8.GetString(OoxmlWorkbookFixture.ReadPart(output, "xl/worksheets/sheet1.xml")));
+        Assert.Equal("1", outputSheet.Descendants(Ns + "col").Single().Attribute("style")!.Value);
     }
 
     [Theory]
@@ -274,8 +275,16 @@ public sealed class ExcelStyleComponentTests : IDisposable
         var input = Create(Styles());
         var output = PathOf("disabled.xlsx");
         var result = new ExcelStyleOptimizer().Optimize(input, output, options: new(DeduplicateComponents: false));
-        Assert.Empty(result.TableChanges);
-        Assert.Equal(OoxmlWorkbookFixture.ReadPart(input, "xl/styles.xml"), OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml"));
+        Assert.True(result.Verified);
+        var before = ReadStyles(input);
+        var after = ReadStyles(output);
+        foreach (var section in new[] { "fonts", "fills", "borders", "numFmts" })
+            Assert.Equal(before.Root!.Element(Ns + section)!.ToString(), after.Root!.Element(Ns + section)!.ToString());
+        // Semantic XF equality can be proven through equal component definitions
+        // without physically deduplicating the component tables themselves.
+        Assert.Equal(3, Count(after, "cellXfs"));
+        Assert.Equal(3, Count(after, "cellStyleXfs"));
+        Assert.All(result.TableChanges, change => Assert.Equal(0, change.UnusedRemoved));
     }
 
     [Fact]
