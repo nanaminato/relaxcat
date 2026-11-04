@@ -8,6 +8,8 @@ internal sealed class StyleTableOptimizer
 {
     internal StyleSheetDocument Styles { get; private set; }
     internal int[] CellMap { get; private set; }
+    internal int[] BaseMap { get; private set; }
+    internal int[] NamedMap { get; private set; }
     internal List<StyleTableChange> Changes { get; } = [];
     private readonly CancellationToken token;
 
@@ -15,17 +17,27 @@ internal sealed class StyleTableOptimizer
     {
         Styles = styles;
         CellMap = Enumerable.Range(0, styles.CellXfs.Count).ToArray();
+        BaseMap = Enumerable.Range(0, styles.CellStyleXfs.Count).ToArray();
+        NamedMap = Enumerable.Range(0, OoxmlXml.Child(styles.Root, "cellStyles")?.Elements().Count() ?? 0).ToArray();
         this.token = token;
     }
 
     internal void Optimize(ExcelStyleOptimizationOptions options, StyleOptimizationContext? context)
     {
         var advanced = context is { SkipReason: null };
+        // Even exact merges renumber IDs. Unknown consumers can therefore make them unsafe.
+        if (!advanced) return;
         var gc = advanced && options.CollectUnusedStyles;
         if (gc)
         {
             // Preserve cellXfs[0] even for an empty workbook and preserve raw row/column refs.
             RewriteTable("cellXfs", "xf", context!.CellReferences, false, [0]);
+        }
+        // When GC is selected, decide name liveness after collecting unused cell formats.
+        // This keeps the combined plan idempotent without deleting any live association.
+        if (options.RemoveCopiedNamedStyles) RemoveCopiedNames();
+        if (gc)
+        {
             var bases = References(Styles.CellXfs, "xfId");
             bases.UnionWith(References(OoxmlXml.Child(Styles.Root, "cellStyles")?.Elements() ?? [], "xfId"));
             RewriteTable("cellStyleXfs", "xf", bases, false, [0]);
@@ -49,6 +61,44 @@ internal sealed class StyleTableOptimizer
         RewriteTable("cellXfs", "xf", null, true, [0]);
     }
 
+    // Opt-in heuristic, never claimed to prove that an external program does not use a name.
+    // Require a distinct, existing unsuffixed custom name and identical formatting; any extra
+    // metadata, duplicate name, nested suffix or ambiguous name is retained.
+    private void RemoveCopiedNames()
+    {
+        var names = OoxmlXml.Child(Styles.Root, "cellStyles")?.Elements().ToArray() ?? [];
+        var byName = names.GroupBy(n => (string?)n.Attribute("name") ?? "", StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
+        var map = new int[names.Length];
+        var kept = 0;
+        var liveBases = References(Styles.CellXfs, "xfId");
+        for (var i = 0; i < names.Length; i++)
+        {
+            token.ThrowIfCancellationRequested();
+            var name = (string?)names[i].Attribute("name") ?? "";
+            var match = System.Text.RegularExpressions.Regex.Match(name, @"^(.+)_([1-9][0-9]*)$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+            var remove = false;
+            if (Simple(names[i]) && !liveBases.Contains(int.Parse(names[i].Attribute("xfId")!.Value, CultureInfo.InvariantCulture)) && byName[name].Length == 1 && match.Success &&
+                !System.Text.RegularExpressions.Regex.IsMatch(match.Groups[1].Value, @"_[1-9][0-9]*$") &&
+                byName.TryGetValue(match.Groups[1].Value, out var originals) && originals.Length == 1 && Simple(originals[0]))
+            {
+                var left = Styles.CellStyleXfs[int.Parse(names[i].Attribute("xfId")!.Value, CultureInfo.InvariantCulture)];
+                var right = Styles.CellStyleXfs[int.Parse(originals[0].Attribute("xfId")!.Value, CultureInfo.InvariantCulture)];
+                remove = SemanticKey(Styles, left) == SemanticKey(Styles, right);
+            }
+            map[i] = remove ? -1 : kept++;
+        }
+        if (kept == names.Length) return;
+        NamedMap = map;
+        Styles = Styles.WithXml(CellXfsByteRewriter.Rewrite(Styles.OriginalXml, map, "cellStyles", "cellStyle"));
+        Changes.Add(new StyleTableChange("cellStyles", names.Length, kept, names.Length - kept, 0));
+
+        static bool Simple(XElement style) => !style.HasElements && style.Attribute("name") is not null &&
+            style.Attribute("xfId") is not null && style.Attributes().All(a => a.IsNamespaceDeclaration ||
+                (a.Name.NamespaceName.Length == 0 && a.Name.LocalName is "name" or "xfId"));
+    }
+
     private static HashSet<int> References(IEnumerable<XElement> elements, string attribute) =>
         elements.Select(e => OoxmlXml.IntAttribute(e, attribute) ?? 0).ToHashSet();
 
@@ -68,7 +118,13 @@ internal sealed class StyleTableOptimizer
         {
             token.ThrowIfCancellationRequested();
             if (used is not null && !used.Contains(i)) { unused++; continue; }
-            var key = OoxmlXml.CanonicalKey(elements[i]);
+            var key = table is "cellXfs" or "cellStyleXfs"
+                ? SemanticKey(Styles, elements[i]) : OoxmlXml.CanonicalKey(elements[i]);
+            if (table == "cellStyleXfs")
+            {
+                var identity = Styles.NamedIdentity(i);
+                key = identity.Length.ToString(CultureInfo.InvariantCulture) + ":" + identity + key;
+            }
             if (deduplicate && !pinned.Contains(i) && positions.TryGetValue(key, out var position))
             { map[i] = position; duplicates++; }
             else { map[i] = kept++; positions.TryAdd(key, map[i]); }
@@ -80,6 +136,7 @@ internal sealed class StyleTableOptimizer
             CellMap = CellMap.Select(id => id < 0 ? -1 : map[id]).ToArray();
         else
         {
+            if (table == "cellStyleXfs") BaseMap = BaseMap.Select(id => id < 0 ? -1 : map[id]).ToArray();
             var attribute = referenceAttribute ?? "xfId";
             var idMap = Enumerable.Range(0, map.Length).ToDictionary(i => i, i => map[i]);
             PatchReferences(attribute, idMap, table == "cellStyleXfs");
@@ -143,6 +200,29 @@ internal sealed class StyleTableOptimizer
         Changes.Add(new StyleTableChange("numFmts", formats.Length, kept, duplicates, unused));
     }
 
+    // Only normalize XSD boolean lexical aliases. Never erase absent apply flags, direct
+    // formatting, inheritance, protection, or attributes not explicitly understood here.
+    private static void NormalizeBooleanLexemes(XElement xf)
+    {
+        foreach (var element in xf.DescendantsAndSelf())
+        {
+            if (element.Name.Namespace != xf.Name.Namespace) continue;
+            foreach (var attribute in element.Attributes().Where(a => a.Name.NamespaceName.Length == 0))
+            {
+                var known = element.Name.LocalName switch
+                {
+                    "xf" => attribute.Name.LocalName is "applyNumberFormat" or "applyFont" or "applyFill" or
+                        "applyBorder" or "applyAlignment" or "applyProtection" or "pivotButton" or "quotePrefix",
+                    "alignment" => attribute.Name.LocalName is "wrapText" or "shrinkToFit" or "justifyLastLine",
+                    "protection" => attribute.Name.LocalName is "locked" or "hidden",
+                    _ => false
+                };
+                if (known && attribute.Value is "true" or "false")
+                    attribute.Value = attribute.Value == "true" ? "1" : "0";
+            }
+        }
+    }
+
     // Resolve IDs to definitions rather than comparing changed indices. Explicit apply flags,
     // inheritance, ordering, and distinct XML remain part of the verification key.
     internal static string SemanticKey(StyleSheetDocument styles, XElement xf)
@@ -150,13 +230,19 @@ internal sealed class StyleTableOptimizer
         XElement Resolve(XElement source, bool includeBase)
         {
             var copy = new XElement(source);
+            NormalizeBooleanLexemes(copy);
             foreach (var (name, table) in new[] { ("fontId", styles.Fonts), ("fillId", styles.Fills), ("borderId", styles.Borders) })
                 if (copy.Attribute(name) is { } attribute)
                     attribute.Value = OoxmlXml.CanonicalKey(table[int.Parse(attribute.Value, CultureInfo.InvariantCulture)]);
             if (copy.Attribute("numFmtId") is { } number && styles.NumberFormats.TryGetValue(int.Parse(number.Value, CultureInfo.InvariantCulture), out var code))
                 number.Value = "custom:" + code;
             if (includeBase && copy.Attribute("xfId") is { } reference)
-                reference.Value = OoxmlXml.CanonicalKey(Resolve(styles.CellStyleXfs[int.Parse(reference.Value, CultureInfo.InvariantCulture)], false));
+            {
+                var baseId = int.Parse(reference.Value, CultureInfo.InvariantCulture);
+                var identity = styles.NamedIdentity(baseId);
+                reference.Value = identity.Length.ToString(CultureInfo.InvariantCulture) + ":" + identity +
+                    OoxmlXml.CanonicalKey(Resolve(styles.CellStyleXfs[baseId], false));
+            }
             return copy;
         }
         return OoxmlXml.CanonicalKey(Resolve(xf, true));

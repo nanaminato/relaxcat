@@ -60,6 +60,14 @@
               <CheckBox x:Name="CollectUnusedStylesOption" Content="{Binding Text[CollectUnusedStyles]}"
                         IsChecked="{Binding ExcelTool.CollectUnusedStyles, Mode=TwoWay}"
                         ToolTip.Tip="{Binding Text[CollectUnusedStylesHint]}" />
+              <CheckBox x:Name="RemoveCopiedNamedStylesOption"
+                        IsChecked="{Binding ExcelTool.RemoveCopiedNamedStyles, Mode=TwoWay}"
+                        ToolTip.Tip="{Binding Text[RemoveCopiedNamedStylesHint]}">
+                <TextBlock Text="{Binding Text[RemoveCopiedNamedStyles]}" TextWrapping="Wrap" />
+              </CheckBox>
+              <TextBlock x:Name="NamedStyleCleanupWarning" Classes="muted" FontSize="11"
+                         Text="{Binding Text[RemoveCopiedNamedStylesHint]}" TextWrapping="Wrap"
+                         IsVisible="{Binding ExcelTool.RemoveCopiedNamedStyles}" />
               <TextBlock Classes="muted" Text="{Binding Text[AnalyzeHint]}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
@@ -124,10 +132,10 @@
                              Foreground="{DynamicResource AccentInkBrush}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
-              <Expander Header="{Binding Text[SectionDiagnostics]}" HorizontalAlignment="Stretch">
+              <Expander x:Name="StyleDiagnosticsExpander" Header="{Binding Text[SectionDiagnostics]}" HorizontalAlignment="Stretch">
                 <StackPanel Spacing="8">
                   <TextBlock Text="{Binding Text[SectionDiagnosticHint]}" Classes="muted" FontSize="10" TextWrapping="Wrap" />
-                  <ItemsControl ItemsSource="{Binding ExcelTool.Summary.Diagnostics}">
+                  <ItemsControl x:Name="StyleDiagnosticsList" ItemsSource="{Binding ExcelTool.Summary.Diagnostics}">
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="models:ExcelMetric">
                         <StackPanel Spacing="3" Margin="0,5">

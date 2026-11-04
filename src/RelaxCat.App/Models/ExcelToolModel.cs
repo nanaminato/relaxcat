@@ -37,7 +37,14 @@ public sealed class ExcelToolModel : ObservableModel
         get => collectUnusedStyles;
         set { if (Set(ref collectUnusedStyles, value)) Clear(); }
     }
-    internal ExcelStyleOptimizationOptions OptimizationOptions => new(CollectUnusedStyles: CollectUnusedStyles);
+    private bool removeCopiedNamedStyles;
+    public bool RemoveCopiedNamedStyles
+    {
+        get => removeCopiedNamedStyles;
+        set { if (Set(ref removeCopiedNamedStyles, value)) Clear(); }
+    }
+    internal ExcelStyleOptimizationOptions OptimizationOptions => new(CollectUnusedStyles: CollectUnusedStyles,
+        RemoveCopiedNamedStyles: RemoveCopiedNamedStyles);
 
     public string FilePath
     {
@@ -45,9 +52,8 @@ public sealed class ExcelToolModel : ObservableModel
         set
         {
             if (!Set(ref filePath, value)) return;
+            Clear();
             Notify(nameof(FileName));
-            Notify(nameof(CanAnalyze));
-            Notify(nameof(CanOptimize));
         }
     }
 
@@ -194,10 +200,47 @@ public sealed class ExcelToolModel : ObservableModel
                 $"{Count(section.Count)} · {Bytes(section.SerializedBytes)} · {Percent(section.SerializedShare)}\n" +
                 $"{text["DuplicateFormats"]}: {Count(section.DuplicateCount)} · {text["KnownReferences"]}: {section.ReferencedCount?.ToString("N0") ?? "?"} · {text["UnreferencedFormats"]}: {section.UnreferencedCount?.ToString("N0") ?? "?"}"
             )).Concat(value.TableChanges.Select(change => new ExcelMetric(change.Name + " · " + text["TableChange"],
-                $"{Count(change.Before)} → {Count(change.After)} · {text["DuplicateFormats"]}: {Count(change.DuplicatesRemoved)} · {text["UnusedRemoved"]}: {Count(change.UnusedRemoved)}")))
+                $"{Count(change.Before)} → {Count(change.After)} · {text[change.Name == "cellStyles" ? "ConditionalNamedStyleRemovals" : "DuplicateFormats"]}: {Count(change.DuplicatesRemoved)} · {text["UnusedRemoved"]}: {Count(change.UnusedRemoved)}")))
+                .Append(new ExcelMetric(text["ConditionalNamedStyleRemovals"],
+                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => change.Before - change.After))))
+                .Concat(BuildNamedStyleCandidates(value.NamedStyleCleanupCandidates))
                 .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
-                    ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason])).ToList()
+                    ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason]))
+                .Concat(BuildExtensionDiagnostics(value.ExtensionDiagnostics)).ToList()
         };
+    }
+
+    private IEnumerable<ExcelMetric> BuildNamedStyleCandidates(IReadOnlyList<string> candidates)
+    {
+        if (candidates.Count == 0) yield break;
+        const int displayLimit = 100;
+        yield return new ExcelMetric(text["NamedStyleCleanupCandidates"],
+            string.Format(CultureInfo.CurrentCulture, text["NamedStyleCandidateCount"],
+                Count(candidates.Count), Count(Math.Min(candidates.Count, displayLimit))) + "\n" +
+            string.Join("\n", candidates.Take(displayLimit)));
+    }
+
+    private IEnumerable<ExcelMetric> BuildExtensionDiagnostics(ExtensionTypeDiagnostics diagnostics)
+    {
+        yield return new ExcelMetric(text["ExtensionDiagnosticsTitle"], text["ExtensionDiagnosticsHint"]);
+        yield return new ExcelMetric(text["ExtensionDiagnosticsScope"], text["ExtensionDiagnosticsScopeHint"]);
+        if (diagnostics.Truncated)
+            yield return new ExcelMetric(text["ExtensionDiagnosticsLimit"], text["ExtensionDiagnosticsTruncated"]);
+        if (diagnostics.Entries.Count == 0)
+            yield return new ExcelMetric(text["ExtensionDiagnosticsTypes"], text["ExtensionDiagnosticsEmpty"]);
+        foreach (var entry in diagnostics.Entries)
+        {
+            var key = entry.Kind switch
+            {
+                "uri" => "ExtensionDiagnosticUri",
+                "namespace" => "ExtensionDiagnosticNamespace",
+                "element" => "ExtensionDiagnosticElement",
+                "attribute" => "ExtensionDiagnosticAttribute",
+                _ => "ExtensionDiagnosticsTypes"
+            };
+            yield return new ExcelMetric(text[key] + " · " +
+                string.Format(CultureInfo.CurrentCulture, text["ExtensionDiagnosticCount"], Count(entry.Count)), entry.Name);
+        }
     }
 
     private ExcelToolResult BuildResult(ExcelOptimizationResult value)
@@ -214,7 +257,9 @@ public sealed class ExcelToolModel : ObservableModel
                 new(text["StylesPart"], Bytes(value.InputStylesXmlBytes) + " → " + Bytes(value.OutputStylesXmlBytes)),
                 new("cellStyleXfs", Count(value.InputCellStyleXfCount) + " → " + Count(value.OutputCellStyleXfCount)),
                 new(text["StyleDataReduction"], Percent(value.StylesXmlReductionRatio)),
-                new(text["UnusedRemoved"], Count(value.TableChanges.Sum(change => change.UnusedRemoved)))
+                new(text["UnusedRemoved"], Count(value.TableChanges.Sum(change => change.UnusedRemoved))),
+                new(text["ConditionalNamedStyleRemovals"],
+                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => change.Before - change.After)))
             }.Concat(value.TableChanges.Where(change => change.Name is not ("cellXfs" or "cellStyleXfs"))
                 .Select(change => new ExcelMetric(change.Name, Count(change.Before) + " → " + Count(change.After))))
              .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null

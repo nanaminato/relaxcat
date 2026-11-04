@@ -96,11 +96,14 @@ internal static class CellXfsByteRewriter
             var tag = token.Value;
             if (tag.StartsWith("<!") || tag.StartsWith("<?") || tag.StartsWith("</")) return tag;
             ordinal++;
-            return Regex.Replace(tag, "(?<=\\s)([A-Za-z_][A-Za-z0-9_.:-]*)\\s*=\\s*(['\"])([^'\"]*)\\2", attribute =>
+            // Consume entire quoted values before looking for another attribute. Opposite
+            // quotes and attribute-like text inside a style name are ordinary data.
+            return Regex.Replace(tag, """(?<=\s)([A-Za-z_][A-Za-z0-9_.:-]*)\s*=\s*("[^"]*"|'[^']*')""", attribute =>
             {
                 if (!patches.TryGetValue((ordinal, attribute.Groups[1].Value), out var id)) return attribute.Value;
-                return attribute.Groups[1].Value + "=" + attribute.Groups[2].Value +
-                    id.ToString(System.Globalization.CultureInfo.InvariantCulture) + attribute.Groups[2].Value;
+                var quote = attribute.Groups[2].Value[0];
+                return attribute.Groups[1].Value + "=" + quote +
+                    id.ToString(System.Globalization.CultureInfo.InvariantCulture) + quote;
             });
         }, RegexOptions.Singleline);
         return encoding.GetBytes(result);

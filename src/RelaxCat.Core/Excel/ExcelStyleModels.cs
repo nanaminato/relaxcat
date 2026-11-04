@@ -60,9 +60,15 @@ public sealed record ExcelStyleAnalysis(
 {
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
+    public IReadOnlyList<StyleReferenceEdge> ReferenceGraph { get; init; } = [];
+    public ExtensionTypeDiagnostics ExtensionDiagnostics { get; init; } = new([], false);
+    public IReadOnlyList<string> NamedStyleCleanupCandidates { get; init; } = [];
+    /// <summary>Coverage of remappable cell/base/component indices, not inline differential formats.</summary>
+    public bool ReferenceGraphComplete => AdvancedOptimizationSkipReason is null;
+    public long ProjectedStylesXmlCompressedBytesEstimate { get; init; }
     public int ProjectedCellXfCount { get; init; }
     public int ProjectedCellStyleXfCount { get; init; }
-    public bool HasStyleChanges => TableChanges.Count > 0 || HasDuplicates;
+    public bool HasStyleChanges => TableChanges.Count > 0;
     public int SheetCount => Worksheets.Count;
     public int DuplicateCellXfCount => CellXfCount - UniqueCellXfCount;
     public int UnreferencedCellXfCount => Math.Max(0, CellXfCount - ReferencedCellXfCount);
@@ -115,6 +121,10 @@ public sealed record ExcelOptimizationResult(
 {
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
+    /// <summary>Complete original-to-output mappings; -1 denotes an opt-in GC removal.</summary>
+    public IReadOnlyList<int> CellXfMap { get; init; } = [];
+    public IReadOnlyList<int> CellStyleXfMap { get; init; } = [];
+    public IReadOnlyList<int> NamedStyleMap { get; init; } = [];
     public int InputCellStyleXfCount { get; init; }
     public int OutputCellStyleXfCount { get; init; }
     public double StylesXmlReductionRatio => InputStylesXmlBytes <= 0 ? 0 :
@@ -127,9 +137,26 @@ public sealed record ExcelOptimizationResult(
 /// <summary>Section bytes are standalone UTF-8 serialization sizes, not ZIP sizes or exact source spans.
 /// Null reference counts mean coverage is unknown; unreferenced never implies safe to delete.</summary>
 public sealed record StyleSectionDiagnostic(string Name, int Count, long SerializedBytes,
-    double SerializedShare, int DuplicateCount, int? ReferencedCount, int? UnreferencedCount);
+    double SerializedShare, int DuplicateCount, int? ReferencedCount, int? UnreferencedCount)
+{
+    /// <summary>Includes exact duplicates. Equivalence preserves apply flags and inheritance.</summary>
+    public int SemanticDuplicateCount { get; init; }
+    public int SafeDuplicateRemovalCount { get; init; }
+    public int SafeUnusedRemovalCount { get; init; }
+    public int ConditionalNamedStyleRemovalCount { get; init; }
+}
+/// <summary>Aggregated worksheet references or an individual table edge. No cell contents.
+/// TargetIndex is a zero-based table index except numFmts/builtinNumberFormats, where it is the numFmtId.</summary>
+public sealed record StyleReferenceEdge(string Source, int? SourceIndex, string Target, int TargetIndex,
+    string Kind, int Count = 1);
 public sealed record BaseStyleReference(int Index, int CellXfReferences, int NamedStyleReferences);
 
 /// <summary>Exact component merging is enabled by default; unreachable-definition removal is opt-in.</summary>
-public sealed record ExcelStyleOptimizationOptions(bool DeduplicateComponents = true, bool CollectUnusedStyles = false);
+public sealed record ExcelStyleOptimizationOptions(bool DeduplicateComponents = true, bool CollectUnusedStyles = false,
+    bool RemoveCopiedNamedStyles = false)
+{
+    public const string CopiedNamedStyleRisk = "Copied-name cleanup may remove names used by external programs or templates. " +
+        "A suffix is only a candidate heuristic, not proof of disuse. Built-ins, metadata-bearing styles and names referenced by any retained cell format are retained; " +
+        "VBA, extensions and unknown dependencies disable cleanup. Review the analysis and retain the original workbook.";
+}
 public sealed record StyleTableChange(string Name, int Before, int After, int DuplicatesRemoved, int UnusedRemoved);

@@ -15,6 +15,7 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
         {
             token.ThrowIfCancellationRequested();
             var parent = element.Parent?.Name.LocalName;
+            if (!KnownFormat(element, styles.Root.Name.NamespaceName)) reason ??= "unsupportedReferences";
             var xf = element.Name.LocalName == "xf" && parent is "cellXfs" or "cellStyleXfs";
             foreach (var attribute in element.Attributes().Where(a => !a.IsNamespaceDeclaration))
             {
@@ -85,4 +86,31 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
         }
         return new StyleOptimizationContext(references, reason);
     }
+    private static readonly HashSet<string> KnownStyleElements = new(
+        ("numFmts numFmt fonts font name charset family b i strike outline shadow condense extend color sz u vertAlign scheme " +
+         "fills fill patternFill fgColor bgColor gradientFill stop borders border left right top bottom diagonal vertical horizontal start end " +
+         "cellStyleXfs cellXfs xf alignment protection cellStyles cellStyle dxfs dxf tableStyles tableStyle tableStyleElement " +
+         "colors indexedColors rgbColor mruColors").Split(' '), StringComparer.Ordinal);
+
+    private static bool KnownFormat(System.Xml.Linq.XElement element, string ns)
+    {
+        var parent = element.Parent?.Name.LocalName;
+        if (!KnownStyleElements.Contains(element.Name.LocalName)) return false;
+        var inFormat = element.AncestorsAndSelf().Any(e => e.Name.LocalName == "xf" &&
+            e.Parent?.Name.LocalName is "cellXfs" or "cellStyleXfs");
+        if (!inFormat && parent != "cellStyles") return true;
+        var allowed = element.Name.LocalName switch
+        {
+            "xf" => "numFmtId fontId fillId borderId xfId quotePrefix pivotButton applyNumberFormat applyFont applyFill applyBorder applyAlignment applyProtection",
+            "alignment" => "horizontal vertical textRotation wrapText shrinkToFit indent relativeIndent justifyLastLine readingOrder",
+            "protection" => "locked hidden",
+            "cellStyle" => "name xfId builtinId iLevel hidden customBuiltin",
+            _ => ""
+        };
+        if (allowed.Length == 0 || element.Name.NamespaceName != ns) return false;
+        var names = allowed.Split(' ').ToHashSet(StringComparer.Ordinal);
+        return element.Attributes().All(a => a.IsNamespaceDeclaration ||
+            (a.Name.NamespaceName.Length == 0 && names.Contains(a.Name.LocalName)));
+    }
+
 }

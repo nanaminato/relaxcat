@@ -58,8 +58,14 @@ public sealed class ExcelStyleOptimizer
                 if (!hasDuplicates) continue;
                 var document = package.ReadXml(sheet.PartName);
                 var sheetRemapped = RemapWorksheet(document, plan.Map, styles.CellXfs.Count, sheet.Name);
-                remapped += sheetRemapped;
-                if (sheetRemapped > 0) changed[sheet.PartName] = OoxmlXml.Serialize(document);
+                remapped += sheetRemapped.Count;
+                if (sheetRemapped.Count > 0)
+                {
+                    using var source = package.OpenPart(sheet.PartName);
+                    using var buffer = new MemoryStream();
+                    source.CopyTo(buffer);
+                    changed[sheet.PartName] = CellXfsByteRewriter.PatchAttributes(buffer.ToArray(), sheetRemapped);
+                }
                 progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingWorksheets, index + 1, worksheets.Count));
             }
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingStyles, worksheets.Count, worksheets.Count));
@@ -105,6 +111,9 @@ public sealed class ExcelStyleOptimizer
                 styles.CellXfs.Count, plan.KeptCount, inputStylesBytes, outputStylesBytes,
                 remapped, worksheets.Count, checks, true)
             {
+                CellXfMap = plan.Map,
+                CellStyleXfMap = plan.BaseMap,
+                NamedStyleMap = plan.NamedMap,
                 InputCellStyleXfCount = styles.CellStyleXfs.Count,
                 OutputCellStyleXfCount = outputBaseCount,
                 TableChanges = plan.Changes,
@@ -117,11 +126,14 @@ public sealed class ExcelStyleOptimizer
         }
     }
 
-    private static int RemapWorksheet(XDocument document, int[] map, int cellFormatCount, string sheetName)
+    private static Dictionary<(int Element, string Attribute), int> RemapWorksheet(XDocument document, int[] map, int cellFormatCount, string sheetName)
     {
-        var remapped = 0;
+        var remapped = new Dictionary<(int Element, string Attribute), int>();
+        var ordinal = -1;
         foreach (var element in document.Descendants())
         {
+            ordinal++;
+            if (element.Name.Namespace != document.Root!.Name.Namespace) continue;
             var attributeName = element.Name.LocalName switch
             {
                 "c" or "row" => "s",
@@ -129,8 +141,7 @@ public sealed class ExcelStyleOptimizer
                 _ => null
             };
             if (attributeName is null) continue;
-            var attribute = element.Attributes().FirstOrDefault(candidate =>
-                candidate.Name.LocalName == attributeName && !candidate.IsNamespaceDeclaration);
+            var attribute = element.Attribute(attributeName);
             if (attribute is null) continue;
             if (!int.TryParse(attribute.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var style) ||
                 style < 0 || style >= cellFormatCount)
@@ -139,8 +150,7 @@ public sealed class ExcelStyleOptimizer
             var replacement = map[style];
             if (replacement < 0) throw new InvalidDataException("A referenced cell format was collected.");
             if (replacement == style) continue;
-            attribute.Value = replacement.ToString(CultureInfo.InvariantCulture);
-            remapped++;
+            remapped[(ordinal, attributeName)] = replacement;
         }
         return remapped;
     }
@@ -232,7 +242,14 @@ public sealed class ExcelStyleOptimizer
         {
             if (!outputParts.TryGetValue(entry.FullName, out var other))
                 return new OptimizationCheck("parts", false, "missing " + entry.FullName);
-            if (changed.ContainsKey(entry.FullName)) continue;
+            if (changed.TryGetValue(entry.FullName, out var expected))
+            {
+                using var rewritten = other.Open();
+                if (!System.Security.Cryptography.SHA256.HashData(expected).AsSpan().SequenceEqual(
+                        System.Security.Cryptography.SHA256.HashData(rewritten)))
+                    return new OptimizationCheck("parts", false, "rewritten " + entry.FullName);
+                continue;
+            }
             if (other.Length != entry.Length)
                 return new OptimizationCheck("parts", false, entry.FullName);
             using var before = entry.Open();

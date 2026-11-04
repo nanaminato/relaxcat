@@ -64,7 +64,19 @@ public sealed class ExcelBatchModel : ObservableModel
     }
 
     private bool collectUnusedStyles;
-    public bool CollectUnusedStyles { get => collectUnusedStyles; set => Set(ref collectUnusedStyles, value); }
+    public bool CollectUnusedStyles
+    {
+        get => collectUnusedStyles;
+        set { if (Set(ref collectUnusedStyles, value)) ResetResults(); }
+    }
+    private bool removeCopiedNamedStyles;
+    public bool RemoveCopiedNamedStyles
+    {
+        get => removeCopiedNamedStyles;
+        set { if (Set(ref removeCopiedNamedStyles, value)) ResetResults(); }
+    }
+    internal ExcelStyleOptimizationOptions OptimizationOptions => new(CollectUnusedStyles: CollectUnusedStyles,
+        RemoveCopiedNamedStyles: RemoveCopiedNamedStyles);
     public bool Overwrite { get => overwrite; set => Set(ref overwrite, value); }
     public string Status { get => status; private set => Set(ref status, value); }
     public string Summary { get => summary; private set => Set(ref summary, value); }
@@ -218,8 +230,13 @@ public sealed class ExcelBatchItem : ObservableModel
                 if (result.AdvancedOptimizationSkipReason is { } reason)
                     DetailText += " · " + text["AdvancedSkip_" + reason];
                 else if (result.TableChanges.Count > 0)
+                {
                     DetailText += " · " + string.Join(" · ", result.TableChanges.Where(c => c.Name != "cellXfs")
                         .Select(c => $"{c.Name}: {c.Before:N0} → {c.After:N0}"));
+                    var namedStylesRemoved = result.TableChanges.Where(c => c.Name == "cellStyles").Sum(c => c.Before - c.After);
+                    if (namedStylesRemoved > 0)
+                        DetailText += " · " + text["ConditionalNamedStyleRemovals"] + ": " + ExcelToolModel.Count(namedStylesRemoved);
+                }
                 break;
             case ExcelBatchItemStatus.Skipped:
                 StatusText = text["BatchSkipped"];

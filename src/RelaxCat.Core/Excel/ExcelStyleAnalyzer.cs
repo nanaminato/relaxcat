@@ -32,6 +32,8 @@ public sealed class ExcelStyleAnalyzer
 
         var referenced = new HashSet<int>();
         var summaries = new List<WorksheetStyleSummary>();
+        var graph = StyleDiagnostics.Graph(styles).ToList();
+        graph.Add(new StyleReferenceEdge("workbook", null, "cellXfs", 0, "implicitDefault"));
 
         for (var index = 0; index < sheetDefinitions.Count; index++)
         {
@@ -49,6 +51,10 @@ public sealed class ExcelStyleAnalyzer
             }
             foreach (var style in scan.EffectiveStyleCounts.Keys) referenced.Add(style);
             foreach (var style in scan.RawStyleCounts.Keys) referenced.Add(style);
+            foreach (var (style, count) in scan.RawStyleCounts)
+                graph.Add(new StyleReferenceEdge(sheet.PartName, null, "cellXfs", style, "explicit", count));
+            foreach (var (style, count) in scan.EffectiveStyleCounts)
+                graph.Add(new StyleReferenceEdge(sheet.PartName, null, "cellXfs", style, "effectiveCells", count));
 
             var listed = scan.StyleOrder.Take(MaximumStylesPerWorksheet).ToArray();
             var usages = new List<StyleUsage>(listed.Length);
@@ -64,10 +70,9 @@ public sealed class ExcelStyleAnalyzer
         var context = StyleOptimizationContext.Read(package, styles, sheetDefinitions, cancellationToken, new HashSet<int>(referenced));
         var plan = StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false, context: context, options: options,
             cancellationToken: cancellationToken);
-        var uniqueCount = options?.CollectUnusedStyles == true
-            ? StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false, context: context,
-                options: options with { CollectUnusedStyles = false }, cancellationToken: cancellationToken).KeptCount
-            : plan.KeptCount;
+        // Equivalence diagnostics are independent of whether unknown consumers prevent edits.
+        var uniqueCount = styles.CellXfs.Select(xf => StyleTableOptimizer.SemanticKey(styles, xf))
+            .Distinct(StringComparer.Ordinal).Count();
         cancellationToken.ThrowIfCancellationRequested();
         var originalStylesBytes = package.LengthOf("xl/styles.xml");
         // With nothing to merge, optimization copies styles.xml verbatim instead of re-serializing it.
@@ -78,16 +83,29 @@ public sealed class ExcelStyleAnalyzer
             styles.CellXfs.Count, uniqueCount, referenced.Count,
             originalStylesBytes, projectedStylesBytes, summaries)
         {
+            ReferenceGraph = graph,
+            ExtensionDiagnostics = ExtensionTypeScanner.Read(package, sheetDefinitions, styles.Root.Name.NamespaceName, cancellationToken),
+            NamedStyleCleanupCandidates = (OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
+                .Where((_, i) => plan.NamedMap[i] < 0).Select(e => (string?)e.Attribute("name") ?? "").ToArray(),
+            ProjectedStylesXmlCompressedBytesEstimate = CompressedSize(plan.StylesXml),
             ProjectedCellXfCount = plan.KeptCount,
             ProjectedCellStyleXfCount = OoxmlXml.Child(plan.Document.Root, "cellStyleXfs")?.Elements().Count() ?? 0,
             TableChanges = plan.Changes,
             AdvancedOptimizationSkipReason = context.SkipReason,
             StylesXmlCompressedBytes = package.Require("xl/styles.xml").CompressedLength,
             BaseStyleReferences = StyleDiagnostics.References(styles),
-            Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles), referenced),
-            UniqueCellStyleXfCount = styles.CellStyleXfs.Select(OoxmlXml.CanonicalKey).Distinct(StringComparer.Ordinal).Count(),
-            CanDeduplicateBaseStyles = StyleDeduplicationPlan.CanMergeBaseStyles(styles)
+            Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles), context.CellReferences, plan.Changes, context.SkipReason is null),
+            UniqueCellStyleXfCount = styles.CellStyleXfs.Select(xf => StyleTableOptimizer.SemanticKey(styles, xf)).Distinct(StringComparer.Ordinal).Count(),
+            CanDeduplicateBaseStyles = context.SkipReason is null
         };
+    }
+
+    private static long CompressedSize(byte[] bytes)
+    {
+        using var output = new MemoryStream();
+        using (var deflate = new System.IO.Compression.DeflateStream(output,
+                   System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true)) deflate.Write(bytes);
+        return output.Length;
     }
 
     internal static bool IsMacroEnabled(OoxmlPackage package, string path) =>

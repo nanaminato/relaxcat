@@ -8,6 +8,8 @@ namespace RelaxCat.Core.Excel;
 internal sealed class StyleDeduplicationPlan
 {
     internal int[] Map { get; }
+    internal int[] BaseMap { get; private set; } = [];
+    internal int[] NamedMap { get; private set; } = [];
     internal IReadOnlyList<XElement> Kept { get; }
     internal IReadOnlyList<string> OriginalKeys { get; }
     internal XDocument Document { get; }
@@ -63,14 +65,17 @@ internal sealed class StyleDeduplicationPlan
             }
             var oldNames = OoxmlXml.Child(styles.Root, "cellStyles")?.Elements().ToArray() ?? [];
             var newNames = OoxmlXml.Child(output.Root, "cellStyles")?.Elements().ToArray() ?? [];
-            if (oldNames.Length != newNames.Length) throw new InvalidDataException("Named styles were lost.");
+            if (optimizer.NamedMap.Count(id => id >= 0) != newNames.Length)
+                throw new InvalidDataException("Named-style mapping is incomplete.");
             for (var i = 0; i < oldNames.Length; i++)
-                if (NamedKey(styles, oldNames[i]) != NamedKey(output, newNames[i]))
+                if (optimizer.NamedMap[i] >= 0 && NamedKey(styles, oldNames[i]) != NamedKey(output, newNames[optimizer.NamedMap[i]]))
                     throw new InvalidDataException("A named style changed meaning during table optimization.");
         }
         return new StyleDeduplicationPlan(optimizer.CellMap, output.CellXfs, inputKeys, output.Document, output.OriginalXml)
         {
             Changed = optimizer.Changes.Count > 0,
+            BaseMap = optimizer.BaseMap,
+            NamedMap = optimizer.NamedMap,
             Changes = optimizer.Changes.GroupBy(change => change.Name).Select(group => new StyleTableChange(
                 group.Key, group.First().Before, group.Last().After, group.Sum(c => c.DuplicatesRemoved), group.Sum(c => c.UnusedRemoved))).ToArray(),
             OutputKeys = outputKeys
@@ -144,7 +149,7 @@ internal static class WorksheetStyleScanner
                     expectedRows = EndRow(dimension);
                     break;
                 case "col":
-                    if (ParseInt(reader.GetAttribute("style")) is { } style &&
+                    if (ParseStyle(reader.GetAttribute("style")) is { } style &&
                         ParseInt(reader.GetAttribute("min")) is { } minimum &&
                         ParseInt(reader.GetAttribute("max")) is { } maximum &&
                         minimum >= 1 && maximum >= minimum)
@@ -171,11 +176,20 @@ internal static class WorksheetStyleScanner
                 : "";
         return new WorksheetStyleScan(usedRange, cellCount, effective, raw, order, mergedRanges);
 
+        int? ParseStyle(string? value)
+        {
+            if (value is null) return null;
+            if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id))
+                throw new InvalidDataException($"Worksheet '{sheetName}' has an invalid explicit style reference '{value}'.");
+            Validate(id, cellXfCount, sheetName);
+            return id;
+        }
+
         void ProcessRow()
         {
             var rowNumber = ParseInt(reader.GetAttribute("r")) ?? rowIndex + 1;
             rowIndex = rowNumber;
-            var rowStyle = ParseInt(reader.GetAttribute("s"));
+            var rowStyle = ParseStyle(reader.GetAttribute("s"));
             if (rowStyle is { } declaredRowStyle)
             {
                 Validate(declaredRowStyle, cellXfCount, sheetName);
@@ -208,7 +222,7 @@ internal static class WorksheetStyleScanner
                 }
                 else columnIndex++;
 
-                var ownStyle = ParseInt(reader.GetAttribute("s"));
+                var ownStyle = ParseStyle(reader.GetAttribute("s"));
                 if (ownStyle is { } declaredStyle)
                 {
                     Validate(declaredStyle, cellXfCount, sheetName);

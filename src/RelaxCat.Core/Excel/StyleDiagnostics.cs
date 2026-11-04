@@ -27,6 +27,18 @@ internal static class StyleDiagnostics
                 (!int.TryParse(number.Value, out var id) || id < 0 || (id >= 164 && !styles.NumberFormats.ContainsKey(id))))
                 throw new InvalidDataException($"Invalid numFmtId '{number.Value}'.");
         }
+        // Office imposes stronger named-style constraints than the base ISO schema.
+        // Reject invalid input rather than silently assigning identities or reporting Verified.
+        var namedBases = new HashSet<int>();
+        var namedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var style in OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
+        {
+            if (OoxmlXml.IntAttribute(style, "xfId") is not { } baseId || baseId < 0 ||
+                baseId >= styles.CellStyleXfs.Count || !namedBases.Add(baseId))
+                throw new InvalidDataException("Named styles require valid, distinct base-format references for Office compatibility.");
+            if (style.Attribute("name") is not { } name || string.IsNullOrEmpty(name.Value) || !namedNames.Add(name.Value))
+                throw new InvalidDataException("Named styles require nonempty, distinct names for Office compatibility.");
+        }
         var cells = new int[styles.CellStyleXfs.Count];
         var names = new int[cells.Length];
         Count(styles.CellXfs, cells);
@@ -46,6 +58,28 @@ internal static class StyleDiagnostics
         }
     }
 
+    internal static IEnumerable<StyleReferenceEdge> Graph(StyleSheetDocument styles)
+    {
+        foreach (var table in new[] { "cellStyles", "cellStyleXfs", "cellXfs" })
+        {
+            var elements = OoxmlXml.Child(styles.Root, table)?.Elements().ToArray() ?? [];
+            for (var index = 0; index < elements.Length; index++)
+            {
+                var element = elements[index];
+                if (element.Attribute("xfId") is { } reference && int.TryParse(reference.Value, out var baseId))
+                    yield return new StyleReferenceEdge(table, index, "cellStyleXfs", baseId, "xfId");
+                if (table == "cellStyles") continue;
+                foreach (var (attribute, target) in new[] { ("fontId", "fonts"), ("fillId", "fills"),
+                    ("borderId", "borders"), ("numFmtId", "numFmts") })
+                {
+                    var id = OoxmlXml.IntAttribute(element, attribute) ?? 0;
+                    yield return new StyleReferenceEdge(table, index,
+                        target == "numFmts" && id < 164 ? "builtinNumberFormats" : target, id, attribute);
+                }
+            }
+        }
+    }
+
     private static void ValidateComponent(XElement xf, string name, int count)
     {
         if (xf.Attribute(name) is { } attribute &&
@@ -54,7 +88,8 @@ internal static class StyleDiagnostics
     }
 
     internal static IReadOnlyList<StyleSectionDiagnostic> Sections(StyleSheetDocument styles,
-        IReadOnlyList<BaseStyleReference> references, HashSet<int> cellReferences)
+        IReadOnlyList<BaseStyleReference> references, HashSet<int> cellReferences,
+        IReadOnlyList<StyleTableChange> changes, bool graphComplete)
     {
         var sections = styles.Root.Elements().ToArray();
         var sizes = sections.Select(s => (long)Encoding.UTF8.GetByteCount(s.ToString(SaveOptions.DisableFormatting))).ToArray();
@@ -76,7 +111,14 @@ internal static class StyleDiagnostics
             return new StyleSectionDiagnostic(s.Name.LocalName, items.Length, sizes[i],
                 total == 0 ? 0 : (double)sizes[i] / total,
                 items.Length - items.Select(OoxmlXml.CanonicalKey).Distinct(StringComparer.Ordinal).Count(),
-                used, used is null ? null : items.Length - used);
+                used, used is null ? null : Math.Max(0, items.Length - used.Value))
+            {
+                SemanticDuplicateCount = items.Length - items.Select(item => s.Name.LocalName is "cellXfs" or "cellStyleXfs"
+                    ? StyleTableOptimizer.SemanticKey(styles, item) : OoxmlXml.CanonicalKey(item)).Distinct(StringComparer.Ordinal).Count(),
+                SafeDuplicateRemovalCount = graphComplete && s.Name.LocalName != "cellStyles" ? changes.Where(c => c.Name == s.Name.LocalName).Sum(c => c.DuplicatesRemoved) : 0,
+                ConditionalNamedStyleRemovalCount = s.Name.LocalName == "cellStyles" ? changes.Where(c => c.Name == "cellStyles").Sum(c => c.DuplicatesRemoved) : 0,
+                SafeUnusedRemovalCount = graphComplete ? changes.Where(c => c.Name == s.Name.LocalName).Sum(c => c.UnusedRemoved) : 0
+            };
         }).ToArray();
 
         int ComponentReferences(string attribute) => styles.CellXfs.Concat(styles.CellStyleXfs)
