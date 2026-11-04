@@ -27,6 +27,18 @@ internal static class StyleDiagnostics
                 (!int.TryParse(number.Value, out var id) || id < 0 || (id >= 164 && !styles.NumberFormats.ContainsKey(id))))
                 throw new InvalidDataException($"Invalid numFmtId '{number.Value}'.");
         }
+        // Office imposes stronger named-style constraints than the base ISO schema.
+        // Reject invalid input rather than silently assigning identities or reporting Verified.
+        var namedBases = new HashSet<int>();
+        var namedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var style in OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
+        {
+            if (OoxmlXml.IntAttribute(style, "xfId") is not { } baseId || baseId < 0 ||
+                baseId >= styles.CellStyleXfs.Count || !namedBases.Add(baseId))
+                throw new InvalidDataException("Named styles require valid, distinct base-format references for Office compatibility.");
+            if (style.Attribute("name") is not { } name || string.IsNullOrEmpty(name.Value) || !namedNames.Add(name.Value))
+                throw new InvalidDataException("Named styles require nonempty, distinct names for Office compatibility.");
+        }
         var cells = new int[styles.CellStyleXfs.Count];
         var names = new int[cells.Length];
         Count(styles.CellXfs, cells);

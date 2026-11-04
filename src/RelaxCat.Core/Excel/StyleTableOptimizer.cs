@@ -27,12 +27,17 @@ internal sealed class StyleTableOptimizer
         var advanced = context is { SkipReason: null };
         // Even exact merges renumber IDs. Unknown consumers can therefore make them unsafe.
         if (!advanced) return;
-        if (options.RemoveCopiedNamedStyles) RemoveCopiedNames();
         var gc = advanced && options.CollectUnusedStyles;
         if (gc)
         {
             // Preserve cellXfs[0] even for an empty workbook and preserve raw row/column refs.
             RewriteTable("cellXfs", "xf", context!.CellReferences, false, [0]);
+        }
+        // When GC is selected, decide name liveness after collecting unused cell formats.
+        // This keeps the combined plan idempotent without deleting any live association.
+        if (options.RemoveCopiedNamedStyles) RemoveCopiedNames();
+        if (gc)
+        {
             var bases = References(Styles.CellXfs, "xfId");
             bases.UnionWith(References(OoxmlXml.Child(Styles.Root, "cellStyles")?.Elements() ?? [], "xfId"));
             RewriteTable("cellStyleXfs", "xf", bases, false, [0]);
@@ -66,6 +71,7 @@ internal sealed class StyleTableOptimizer
             .ToDictionary(g => g.Key, g => g.ToArray(), StringComparer.OrdinalIgnoreCase);
         var map = new int[names.Length];
         var kept = 0;
+        var liveBases = References(Styles.CellXfs, "xfId");
         for (var i = 0; i < names.Length; i++)
         {
             token.ThrowIfCancellationRequested();
@@ -73,7 +79,7 @@ internal sealed class StyleTableOptimizer
             var match = System.Text.RegularExpressions.Regex.Match(name, @"^(.+)_([1-9][0-9]*)$",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant);
             var remove = false;
-            if (Simple(names[i]) && byName[name].Length == 1 && match.Success &&
+            if (Simple(names[i]) && !liveBases.Contains(int.Parse(names[i].Attribute("xfId")!.Value, CultureInfo.InvariantCulture)) && byName[name].Length == 1 && match.Success &&
                 !System.Text.RegularExpressions.Regex.IsMatch(match.Groups[1].Value, @"_[1-9][0-9]*$") &&
                 byName.TryGetValue(match.Groups[1].Value, out var originals) && originals.Length == 1 && Simple(originals[0]))
             {
@@ -114,6 +120,11 @@ internal sealed class StyleTableOptimizer
             if (used is not null && !used.Contains(i)) { unused++; continue; }
             var key = table is "cellXfs" or "cellStyleXfs"
                 ? SemanticKey(Styles, elements[i]) : OoxmlXml.CanonicalKey(elements[i]);
+            if (table == "cellStyleXfs")
+            {
+                var identity = Styles.NamedIdentity(i);
+                key = identity.Length.ToString(CultureInfo.InvariantCulture) + ":" + identity + key;
+            }
             if (deduplicate && !pinned.Contains(i) && positions.TryGetValue(key, out var position))
             { map[i] = position; duplicates++; }
             else { map[i] = kept++; positions.TryAdd(key, map[i]); }
@@ -226,7 +237,12 @@ internal sealed class StyleTableOptimizer
             if (copy.Attribute("numFmtId") is { } number && styles.NumberFormats.TryGetValue(int.Parse(number.Value, CultureInfo.InvariantCulture), out var code))
                 number.Value = "custom:" + code;
             if (includeBase && copy.Attribute("xfId") is { } reference)
-                reference.Value = OoxmlXml.CanonicalKey(Resolve(styles.CellStyleXfs[int.Parse(reference.Value, CultureInfo.InvariantCulture)], false));
+            {
+                var baseId = int.Parse(reference.Value, CultureInfo.InvariantCulture);
+                var identity = styles.NamedIdentity(baseId);
+                reference.Value = identity.Length.ToString(CultureInfo.InvariantCulture) + ":" + identity +
+                    OoxmlXml.CanonicalKey(Resolve(styles.CellStyleXfs[baseId], false));
+            }
             return copy;
         }
         return OoxmlXml.CanonicalKey(Resolve(xf, true));

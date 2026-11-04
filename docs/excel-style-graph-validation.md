@@ -10,7 +10,7 @@ dotnet test tests/RelaxCat.Core.Tests/RelaxCat.Core.Tests.csproj --filter FullyQ
 
 ## Coverage
 
-- 48,846 base styles and 48,846 separately named styles. Boolean lexical variants (`true`/`1`) yield two semantic base definitions and two cell formats. Every named-style identity is retained, and every original base/cell index is checked against the returned map.
+- 48,846 base styles and 48,846 separately named styles. Boolean lexical variants (`true`/`1`) yield two formatting-equivalence classes, but all 48,846 named owners and their separate base definitions remain. Cell formats linked to different names do not merge. Every named-style identity is retained, and every original base/cell index is checked against the returned map.
 - Exact versus semantic duplicate diagnostics, safe removal counts, graph completeness, and edges from named styles, cell formats, and worksheet style references.
 - Original source bytes, formula text and cached values, inline strings, merged ranges, row/column inheritance, effective formatting previews, and all unchanged OOXML part payloads.
 - Separate uncompressed XML, compressed ZIP-entry, and total workbook size measurements. A reduction in XML size is not treated as an equivalent reduction in workbook size.
@@ -18,7 +18,7 @@ dotnet test tests/RelaxCat.Core.Tests/RelaxCat.Core.Tests.csproj --filter FullyQ
 - Missing apply flags are not conflated with explicit false values. Distinct alignment and protection settings remain distinct.
 - Unknown worksheet extension references prevent all index-changing optimization, both with and without optional garbage collection. A macro-bearing package also preserves every index and the binary payload.
 - Garbage collection remains opt-in. Named styles keep otherwise unused base styles and their components reachable.
-- Explicit copied-name cleanup removes only the unambiguous metadata-free `Custom_1` candidate with an existing equivalent `Custom` style. Default behavior preserves every named style. Differing formats, built-in/custom-built-in markers, hidden/level metadata, unrelated names, leading-zero suffixes, nested suffixes, and case-insensitive ambiguities are retained. Named maps, GC composition, and second-pass idempotence are checked.
+- Explicit copied-name cleanup removes only the unambiguous metadata-free `Custom_1` candidate with an existing equivalent `Custom` style. Default behavior preserves every named style. Differing formats, built-in/custom-built-in markers, hidden/level metadata, unrelated names, leading-zero suffixes, nested suffixes, are retained; duplicate names (case-insensitive) are rejected as unsupported input. Named maps, GC composition, and second-pass idempotence are checked.
 - Cleanup is a name-based heuristic, not proof that an external consumer does not use that name. External programs or templates may depend on copied-looking names; the option remains off by default and must only be enabled after considering that risk.
 - Malformed explicit cell/row style indices and overflowing column indices are rejected even for otherwise unchanged packages and packages blocked by unknown extensions.
 - Lexical `false`/`0` apply flags give the same inherited bold font and right alignment when the cell's own font and alignment deliberately differ.
@@ -31,24 +31,30 @@ These tests verify package structure, preserved payloads and supported formattin
 
 ## Recorded synthetic run
 
-On 2026-11-04, the full Release core test suite passed **123/123** tests using .NET SDK 10.0.403. The large graph case produced:
+The earlier 48,846 → 2 base-XF default benchmark is **withdrawn**. It retained
+48,846 named styles but made them share base references, violating Office's unique
+`cellStyle@xfId` requirement. The old synthetic tests checked formatting equivalence,
+not this application constraint. Those savings are not a valid compatibility claim.
 
-| Measurement | Before | After |
-| --- | ---: | ---: |
-| Base style definitions | 48,846 | 2 |
-| Cell format definitions | 3 | 2 |
-| Named style definitions | 48,846 | 48,846 |
-| Uncompressed styles XML bytes | 5,766,983 | 2,187,980 |
-| Compressed styles ZIP entry bytes | 435,968 | 129,127 |
-| Complete workbook bytes | 438,688 | 131,498 |
+[MS-OI29500 §2.1.697(f,g)](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-oi29500/dff6242b-ddbe-4a76-8d65-67496b074576)
+requires unique base references and names across named styles. The fix rejects missing,
+out-of-range or repeated numeric named references and duplicate names on input and
+checks the same invariants after optimization and after writing. Distinct surviving
+named styles keep distinct base ownership and distinct cell-format associations even
+when their current formatting is identical. Unowned bases merge only with unowned
+bases; index-zero preservation still applies. Semantic duplicate counts describe
+formatting equality and can exceed safely removable counts.
 
-These measurements describe this generated fixture, not expected savings for an arbitrary workbook. Runtime/ZIP sizes can vary with the SDK and compression implementation.
+Published `v0.4.1-preview.1` and `v0.4.1-preview.2` predate this correction. Their
+optimization output should not be relied on for production use. Analysis is read-only;
+unknown-extension/VBA-blocked packages were not remapped. Original files remain intact.
+This fix does not imply any real Excel round-trip test has passed.
 
 ## Conservative versus explicit copied-name cleanup
 
 The default retains every named style. `--remove-copied-named-styles` is a separate CLI opt-in (also `ExcelStyleOptimizationOptions.RemoveCopiedNamedStyles` for callers), not the existing `--gc` option. Run `analyze --json --remove-copied-named-styles` to review `NamedStyleCleanupCandidates` before optimizing.
 
-Only an unambiguous custom `Name_N` (positive integer suffix) with an existing unsuffixed custom `Name` and equivalent base formatting is a candidate. Both entries must have only `name` and `xfId` metadata. Built-ins, custom built-ins, hidden styles, level metadata, unknown metadata, ambiguous duplicate names and nested suffixes are retained. No VBA/unknown-reference package is altered. `NamedStyleMap` records each retained index and `-1` for an explicitly requested name removal. `ConditionalNamedStyleRemovalCount` is separate from safe duplicate removal counts.
+Only an unambiguous custom `Name_N` (positive integer suffix) with an existing unsuffixed custom `Name` and equivalent base formatting is a candidate. The candidate base must not be referenced by any retained cellXf. With GC off this includes unused cell formats; with GC on unused cellXfs are collected first, before deciding name eligibility, then unowned bases are collected. This ordering preserves live associations and second-pass idempotence. Both entries must have only `name` and `xfId` metadata. Built-ins, custom built-ins, hidden styles, level metadata, unknown metadata, nested suffixes are retained. Duplicate names are rejected. No VBA/unknown-reference package is altered. `NamedStyleMap` records each retained index and `-1` for an explicitly requested name removal. `ConditionalNamedStyleRemovalCount` is separate from safe duplicate removal counts.
 
 **Risk:** a naming pattern does not prove that a style is unused. An external program or template can refer to a name that is not referenced anywhere in the OOXML package. The CLI prints this warning whenever the option is supplied. Keep the source workbook and review candidates. There is deliberately no automatic deletion by name in the default path. The desktop single-file and batch pages also expose default-off controls with localized risk guidance.
 
@@ -104,3 +110,29 @@ warnings/errors; core suite 128/128 passed; four language packs 299 keys each pa
 safety-block checks without requiring desktop fonts. The dedicated CLI command passed
 an independent JSON schema check and private-path error sentinel check. Full rendered
 UI smoke and real Excel round trips remain unverified for the limits above.
+
+## Named-style identity correction validation
+
+On 2026-11-04, the corrected full Release core suite passed **137/137** tests using SDK 10.0.403. Named styles retain separate base-format identities even when their visible formatting is identical. The 48,846 named-style fixture now correctly retains all 48,846 base formats and all three cell formats. Every named `xfId` remains unique, and every cell-to-named-style association remains unchanged.
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Named-owned base definitions | 48,846 | 48,846 |
+| Cell format definitions | 3 | 3 |
+| Named style definitions | 48,846 | 48,846 |
+| Uncompressed styles XML bytes | 5,766,983 | 5,766,983 |
+| Compressed styles ZIP entry bytes | 435,968 | 232,711 |
+| Complete workbook bytes | 438,688 | 235,084 |
+
+**This fixture has zero style-deduplication savings.** Its lower compressed sizes result only from rewriting the ZIP with a different compression level; the styles payload is unchanged. These figures are not evidence that named-style identities can safely be merged.
+
+New regressions verify that editing one of two equal-looking named styles affects only its associated cell, with GC both off and on. Missing, malformed or duplicate named `xfId` values and case-insensitive duplicate names are rejected before publication. Copied-name cleanup retains any candidate whose base is referenced by a surviving cell format. With GC enabled, unused cell formats are removed before candidate evaluation so the combined operation is idempotent. All successful copied-name fixtures and the App smoke fixture use distinct named-owned base indices.
+
+Regressions additionally cover editing one equal-looking named style without changing
+cells associated with another, unnamed versus named ownership regardless of record
+order, GC compaction, copied-name/GC idempotence, rejected duplicate numeric references
+(including zero-padded aliases), missing/invalid references and case-insensitive duplicate
+names. Only generated test data is used. Live named associations remain protected even
+with copied-name cleanup enabled.
+
+Final named-identity regression run: **137/137 core tests passed** in Release. This includes explicit `xfId="00"` numeric-alias rejection and a named base following an equivalent unnamed base, with GC disabled and with GC removing that preceding base and remapping the named/cell references together.

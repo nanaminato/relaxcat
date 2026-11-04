@@ -50,7 +50,7 @@ public sealed class GraphStyleTests : IDisposable
     private static XElement[] Table(string path, string table) => Part(path).Root!.Element(Ns + table)!.Elements().ToArray();
 
     [Fact]
-    public void FortyEightThousandBaseAndNamedStylesCollapseWithoutLosingWorkbookMeaning()
+    public void FortyEightThousandNamedStylesRetainDistinctIdentitiesAndWorkbookMeaning()
     {
         const int count = 48846;
         var bases = Enumerable.Range(0, count).Select(i => i == 0 ? Base() : Base(i % 2 == 0 ? "applyFont='true'" : "applyFont='1'", 1));
@@ -76,7 +76,7 @@ public sealed class GraphStyleTests : IDisposable
         var baseDiagnostic = before.Sections.Single(s => s.Name == "cellStyleXfs");
         Assert.Equal(count - 3, baseDiagnostic.DuplicateCount);
         Assert.Equal(count - 2, baseDiagnostic.SemanticDuplicateCount);
-        Assert.Equal(count - 2, baseDiagnostic.SafeDuplicateRemovalCount);
+        Assert.Equal(0, baseDiagnostic.SafeDuplicateRemovalCount);
         Assert.Equal(0, baseDiagnostic.UnreferencedCount);
         Assert.Contains(before.ReferenceGraph, edge => edge.Source == "cellStyles" &&
             edge.SourceIndex == count - 1 && edge.Target == "cellStyleXfs" && edge.TargetIndex == count - 1);
@@ -89,14 +89,14 @@ public sealed class GraphStyleTests : IDisposable
 
         Assert.True(result.Verified);
         Assert.All(result.Checks, check => Assert.True(check.Passed, check.Detail));
-        Assert.Equal(2, result.OutputCellStyleXfCount);
-        Assert.Equal(2, result.OutputCellXfCount);
-        Assert.Equal(new[] { 0, 1, 1 }, result.CellXfMap);
+        Assert.Equal(count, result.OutputCellStyleXfCount);
+        Assert.Equal(3, result.OutputCellXfCount);
+        Assert.Equal(new[] { 0, 1, 2 }, result.CellXfMap);
         Assert.Equal(count, result.CellStyleXfMap.Count);
         Assert.Equal(0, result.CellStyleXfMap[0]);
-        Assert.All(result.CellStyleXfMap.Skip(1), index => Assert.Equal(1, index));
+        Assert.Equal(Enumerable.Range(0, count), result.CellStyleXfMap);
         Assert.Equal(before.ProjectedStylesXmlBytes, result.OutputStylesXmlBytes);
-        Assert.True(result.OutputStylesXmlBytes < result.InputStylesXmlBytes);
+        Assert.Equal(result.InputStylesXmlBytes, result.OutputStylesXmlBytes);
         Assert.Equal(original, File.ReadAllBytes(input));
         Assert.Equal(count, Table(output, "cellStyles").Length);
         var oldNames = Table(input, "cellStyles");
@@ -104,13 +104,13 @@ public sealed class GraphStyleTests : IDisposable
         for (var i = 0; i < count; i++)
         {
             Assert.Equal(oldNames[i].Attribute("name")!.Value, newNames[i].Attribute("name")!.Value);
-            Assert.Equal(i == 0 ? "0" : "1", newNames[i].Attribute("xfId")!.Value);
+            Assert.Equal(i.ToString(), newNames[i].Attribute("xfId")!.Value);
         }
-        Assert.Equal(new[] { "0", "1" }, Table(output, "cellXfs").Select(x => x.Attribute("xfId")!.Value));
+        Assert.Equal(new[] { "0", "1", (count - 1).ToString() }, Table(output, "cellXfs").Select(x => x.Attribute("xfId")!.Value));
         Assert.Equal(WorksheetWithoutStyleReferences(input), WorksheetWithoutStyleReferences(output));
         var mappedSheet = Part(output, "xl/worksheets/sheet1.xml");
-        Assert.Equal("1", mappedSheet.Descendants(Ns + "col").Single().Attribute("style")!.Value);
-        Assert.Equal("1", mappedSheet.Descendants(Ns + "row").Single(x => (string?)x.Attribute("r") == "2").Attribute("s")!.Value);
+        Assert.Equal("2", mappedSheet.Descendants(Ns + "col").Single().Attribute("style")!.Value);
+        Assert.Equal("2", mappedSheet.Descendants(Ns + "row").Single(x => (string?)x.Attribute("r") == "2").Attribute("s")!.Value);
         var after = analyzer.Analyze(output);
         Assert.Equal(Usage(before), Usage(after));
         foreach (var part in OoxmlWorkbookFixture.PartNames(input).Where(p => p != "xl/styles.xml" && p != "xl/worksheets/sheet1.xml"))
@@ -203,15 +203,15 @@ public sealed class GraphStyleTests : IDisposable
     public void NamedStyleTextContainingAnAttributeLookalikeIsNeverRewritten()
     {
         const string name = "A xfId='1'";
-        var input = Create(Styles([Base(), Base()], [Xf(), Xf(1)],
+        var input = Create(Styles([Base(), Base("applyFont='0'"), Base("applyFont='0'"), Base()], [Xf(), Xf(3)],
             ["<cellStyle name='Normal' xfId='0' builtinId='0'/>",
-             "<cellStyle name=\"A xfId='1'\" xfId='1'/>"]));
+             "<cellStyle name=\"A xfId='1'\" xfId='3'/>"]));
         var result = new ExcelStyleOptimizer().Optimize(input, PathOf("quoted-name.xlsx"));
         Assert.True(result.Verified);
-        Assert.Equal(1, result.OutputCellStyleXfCount);
+        Assert.Equal(3, result.OutputCellStyleXfCount);
         var named = Table(result.OutputPath, "cellStyles")[1];
         Assert.Equal(name, named.Attribute("name")!.Value);
-        Assert.Equal("0", named.Attribute("xfId")!.Value);
+        Assert.Equal("2", named.Attribute("xfId")!.Value);
     }
 
     [Fact]
@@ -251,25 +251,34 @@ public sealed class GraphStyleTests : IDisposable
             "<cellStyle name='Other_1' xfId='1'/>",
             "<cellStyle name='Custom_01' xfId='1'/>",
             "<cellStyle name='Ambiguous' xfId='1'/>",
-            "<cellStyle name='AMBIGUOUS' xfId='1'/>",
+            "<cellStyle name='Distinct' xfId='1'/>",
             "<cellStyle name='Ambiguous_1' xfId='1'/>",
             "<cellStyle name='Custom_7' xfId='1'/>",
-            "<cellStyle name='CUSTOM_7' xfId='1'/>"
+            "<cellStyle name='Unrelated' xfId='1'/>"
         };
-        var input = Create(Styles([Base(), Base("applyFont='true'", 1), Base("applyFont='1'", 1), Base("applyFont='0'", 1)],
-            [Xf(), Xf(3, 1)], names));
+        // Each named style owns a distinct base, even when formatting is equal.
+        names = names.Select((name, i) =>
+        {
+            var element = XElement.Parse(name);
+            element.SetAttributeValue("xfId", i);
+            return element.ToString(SaveOptions.DisableFormatting);
+        }).ToArray();
+        var bases = Enumerable.Range(0, names.Length).Select(i => i is 0 or 3 ? Base() : Base("applyFont='1'", 1)).ToArray();
+        // Additional copied-looking styles remain live through cell-format associations.
+        var input = Create(Styles(bases, [Xf(), Xf(13, 1), Xf(14, 1)], names));
         var safe = new ExcelStyleOptimizer().Optimize(input, PathOf("names-safe.xlsx"));
         Assert.Equal(names.Length, Table(safe.OutputPath, "cellStyles").Length);
         Assert.Equal(Enumerable.Range(0, names.Length), safe.NamedStyleMap);
         var options = new ExcelStyleOptimizationOptions(CollectUnusedStyles: gc, RemoveCopiedNamedStyles: true);
         var result = new ExcelStyleOptimizer().Optimize(input, PathOf("names-clean.xlsx"), options: options);
         Assert.True(result.Verified);
-        Assert.Equal(names.Length - 1, Table(result.OutputPath, "cellStyles").Length);
-        Assert.Equal(Enumerable.Range(0, names.Length).Select(i => i == 2 ? -1 : i > 2 ? i - 1 : i), result.NamedStyleMap);
-        Assert.Equal(Table(input, "cellStyles").Where((_, i) => i != 2).Select(x => x.Attribute("name")!.Value),
+        var removed = gc ? new HashSet<int> { 2, 13, 14 } : new HashSet<int> { 2 };
+        Assert.Equal(names.Length - removed.Count, Table(result.OutputPath, "cellStyles").Length);
+        Assert.Equal(Enumerable.Range(0, names.Length).Select(i => removed.Contains(i) ? -1 : i - removed.Count(r => r < i)), result.NamedStyleMap);
+        Assert.Equal(Table(input, "cellStyles").Where((_, i) => !removed.Contains(i)).Select(x => x.Attribute("name")!.Value),
             Table(result.OutputPath, "cellStyles").Select(x => x.Attribute("name")!.Value));
-        Assert.Equal(gc ? 1 : 2, result.OutputCellXfCount);
-        Assert.Equal(gc ? 2 : 3, result.OutputCellStyleXfCount);
+        Assert.Equal(gc ? 1 : 3, result.OutputCellXfCount);
+        Assert.Equal(names.Length - (gc ? 3 : 0), result.OutputCellStyleXfCount);
         var second = new ExcelStyleOptimizer().Optimize(result.OutputPath, PathOf("names-again.xlsx"), options: options);
         Assert.True(second.Verified);
         foreach (var part in OoxmlWorkbookFixture.PartNames(result.OutputPath))
@@ -332,6 +341,82 @@ public sealed class GraphStyleTests : IDisposable
         Assert.Equal(count, result.CellXfMap.Count);
         Assert.All(result.CellXfMap, index => Assert.Equal(0, index));
         Assert.Equal("0", Part(result.OutputPath, "xl/worksheets/sheet1.xml").Descendants(Ns + "c").Single().Attribute("s")!.Value);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EqualLookingNamedStylesKeepIndependentCellAssociationsWhenEdited(bool gc)
+    {
+        var input = Create(Styles([Base(), Base(), Base()], [Xf(), Xf(1).Replace("/>", " applyFont='0'/>"), Xf(2).Replace("/>", " applyFont='0'/>")],
+            ["<cellStyle name='Normal' xfId='0' builtinId='0'/>", "<cellStyle name='Custom' xfId='1'/>", "<cellStyle name='Custom_1' xfId='2'/>"]),
+            OoxmlWorkbookFixture.Worksheet("A1:B1", "<row r='1'><c r='A1' s='1'/><c r='B1' s='2'/></row>"));
+        var result = new ExcelStyleOptimizer().Optimize(input, PathOf("identity.xlsx"),
+            options: new(CollectUnusedStyles: gc, RemoveCopiedNamedStyles: true));
+        Assert.True(result.Verified);
+        Assert.Equal(3, result.OutputCellStyleXfCount);
+        Assert.Equal(3, result.OutputCellXfCount);
+        Assert.Equal(new[] { 0, 1, 2 }, result.NamedStyleMap);
+        var styles = Part(result.OutputPath);
+        var named = styles.Root!.Element(Ns + "cellStyles")!.Elements().ToArray();
+        Assert.Equal(3, named.Select(n => n.Attribute("xfId")!.Value).Distinct().Count());
+        var bases = styles.Root.Element(Ns + "cellStyleXfs")!.Elements().ToArray();
+        var customId = int.Parse(named.Single(n => (string?)n.Attribute("name") == "Custom").Attribute("xfId")!.Value);
+        // Emulate editing Custom in Excel: only its own associated cell should inherit bold.
+        var fonts = styles.Root.Element(Ns + "fonts")!;
+        var newFontId = fonts.Elements().Count();
+        fonts.Add(new XElement(Ns + "font", new XElement(Ns + "b")));
+        fonts.SetAttributeValue("count", newFontId + 1);
+        bases[customId].SetAttributeValue("fontId", newFontId);
+        var edited = OoxmlWorkbookFixture.Create(PathOf("edited.xlsx"), styles.ToString(),
+            new SheetSpec("Synthetic", Encoding.UTF8.GetString(OoxmlWorkbookFixture.ReadPart(result.OutputPath, "xl/worksheets/sheet1.xml"))));
+        var preview = new ExcelStyleAnalyzer().Analyze(edited).Worksheets.Single().Styles;
+        Assert.True(preview.Single(s => s.StyleId == 1).Style.Bold);
+        Assert.False(preview.Single(s => s.StyleId == 2).Style.Bold);
+    }
+
+    [Theory]
+    [InlineData("<cellStyle name='Other' xfId='0'/>")]
+    [InlineData("<cellStyle name='Other' xfId='00'/>")]
+    [InlineData("<cellStyle name='Other'/>")]
+    [InlineData("<cellStyle name='NORMAL' xfId='1'/>")]
+    [InlineData("<cellStyle name='Other' xfId='oops'/>")]
+    public void InvalidNamedIdentityIsRejectedBeforePublication(string invalidNamed)
+    {
+        var input = Create(Styles([Base(), Base()], [Xf()],
+            ["<cellStyle name='Normal' xfId='0' builtinId='0'/>", invalidNamed]));
+        var target = PathOf("invalid-named.xlsx");
+        Assert.Throws<InvalidDataException>(() => new ExcelStyleAnalyzer().Analyze(input));
+        Assert.Throws<InvalidDataException>(() => new ExcelStyleOptimizer().Optimize(input, target,
+            options: new(CollectUnusedStyles: true, RemoveCopiedNamedStyles: true)));
+        Assert.False(File.Exists(target));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void NamedBaseAfterEquivalentUnownedBaseRetainsIdentityAcrossGcIndexShift(bool gc)
+    {
+        var input = Create(Styles([Base(), Base("applyFont='1'", 1), Base("applyFont='1'", 1)],
+            [Xf(), Xf(2, 1)],
+            ["<cellStyle name='Normal' xfId='0' builtinId='0'/>", "<cellStyle name='Custom' xfId='2'/>"]),
+            OoxmlWorkbookFixture.Worksheet("A1", "<row r='1'><c r='A1' s='1'/></row>"));
+        var result = new ExcelStyleOptimizer().Optimize(input, PathOf("named-order.xlsx"),
+            options: new(CollectUnusedStyles: gc));
+        Assert.True(result.Verified);
+        Assert.Equal(gc ? 2 : 3, result.OutputCellStyleXfCount);
+        Assert.Equal(gc ? new[] { 0, -1, 1 } : new[] { 0, 1, 2 }, result.CellStyleXfMap);
+        Assert.Equal(new[] { 0, 1 }, result.NamedStyleMap);
+        var named = Table(result.OutputPath, "cellStyles");
+        var expectedBase = gc ? "1" : "2";
+        Assert.Equal(expectedBase, named.Single(n => (string?)n.Attribute("name") == "Custom").Attribute("xfId")!.Value);
+        Assert.Equal(expectedBase, Table(result.OutputPath, "cellXfs")[1].Attribute("xfId")!.Value);
+        Assert.Equal(2, named.Select(n => n.Attribute("xfId")!.Value).Distinct().Count());
+        Assert.Equal(Usage(new ExcelStyleAnalyzer().Analyze(input)), Usage(new ExcelStyleAnalyzer().Analyze(result.OutputPath)));
+        var second = new ExcelStyleOptimizer().Optimize(result.OutputPath, PathOf("named-order-again.xlsx"),
+            options: new(CollectUnusedStyles: gc));
+        Assert.Equal(OoxmlWorkbookFixture.ReadPart(result.OutputPath, "xl/styles.xml"),
+            OoxmlWorkbookFixture.ReadPart(second.OutputPath, "xl/styles.xml"));
     }
 
     private static string WorksheetWithoutStyleReferences(string path)

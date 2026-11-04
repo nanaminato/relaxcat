@@ -19,6 +19,7 @@ if (args.Contains("--excel-diagnostics-model-only"))
 {
     Directory.CreateDirectory("artifacts");
     ExtensionDiagnosticsChecks.Run();
+    NamedStyleFixtureChecks.Run();
     return;
 }
 
@@ -27,6 +28,7 @@ AppBuilder.Configure<DesktopApp>().UseHeadless(new AvaloniaHeadlessPlatformOptio
 Directory.CreateDirectory("artifacts");
 LocalizationChecks.Run();
 ExtensionDiagnosticsChecks.Run();
+NamedStyleFixtureChecks.Run();
 var settingsPath = Path.GetFullPath("artifacts/settings-" + Guid.NewGuid().ToString("N") + ".json");
 var settingsStore = new RelaxCat.App.Models.SettingsStore(settingsPath);
 using (var original = new RelaxCat.App.Models.WorkspaceModel(settingsStore))

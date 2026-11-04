@@ -156,7 +156,7 @@ public sealed record ExcelStyleOptimizationOptions(bool DeduplicateComponents = 
     bool RemoveCopiedNamedStyles = false)
 {
     public const string CopiedNamedStyleRisk = "Copied-name cleanup may remove names used by external programs or templates. " +
-        "A suffix is only a candidate heuristic, not proof of disuse. Built-ins and metadata-bearing styles are retained; " +
+        "A suffix is only a candidate heuristic, not proof of disuse. Built-ins, metadata-bearing styles and names referenced by any retained cell format are retained; " +
         "VBA, extensions and unknown dependencies disable cleanup. Review the analysis and retain the original workbook.";
 }
 public sealed record StyleTableChange(string Name, int Before, int After, int DuplicatesRemoved, int UnusedRemoved);

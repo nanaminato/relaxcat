@@ -67,7 +67,7 @@ public sealed class ExcelStyleComponentTests : IDisposable
         Assert.Contains($"encoding='{encodingName}'", encoding.GetString(actual));
         foreach (var part in OoxmlWorkbookFixture.PartNames(input).Where(p => p != "xl/styles.xml" && !p.StartsWith("xl/worksheets/")))
             Assert.Equal(OoxmlWorkbookFixture.ReadPart(input, part), OoxmlWorkbookFixture.ReadPart(output, part));
-        Assert.Equal(2, new ExcelStyleAnalyzer().Analyze(output, options: Gc).CellXfCount);
+        Assert.Equal(3, new ExcelStyleAnalyzer().Analyze(output, options: Gc).CellXfCount);
     }
 
 
@@ -171,8 +171,8 @@ public sealed class ExcelStyleComponentTests : IDisposable
         Assert.Equal(4, Count(after, "fills"));
         Assert.Equal(3, Count(after, "borders"));
         Assert.Equal(2, Count(after, "numFmts"));
-        Assert.Equal(3, Count(after, "cellStyleXfs"));
-        Assert.Equal(3, Count(after, "cellXfs"));
+        Assert.Equal(4, Count(after, "cellStyleXfs"));
+        Assert.Equal(4, Count(after, "cellXfs"));
         Assert.All(result.TableChanges, change => Assert.Equal(0, change.UnusedRemoved));
         Assert.Equal(before, File.ReadAllBytes(input));
     }
@@ -189,15 +189,16 @@ public sealed class ExcelStyleComponentTests : IDisposable
         var after = analyzer.Analyze(result.OutputPath, options: Gc);
         Assert.False(after.HasStyleChanges);
         var document = ReadStyles(result.OutputPath);
-        foreach (var section in new[] { "fonts", "borders", "cellStyleXfs", "cellXfs" }) Assert.Equal(2, Count(document, section));
+        foreach (var section in new[] { "fonts", "borders" }) Assert.Equal(2, Count(document, section));
+        foreach (var section in new[] { "cellStyleXfs", "cellXfs" }) Assert.Equal(3, Count(document, section));
         Assert.Equal(3, Count(document, "fills"));
         Assert.Equal(1, Count(document, "numFmts"));
         Assert.Equal(2, Count(document, "cellStyles"));
-        Assert.Equal("1", document.Root!.Element(Ns + "cellStyles")!.Elements().Last().Attribute("xfId")!.Value);
+        Assert.Equal("2", document.Root!.Element(Ns + "cellStyles")!.Elements().Last().Attribute("xfId")!.Value);
         Assert.All(result.TableChanges, change => Assert.Equal(change.Before - change.After, change.DuplicatesRemoved + change.UnusedRemoved));
         Assert.True(result.TableChanges.Sum(change => change.UnusedRemoved) >= 6);
         var styleBefore = before.Worksheets[0].Styles.Single(s => s.StyleId == 2).Style;
-        var styleAfter = after.Worksheets[0].Styles.Single(s => s.Style.Bold).Style;
+        var styleAfter = after.Worksheets[0].Styles.Single(s => s.StyleId == 2).Style;
         Assert.Equal(styleBefore with { StyleId = styleAfter.StyleId }, styleAfter);
         var second = PathOf("second.xlsx");
         new ExcelStyleOptimizer().Optimize(result.OutputPath, second, options: Gc);
@@ -280,10 +281,9 @@ public sealed class ExcelStyleComponentTests : IDisposable
         var after = ReadStyles(output);
         foreach (var section in new[] { "fonts", "fills", "borders", "numFmts" })
             Assert.Equal(before.Root!.Element(Ns + section)!.ToString(), after.Root!.Element(Ns + section)!.ToString());
-        // Semantic XF equality can be proven through equal component definitions
-        // without physically deduplicating the component tables themselves.
-        Assert.Equal(3, Count(after, "cellXfs"));
-        Assert.Equal(3, Count(after, "cellStyleXfs"));
+        // Equal component definitions do not erase distinct named-style associations.
+        Assert.Equal(4, Count(after, "cellXfs"));
+        Assert.Equal(4, Count(after, "cellStyleXfs"));
         Assert.All(result.TableChanges, change => Assert.Equal(0, change.UnusedRemoved));
     }
 
@@ -307,6 +307,6 @@ public sealed class ExcelStyleComponentTests : IDisposable
         var outcome = new ExcelBatchOptimizer().Optimize([new ExcelBatchFile(input, "input.xlsx", new FileInfo(input).Length)], outputDirectory, false, options: Gc);
         var item = Assert.Single(outcome.Results);
         Assert.Equal(ExcelBatchItemStatus.Completed, item.Status);
-        Assert.Equal(2, Count(ReadStyles(item.OutputPath!), "cellXfs"));
+        Assert.Equal(3, Count(ReadStyles(item.OutputPath!), "cellXfs"));
     }
 }

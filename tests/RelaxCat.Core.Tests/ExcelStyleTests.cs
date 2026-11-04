@@ -80,8 +80,8 @@ public sealed class ExcelStyleTests : IDisposable
             .Replace("encoding=\"UTF-8\"", $"encoding=\"{encodingName}\"");
         const string baseXf = "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>";
         source = source.Replace("<cellStyleXfs count=\"1\">" + baseXf,
-            "<cellStyleXfs count=\"2\">" + baseXf + baseXf);
-        source = source.Replace("xfId=\"0\"", "xfId=\"1\"");
+            "<cellStyleXfs count=\"3\">" + baseXf + baseXf + baseXf);
+        source = source.Replace("xfId=\"0\"", "xfId=\"2\"").Replace("name=\"Normal\" xfId=\"2\"", "name=\"Normal\" xfId=\"0\"");
         var input = OoxmlWorkbookFixture.Create(PathOf("base-only.xlsx"), source,
             new SheetSpec("Sheet", OoxmlWorkbookFixture.Worksheet("A1", "<row r=\"1\"><c r=\"A1\"/></row>")));
         using (var archive = System.IO.Compression.ZipFile.Open(input, System.IO.Compression.ZipArchiveMode.Update))
@@ -93,8 +93,8 @@ public sealed class ExcelStyleTests : IDisposable
         Assert.True(new ExcelStyleAnalyzer().Analyze(input).HasDuplicates);
         var output = PathOf("base-only-output.xlsx");
         Assert.True(new ExcelStyleOptimizer().Optimize(input, output).Verified);
-        var expected = source.Replace("<cellStyleXfs count=\"2\">" + baseXf + baseXf,
-            "<cellStyleXfs count=\"1\">" + baseXf).Replace("xfId=\"1\"", "xfId=\"0\"");
+        var expected = source.Replace("<cellStyleXfs count=\"3\">" + baseXf + baseXf + baseXf,
+            "<cellStyleXfs count=\"2\">" + baseXf + baseXf).Replace("xfId=\"2\"", "xfId=\"1\"");
         Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(expected)), OoxmlWorkbookFixture.ReadPart(output, "xl/styles.xml"));
         Assert.Equal(OoxmlWorkbookFixture.ReadPart(input, "xl/worksheets/sheet1.xml"),
             OoxmlWorkbookFixture.ReadPart(output, "xl/worksheets/sheet1.xml"));
@@ -139,11 +139,11 @@ public sealed class ExcelStyleTests : IDisposable
         var output = PathOf("optimized.xlsx");
         var result = new ExcelStyleOptimizer().Optimize(input, output);
         Assert.True(result.Verified);
-        Assert.Equal(1, result.OutputCellXfCount);
+        Assert.Equal(2, result.OutputCellXfCount);
         Assert.Equal(analysis.ProjectedStylesXmlBytes, result.OutputStylesXmlBytes);
         var after = new ExcelStyleAnalyzer().Analyze(output);
-        Assert.Equal(1, after.CellStyleXfCount);
-        Assert.Equal(1, after.BaseStyleReferences[0].NamedStyleReferences);
+        Assert.Equal(2, after.CellStyleXfCount);
+        Assert.Equal(1, after.BaseStyleReferences[1].NamedStyleReferences);
         Assert.Equal(original, File.ReadAllBytes(input));
         var second = PathOf("second.xlsx");
         new ExcelStyleOptimizer().Optimize(output, second);

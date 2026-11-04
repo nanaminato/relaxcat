@@ -321,16 +321,24 @@ internal static class ExcelToolChecks
         Add(archive, "xl/worksheets/sheet2.xml", hidden);
     }
 
-    internal static void CreateNamedStyleWorkbook(string path)
+    internal static void CreateNamedStyleWorkbook(string path, bool referenceCandidateFromUnusedFormat = false)
     {
         CreateWorkbook(path);
         using var archive = ZipFile.Open(path, ZipArchiveMode.Update);
         var entry = archive.GetEntry("xl/styles.xml")!;
         string styles;
         using (var reader = new StreamReader(entry.Open())) styles = reader.ReadToEnd();
+        // Office requires separate base XFs for separate named-style identities, even
+        // when their formatting matches. The opt-in candidate must have no cellXf users.
+        const string baseFormat = "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/>";
+        styles = styles.Replace("<cellStyleXfs count=\"1\">" + baseFormat + "</cellStyleXfs>",
+            "<cellStyleXfs count=\"3\">" + baseFormat + baseFormat + baseFormat + "</cellStyleXfs>");
         styles = styles.Replace("<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>",
             "<cellStyles count=\"3\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/>" +
-            "<cellStyle name=\"Custom\" xfId=\"0\"/><cellStyle name=\"Custom_1\" xfId=\"0\"/></cellStyles>");
+            "<cellStyle name=\"Custom\" xfId=\"1\"/><cellStyle name=\"Custom_1\" xfId=\"2\"/></cellStyles>");
+        if (referenceCandidateFromUnusedFormat)
+            styles = styles.Replace("<cellXfs count=\"1200\">", "<cellXfs count=\"1201\">")
+                .Replace("</cellXfs>", "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"2\"/></cellXfs>");
         entry.Delete();
         Add(archive, "xl/styles.xml", styles);
     }
