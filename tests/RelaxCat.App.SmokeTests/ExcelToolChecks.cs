@@ -189,6 +189,21 @@ internal static class ExcelToolChecks
         Dispatcher.UIThread.RunJobs();
         Check(!tool.HasSummary && !tool.HasResult && !tool.CanOptimize && !copiedNamesWarning.IsVisible,
             "Disabling copied-name cleanup left obsolete results visible");
+
+        var extensionInput = Path.GetFullPath("artifacts/excel-tool-extension-types.xlsx");
+        ExtensionDiagnosticsChecks.CreateWorkbook(extensionInput);
+        complete(window.AnalyzeExcelWorkbookAsync(extensionInput));
+        Check(!tool.CanOptimize && tool.Summary!.Diagnostics.Any(row =>
+                row.Label == window.Workspace.Text["ExtensionDiagnosticsTitle"] && row.Value == window.Workspace.Text["ExtensionDiagnosticsHint"]),
+            "Extension diagnostics warning was missing or unknown-extension optimization was enabled");
+        var diagnosticsExpander = excelPage.FindControl<Expander>("StyleDiagnosticsExpander")!;
+        diagnosticsExpander.IsExpanded = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(excelPage.FindControl<ItemsControl>("StyleDiagnosticsList")!.GetVisualDescendants()
+                .OfType<TextBlock>().Any(block => block.Text == "urn:relaxcat:diagnostic-test"),
+            "Extension type entries were not rendered in the diagnostics list");
+        capture("excel-tool-extension-diagnostics-light.png");
+        diagnosticsExpander.IsExpanded = false;
         complete(window.AnalyzeExcelWorkbookAsync(input));
         // Exercise real overflow in both directions with many sheets and a large style gallery.
         var sampleAnalysis = new ExcelStyleAnalyzer().Analyze(input);

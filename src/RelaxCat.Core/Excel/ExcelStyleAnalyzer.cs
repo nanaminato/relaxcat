@@ -84,6 +84,7 @@ public sealed class ExcelStyleAnalyzer
             originalStylesBytes, projectedStylesBytes, summaries)
         {
             ReferenceGraph = graph,
+            ExtensionDiagnostics = ExtensionTypeScanner.Read(package, sheetDefinitions, styles.Root.Name.NamespaceName, cancellationToken),
             NamedStyleCleanupCandidates = (OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
                 .Where((_, i) => plan.NamedMap[i] < 0).Select(e => (string?)e.Attribute("name") ?? "").ToArray(),
             ProjectedStylesXmlCompressedBytesEstimate = CompressedSize(plan.StylesXml),

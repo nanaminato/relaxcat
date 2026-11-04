@@ -205,7 +205,8 @@ public sealed class ExcelToolModel : ObservableModel
                     Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => change.Before - change.After))))
                 .Concat(BuildNamedStyleCandidates(value.NamedStyleCleanupCandidates))
                 .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
-                    ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason])).ToList()
+                    ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason]))
+                .Concat(BuildExtensionDiagnostics(value.ExtensionDiagnostics)).ToList()
         };
     }
 
@@ -217,6 +218,29 @@ public sealed class ExcelToolModel : ObservableModel
             string.Format(CultureInfo.CurrentCulture, text["NamedStyleCandidateCount"],
                 Count(candidates.Count), Count(Math.Min(candidates.Count, displayLimit))) + "\n" +
             string.Join("\n", candidates.Take(displayLimit)));
+    }
+
+    private IEnumerable<ExcelMetric> BuildExtensionDiagnostics(ExtensionTypeDiagnostics diagnostics)
+    {
+        yield return new ExcelMetric(text["ExtensionDiagnosticsTitle"], text["ExtensionDiagnosticsHint"]);
+        yield return new ExcelMetric(text["ExtensionDiagnosticsScope"], text["ExtensionDiagnosticsScopeHint"]);
+        if (diagnostics.Truncated)
+            yield return new ExcelMetric(text["ExtensionDiagnosticsLimit"], text["ExtensionDiagnosticsTruncated"]);
+        if (diagnostics.Entries.Count == 0)
+            yield return new ExcelMetric(text["ExtensionDiagnosticsTypes"], text["ExtensionDiagnosticsEmpty"]);
+        foreach (var entry in diagnostics.Entries)
+        {
+            var key = entry.Kind switch
+            {
+                "uri" => "ExtensionDiagnosticUri",
+                "namespace" => "ExtensionDiagnosticNamespace",
+                "element" => "ExtensionDiagnosticElement",
+                "attribute" => "ExtensionDiagnosticAttribute",
+                _ => "ExtensionDiagnosticsTypes"
+            };
+            yield return new ExcelMetric(text[key] + " · " +
+                string.Format(CultureInfo.CurrentCulture, text["ExtensionDiagnosticCount"], Count(entry.Count)), entry.Name);
+        }
     }
 
     private ExcelToolResult BuildResult(ExcelOptimizationResult value)

@@ -17,6 +17,7 @@ static int Run(string[] args)
         return command switch
         {
             "analyze" => Analyze(args[1..]),
+            "extensions" => Extensions(args[1..]),
             "optimize" => Optimize(args[1..]),
             "batch" => Batch(args[1..]),
             _ => Unknown(command)
@@ -30,6 +31,27 @@ static int Run(string[] args)
     catch (Exception error)
     {
         Console.Error.WriteLine("error: " + error.Message);
+        return 1;
+    }
+}
+
+static int Extensions(string[] args)
+{
+    try
+    {
+        var analysis = new ExcelStyleAnalyzer().Analyze(Positional(args));
+        Console.WriteLine(JsonSerializer.Serialize(new
+        {
+            Warning = ExtensionTypeDiagnostics.PrivacyWarning,
+            Scope = "styles, workbook and worksheets; not all package parts",
+            analysis.ExtensionDiagnostics
+        }, new JsonSerializerOptions { WriteIndented = true }));
+        return 0;
+    }
+    catch (Exception)
+    {
+        // Ordinary analysis errors can contain file paths or document values. This sharing-oriented command never emits them.
+        Console.Error.WriteLine("Extension diagnosis failed. Inspect the workbook locally; no document details were emitted.");
         return 1;
     }
 }
@@ -50,6 +72,7 @@ static int Analyze(string[] args)
             analysis.Sections,
             analysis.ReferenceGraph,
             analysis.ReferenceGraphComplete,
+            analysis.ExtensionDiagnostics,
             analysis.NamedStyleCleanupCandidates,
             analysis.ProjectedStylesXmlCompressedBytesEstimate,
             analysis.TableChanges,
@@ -83,6 +106,9 @@ static int Analyze(string[] args)
         return 0;
     }
 
+    Console.WriteLine(ExtensionTypeDiagnostics.PrivacyWarning);
+    foreach (var entry in analysis.ExtensionDiagnostics.Entries) Console.WriteLine($"Extension {entry.Kind}: {entry.Name} ({entry.Count})");
+    if (analysis.ExtensionDiagnostics.Truncated) Console.WriteLine("Extension metadata truncated; counts may be partial.");
     Console.WriteLine("Workbook:   " + analysis.Path);
     Console.WriteLine("File size:  " + Bytes(analysis.FileSize));
     Console.WriteLine("styles.xml: " + Bytes(analysis.StylesXmlBytes) + "  (projected " + Bytes(analysis.ProjectedStylesXmlBytes) + ")");
@@ -212,6 +238,7 @@ static int Unknown(string command)
 
 static void PrintUsage()
 {
+    Console.WriteLine("  extensions <workbook>  Bounded local extension metadata only (JSON); review URI/names before sharing.");
     Console.WriteLine("""
         RelaxCat Excel style tool
 

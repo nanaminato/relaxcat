@@ -61,6 +61,7 @@ public sealed record ExcelStyleAnalysis(
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
     public IReadOnlyList<StyleReferenceEdge> ReferenceGraph { get; init; } = [];
+    public ExtensionTypeDiagnostics ExtensionDiagnostics { get; init; } = new([], false);
     public IReadOnlyList<string> NamedStyleCleanupCandidates { get; init; } = [];
     /// <summary>Coverage of remappable cell/base/component indices, not inline differential formats.</summary>
     public bool ReferenceGraphComplete => AdvancedOptimizationSkipReason is null;

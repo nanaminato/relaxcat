@@ -61,3 +61,46 @@ The graph covers the remappable `cellStyles → cellStyleXfs ← cellXfs ← wor
 - CLI `analyze --json --remove-copied-named-styles` and `optimize --remove-copied-named-styles --gc`: exercised end-to-end on a separate synthetic `Revenue`/`Revenue_1` fixture. Candidate reporting, warning emission and output verification passed.
 - Desktop runtime smoke was attempted but stopped in the pre-existing localization window test before the Excel checks: this Linux environment cannot create the Windows `Segoe UI` composite glyph typeface. This is a blocked runtime check, not a passing UI test.
 - Microsoft Excel is not available here. No real Excel open/save/reopen test or Excel 2007/2016/2024 rendering/repair claim is made. All workbooks used were generated test fixtures, not company documents.
+
+## Local extension type diagnosis
+
+The analysis UI now includes bounded extension type metadata. It lists extension URI,
+namespace URI, element/attribute local names and occurrence counts, never ordinary
+attribute values or text. Namespace declarations and foreign attributes outside
+`extLst` are included as well. The scope is styles, workbook and worksheet XML,
+not every package part. The diagnostic is not a reference graph or safety proof.
+Unknown extensions continue to block all style-index changes, including GC and
+optional copied-name cleanup.
+
+For the smallest reviewable output, use the CLI:
+
+```
+dotnet RelaxCat.ExcelTool.dll extensions workbook.xlsx
+```
+
+This command emits only the type diagnostic JSON plus a fixed warning/scope. Errors
+are generic and do not include paths or document values. Do not share `analyze --json`
+or whole-app screenshots expecting the same restriction: those existing views include
+file paths, worksheet names and potentially named-style cleanup candidates.
+
+Nothing is uploaded by this feature. Review locally before sharing even this reduced
+output: a custom URI, namespace or XML name can itself disclose private information.
+There are at most 64 entries and 128 characters per displayed name. Control, bidi and
+line/paragraph separators are replaced. `Truncated` warns when information was omitted
+or shortened; collisions between shortened names can aggregate counts. Counts are
+metadata occurrences, not style usage or known references. The UI uses localized labels
+and warnings in Chinese, Japanese, English and Korean.
+
+Microsoft's [MS-XLSX Styles extension table](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d8afb021-974d-403a-84de-21af334d3d1d)
+lists slicerStyles, timelineStyles, dxfs and xfComplementExt among the possible types.
+These examples do not identify the user's actual extensions and are not an allowlist.
+For example, [timeline style elements can reference dxfId](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/79d1e43b-5b1a-49e1-957c-50b49ff9a2e8).
+Synthetic tests cover hidden text/value sentinels, foreign attributes without extLst,
+control characters, bounded output and continued safety blocking.
+
+Extension diagnostic validation checkpoint: full Release solution build passed with zero
+warnings/errors; core suite 128/128 passed; four language packs 299 keys each passed;
+`--excel-diagnostics-model-only` passed localization, bounded metadata and unchanged
+safety-block checks without requiring desktop fonts. The dedicated CLI command passed
+an independent JSON schema check and private-path error sentinel check. Full rendered
+UI smoke and real Excel round trips remain unverified for the limits above.
