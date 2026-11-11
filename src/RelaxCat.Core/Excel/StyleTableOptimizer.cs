@@ -53,6 +53,9 @@ internal sealed class StyleTableOptimizer
                 ("borders", "border", "borderId", new[] { 0 })
             })
             {
+                // phoneticPr.fontId lives in shared strings and worksheets. Keep the full
+                // font table stable instead of rewriting text-bearing package parts.
+                if (table == "fonts" && context!.PreserveFontTable) continue;
                 var used = gc ? References(Styles.CellXfs.Concat(Styles.CellStyleXfs), attribute) : null;
                 RewriteTable(table, item, used, deduplicate, reserved, attribute);
             }

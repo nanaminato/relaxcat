@@ -43,7 +43,7 @@ public sealed class ExcelStyleOptimizer
             cancellationToken.ThrowIfCancellationRequested();
             var destructive = options?.DestructiveStyleCleanup == true;
             var context = StyleOptimizationContext.Read(package, styles, worksheets, cancellationToken,
-                allowMacroBehaviorLoss: destructive);
+                destructiveStyleCleanup: destructive);
             var plan = StyleDeduplicationPlan.Build(styles, context: context, options: options, cancellationToken: cancellationToken);
             var inputKeys = plan.OriginalKeys;
             var outputKeys = plan.OutputKeys;

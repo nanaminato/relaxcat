@@ -89,7 +89,8 @@ internal static class StyleDiagnostics
 
     internal static IReadOnlyList<StyleSectionDiagnostic> Sections(StyleSheetDocument styles,
         IReadOnlyList<BaseStyleReference> references, HashSet<int> cellReferences,
-        IReadOnlyList<StyleTableChange> changes, bool graphComplete)
+        IReadOnlyList<StyleTableChange> changes, bool graphComplete,
+        IReadOnlyList<StyleReferenceEdge>? additionalReferences = null)
     {
         var sections = styles.Root.Elements().ToArray();
         var sizes = sections.Select(s => (long)Encoding.UTF8.GetByteCount(s.ToString(SaveOptions.DisableFormatting))).ToArray();
@@ -122,6 +123,8 @@ internal static class StyleDiagnostics
         }).ToArray();
 
         int ComponentReferences(string attribute) => styles.CellXfs.Concat(styles.CellStyleXfs)
-            .Select(xf => OoxmlXml.IntAttribute(xf, attribute) ?? 0).Distinct().Count();
+            .Select(xf => OoxmlXml.IntAttribute(xf, attribute) ?? 0)
+            .Concat((additionalReferences ?? []).Where(edge => edge.Kind == attribute).Select(edge => edge.TargetIndex))
+            .Distinct().Count();
     }
 }
