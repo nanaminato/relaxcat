@@ -1,5 +1,7 @@
 # Greenshot 与文件夹监控验证
 
+> 历史测试记录。原始 S-CAPTURE-002 键盘拦截/自动移动鼠标方案后来已退役，当前功能不包含该方案；设置已改为持久化，选定集成后可自动启动。以下按当时测试保留，不作为当前功能清单。当前操作见 [README](../README.md#截图与文件夹监控)。
+
 日期：2026-10-20。沿用已有 Confirmed S-CAPTURE-001/002/003、S-IMPORT-001/002、S-UI-002、S-I18N-001；本轮未新增或修改确认意图。实现决策记录为 D-PHASE-002、D-GREENSHOT-001、D-GREENSHOT-LIFECYCLE-001、D-CAPTURE-MONITOR-001、D-CAPTURE-KEYBOARD-001。
 
 ## 已验证

@@ -2,7 +2,9 @@
 
 **This is a lossy mode, not safe deduplication. Keep the original and use disposable copies.**
 
-The branch `experiment/destructive-style-collapse` starts from the newest implementation in PR #2, `75c42cb426337c38cd6bbd67fc3698e563256333`. The default branch `main` was older (`d92b6150deadba551e0f7d48fea80900844bf4bb`); neither `main` nor `master` is modified or merged. The preview is independent of the existing releases.
+The initial implementation is commit `ab7f2930c2963517a4aac6a85aa70395cf8d2e42` on `experiment/destructive-style-collapse`, based on the named-style identity fix in `75c42cb426337c38cd6bbd67fc3698e563256333`. This is an independent preview, not a stable-release compatibility claim. Match documentation and validation records to the exact source revision used to build a package.
+
+For later, narrowly scoped Office metadata compatibility and a separately authorized sample validation, see [Office metadata compatibility](destructive-compatibility-validation.md). The historical benchmark below remains tied to its original revision.
 
 ## What changes
 
@@ -21,13 +23,13 @@ Enable the separate default-off destructive checkbox on the single-file or batch
 - Named-style editing independence and future inheritance are gone. Applying a deleted style, template workflows, macros using `Styles(name/index)` or `Range.Style`, and external automation may fail or behave differently.
 - Current formatting, protection, quote handling, printing and later editing behavior are not guaranteed across Excel versions. Removing built-ins may change the style gallery or cause Excel to recreate definitions on save.
 - VBA is admitted as an explicit behavior risk only in this mode; binary bytes are retained, not macro semantics. Tests use a synthetic binary sentinel, not a real Office macro execution test.
-- Unknown XML extensions, unknown package parts and digital-signature parts still block index changes. For example, ordinary drawings/tables outside the current reference audit can still produce `unsupportedParts`. This preview does not indiscriminately drop workbook features or leave unknown index consumers pointing to removed entries. The skipped reason remains visible and no style reduction is claimed for a blocked plan.
+- Unrecognized XML extensions, package parts and digital-signature parts still block index changes. Later compatibility support admits only the specific shapes documented in [Office metadata compatibility](destructive-compatibility-validation.md); ordinary drawings/tables outside the reference audit can still produce `unsupportedParts`. This preview does not indiscriminately drop workbook features or leave unknown index consumers pointing to removed entries. The skipped reason remains visible and no style reduction is claimed for a blocked plan.
 - Invalid known component/base/cell references still fail rather than producing corrupt output. Duplicate named identities may be discarded in this mode, but the output must have valid unique ownership.
 - The existing inline-DXF/custom-number-format gate remains. This is an aggressive named/base cleanup, not a claim to minimize every possible OOXML feature.
 
 ## Reproducible synthetic benchmark
 
-No company file or TestHelper was opened, copied, uploaded or used. The fixture is generated entirely by `tools/generate-destructive-style-benchmark.py`.
+The fixture is generated entirely by `tools/generate-destructive-style-benchmark.py`; it contains synthetic data. The measurements below are the recorded run at implementation commit `ab7f2930c2963517a4aac6a85aa70395cf8d2e42`, not a new run of every later revision. Changes to fixture metadata can change package size and hashes without changing style counts.
 
 ```sh
 python tools/generate-destructive-style-benchmark.py --output synthetic.xlsx
@@ -53,9 +55,11 @@ Measured on Linux with .NET SDK 10.0.300:
 
 Uncompressed style data reduction: **99.9588%**. Whole-package reduction: about **50.05%**. This is real removal of style XML, not just ZIP recompression. 71,990 explicit worksheet references remapped. One first-pass timing was 9.22 seconds including CLI startup; this is a single observation, not a performance guarantee.
 
-Second pass: no table changes or remapped references; style XML and full ZIP bytes identical to the first output after the no-op-copy fix. Original SHA-256: `85da06555725d0057c0bd2f95a719c7b7e67f0f79b9267c8f276a95e8bcd4fc9`. First/second output SHA-256: `53348b49aac6b016a1a9b1ec23821a52e4cb34c2fded537d53a2d43ce57b591b`.
+Second pass: no table changes or remapped references; style XML and full ZIP bytes identical to the first output after the no-op-copy fix. For a new run, record the input/output SHA-256 hashes alongside the source revision and compare the first and second output directly; do not use a historical fixture hash as a release-package checksum.
 
 ## Verification performed
+
+The following results were recorded for the initial implementation at `ab7f2930c2963517a4aac6a85aa70395cf8d2e42`. They describe specific tests, not universal workbook compatibility or checks rerun by documentation updates.
 
 - Full solution Release build with exact SDK 10.0.300: 0 warnings/errors. `-m:1` avoids environment-specific parallel MSBuild named-pipe permission failures. The final solution build and test use this serial setting.
 - Core regression suite: **153/153 passed**, including 16 new destructive cases. Covers 48,846 identities, direct apply=false values, localized Normal at a nonzero base with nonzero font, absent optional base/component tables, duplicate owners/names, formulas and cached values, byte-preserving row/column remaps, source protection, full-package second-pass idempotence, VBA sentinel preservation, unknown extension/signature blocking and invalid-index rejection.
@@ -67,4 +71,4 @@ Second pass: no table changes or remapped references; style XML and full ZIP byt
 
 ## Not verified
 
-Microsoft Excel 2007/2016/2024 is unavailable here. Actual open/save/reopen without repair, visual rendering, printing, native protection semantics, macro execution and named-style behavior after future edits are **unverified**. Windows portable outputs are cross-built and ZIP/contents checked, but not launched on Windows. Full rendered GUI smoke is not a passing test in this Linux font environment. No production or company document was tested. Use the preview only if these risks are acceptable; do not replace a company original with its output.
+Microsoft Excel 2007/2016/2024 is unavailable here. Actual open/save/reopen without repair, visual rendering, printing, native protection semantics, macro execution and named-style behavior after future edits are **unverified**. Windows portable outputs are cross-built and ZIP/contents checked, but not launched on Windows. Full rendered GUI smoke is not a passing test in this Linux font environment. The synthetic benchmark does not establish suitability for an actual deployment. Retain the original, validate the output in the target application and workflow, and use the preview only if the intentional losses are acceptable.

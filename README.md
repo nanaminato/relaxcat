@@ -1,17 +1,23 @@
 # RelaxCat
 
-Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接拖入窗口、文件夹自动监控、手动导入，提供图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及真实 Excel COM 导出；可选择捆绑的 Greenshot 截图。另提供完全离线的 Excel 样式分析/去重工具，显示工作表样式与优化前后效果，并输出到新工作簿。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語、English、한국어切换。
+Windows 截图收集与 Excel 排版工具。支持图片或文件夹拖入、文件夹监控、手动导入，提供图片卡片与放大预览、DPI 感知缩放、有序规则、逐行/节省空间排列，以及 Microsoft Excel COM 导出；可选择捆绑的 Greenshot 截图。另提供完全离线的 Excel 样式分析/去重工具，显示工作表样式与优化前后效果，并输出到新工作簿。界面使用 Avalonia XAML + C#，支持明亮/黑暗主题和简体中文、日本語、English、한국어切换。
 
-## 下载
+## 版本与下载
 
-从 [Releases](https://github.com/nanaminato/relaxcat/releases/latest) 下载 Windows x64 便携版，解压后进入 `RelaxCat-v<版本>-win-x64` 文件夹运行 `RelaxCat.App.exe`：
+本分支包含默认关闭的**有损实验功能**。文档描述本分支源码，不代表默认分支或任意历史安装包已经包含这些功能；自动化校验通过也不等于完成 Microsoft Excel 兼容性验收。
+
+在 [Releases](https://github.com/nanaminato/relaxcat/releases) 查看实际可用的版本、对应源码和验证范围。预发行版仅用于评估，不将旧版本的验证结果套用到新算法。若没有符合需求的附件，请按下文从源码构建。
+
+Windows x64 便携包采用以下命名；具体提供哪些附件以该版本发布页为准。解压后进入 `RelaxCat-v<版本>-win-x64` 文件夹运行 `RelaxCat.App.exe`：
 
 - **完整便携版**（`RelaxCat-v*-win-x64.zip`）：包含 .NET 10 运行时，无需另行安装。
 - **轻量版**（`RelaxCat-v*-win-x64-framework-dependent.zip`）：不含运行时，需要安装 [.NET 10 x64 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)。不要求 Desktop Runtime；只有 .NET 8/9 不能代替 .NET 10。
 
-需要 Windows 10 或更新版本、x64。Excel 导出需要本机安装桌面版 Microsoft Excel；没有 Excel 时仍可导入与预览。
+需要 Windows 10 或更新版本、x64。图片导出需要本机安装桌面版 Microsoft Excel；图片导入、预览及离线样式分析/优化不需要 Excel。捆绑 Greenshot 另需 .NET Framework 4.8。
 
 ## 界面预览
+
+以下历史截图使用合成样例展示布局；具体选项与文案以运行版本为准，截图中的计数不代表其他工作簿的优化效果。
 
 | 图片工作台（浅色） | 图片工作台（深色） |
 | :---: | :---: |
@@ -31,7 +37,7 @@ Windows 截图收集与 Excel 排版工具。支持把图片或文件夹直接�
 
 ## 从源码运行
 
-需要 .NET 10 运行时与构建用 .NET SDK 10.0.300（见 `global.json`）。
+需要构建用 .NET SDK 10.0.300（见 `global.json`，允许同一功能带的补丁更新）。SDK 已包含运行时；桌面应用与 Excel COM 工作流请在 Windows 上运行。
 
 ```powershell
 dotnet run --project src/RelaxCat.App -c Release
@@ -70,7 +76,7 @@ Greenshot 每个用户会话只允许运行一个实例。如果其他 Greenshot
 
 - 水平和垂直间距可以分别选择「磅（pt）」或「单元格」，支持小数。1 个水平单元格对应规范化后的实际列宽，1 个纵向单元格对应实际行高。例如行高 18 pt 时，纵向 1.5 个单元格为 27 pt。列宽仍使用 Excel 字符单位，不能直接把 2.38 字符当成 2.38 pt；转换由 Excel 实际测量。
 - 「显示工作表网格线」控制目标工作表的网格线显示，默认开启，随工作簿保存。
-- 勾选「导出后选中工作表全部图片」，成功导出后会在 Excel 中选中目标工作表的所有图片（包含以前已导出的图片），不选中非图片对象，也不修改首页图片队列的勾选状态。默认关闭；取消或失败不执行全选。
+- 勾选「导出后选中工作表全部图片」，成功导出后会在 Excel 中选中目标工作表的所有图片，不选中非图片对象，也不修改首页图片队列的勾选状态。默认关闭；取消或失败不执行全选。
 
 规则按「单行条件 + 下一行 scale 赋值」成对填写，例如：
 
@@ -88,40 +94,42 @@ scale = 0.9
 
 ## Excel 样式优化
 
-> **独立危险实验版**：单文件和批量页面新增默认关闭的「破坏性样式清理」，CLI 为 `--destructive-styles`。它删除除 Normal 外的全部命名样式和基础 XF 身份，强制断开继承后清理未用定义，**不是无损压缩**。未来样式联动、宏、外部模板及部分格式/保护行为可能改变。原文件保留，先备份并只处理副本；Microsoft Excel 原生打开/保存尚未验证。详情、实测数值和限制见 [危险实验说明](docs/destructive-style-cleanup.md)。
+离线分析 `.xlsx` / `.xlsm` 的样式表、引用关系和预计输出，不依赖 Excel。`.xls` 和加密工作簿不支持。源路径不能作为输出路径；请始终保留原件，使用独立输出目录。
 
-长期编辑、跨工作簿复制粘贴的 Excel 文件可能积累大量重复的单元格格式（`cellXfs`），使 `styles.xml` 异常膨胀。左侧「Excel 优化」提供完全离线的分析与优化，不依赖 Excel，也不会修改原工作簿：
+### 选择处理模式
 
-1. 选择 `.xlsx` 或 `.xlsm` 工作簿，点击「分析」。页面显示文件大小、`styles.xml` 大小、字体/填充/边框数量、`cellXfs` 总数、唯一格式、可去重格式、工作表未引用格式，以及每个工作表的实际使用范围与样式数量。分析在后台运行，状态栏显示当前工作表、第几张以及已扫描行数，可随时取消。
-2. 右侧按工作表展示实际使用的样式：填充、字体、边框、对齐和数字格式的直观预览，并显示每种样式覆盖的单元格数量。分析和预览都不会读取或输出单元格值、公式或批注。
-3. 「优化并另存为…」把结果写到新工作簿：在依赖审计覆盖时合并完全重复的字体/填充/边框/自定义数字格式，再合并基础 XF 与 `cellXfs`，并同步更新相关引用；可勾选「清理未引用样式（GC）」后重新分析；看起来相似但定义不同的格式保持不动。原文件始终不修改，`.xlsm` 保留 VBA 工程，其它 OOXML 部件按原样复制，输出扩展名必须与输入一致；合并单元格、公式、值、批注等非样式内容原样保留。
-4. 写入前逐项校验样式表其它分区、`cellXfs` 内容、工作表样式引用、其它部件和输出包。校验失败会丢弃临时输出并报错；没有重复格式时不会做无意义的重写。完成后自动分析新文件，页面同时显示优化前后的格式数量、`styles.xml` 大小、文件大小和校验结果。
-5. 处理以工作表为单位，不按打印分页；单个大工作表在分析、校验时会显示已扫描行数。分析与校验采用流式读取，10 MB 级 `styles.xml`（约 6 万个格式）的本机分析约 0.6 秒，完整优化约 1 秒量级（不含进程启动）。
+| 模式 | 开关 | 行为与边界 |
+| --- | --- | --- |
+| 默认优化 | 无 | 在已覆盖的引用范围内合并等价定义；保留命名样式身份及其基础 XF 所属关系。未知依赖会阻止索引改写。 |
+| 未引用样式回收 | `--gc` | 默认关闭。仅回收已知引用图内不可达的定义；命名样式仍作为保留根。 |
+| 复制名称清理 | `--remove-copied-named-styles` | 默认关闭。删除满足严格候选条件的复制名称；外部模板或程序仍可能依赖这些名称，必须先审核候选。 |
+| 破坏性样式清理 | `--destructive-styles` | 默认关闭的有损实验功能。除 Normal 外删除命名样式与基础 XF 身份，断开继承，并执行回收。可能改变当前外观、保护、宏与后续编辑行为。 |
 
-左侧「批量优化」提供文件夹级处理：
+**有损输出的 `Verified=true` 仅表示选定结构校验通过，不表示外观或行为等价。** Microsoft Excel 原生打开、保存、重开及打印的完整验收仍待完成。模式细节见 [样式优化指南](docs/excel-style-optimizer.md) 和 [有损模式说明](docs/destructive-style-cleanup.md)。新增兼容处理及其适用版本见 [Office 元数据兼容验证](docs/destructive-compatibility-validation.md)。
 
-- 递归扫描输入文件夹中的 `.xlsx` / `.xlsm`，可排除子文件夹；
-- 输出到指定文件夹，文件名追加 `-optimized`，保留子目录结构；
-- 默认跳过已存在的输出，可勾选覆盖；
-- 单个文件失败不影响其余文件，结果列表逐个显示完成、跳过、失败和校验状态；
-- 状态栏显示当前文件与整体进度，可随时取消；原文件始终不修改。
+### 单文件与批量使用
 
-默认保留所有命名样式。高级 CLI 选项 `--remove-copied-named-styles` 可清理严格匹配 `已有自定义名称_正整数` 且格式等价、没有额外元数据、没有任何保留 cellXf 引用的候选名称；先用 `analyze --json --remove-copied-named-styles` 审核候选。**名称可能被外部程序或模板引用，后缀不是未使用证明。** 内置、隐藏及带额外元数据的样式保留；含 VBA 或未知依赖时跳过全部索引变更。此选项与 `--gc` 独立，默认关闭。测试范围和限制见 [`样式引用图验证`](docs/excel-style-graph-validation.md)。
+1. 打开「Excel 优化」，选择工作簿，确认模式后点击「分析」。查看 `styles.xml` 未压缩大小、各分区数量、预计删除数和跳过原因；“重复”或“未引用”数量不等于可删除数量。
+2. 查看工作表样式预览，再选择「优化并另存为…」。原文件不改写；单文件输出位置若已有文件，可能被替换，请选新路径。
+3. 完成后检查实际变化、校验范围及警告，并在目标 Excel 版本上打开输出进行复核。无可执行变化不代表失败，也不能把 ZIP 重新压缩算作样式删除。
+4. 单文件确认符合预期后再使用「批量优化」。默认递归，保留相对子目录，输出名追加 `-optimized`；已存在输出默认跳过，显式勾选覆盖后才替换。逐文件显示结果，单个失败后继续，其余已完成结果保留。
 
-命令行工具复用同一套核心逻辑：
+分析与样式预览不展示单元格值、公式或批注。**完整报告、日志和截图仍可能包含路径、工作表名、命名样式名、格式代码或扩展标识**，分享前需审核。空白单元格不代表工作簿已完全去除敏感信息。
+
+### 命令行
 
 ```powershell
-# 只读分析（加 --json 输出机器可读结果）
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book.xlsx
+# 只读分析；--json 输出机器可读结果
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book.xlsx --json
 
-# 优化到新文件
+# 默认模式，输出目录须已存在，输出文件请选择新路径
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
 
-# 批量优化文件夹（默认递归，默认跳过已有输出）
+# 批量处理，默认递归且跳过已有输出
 dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output
 ```
 
-`.xls` 是二进制格式，不在支持范围。组件去重默认开启；GC 默认关闭，CLI 的 analyze/optimize/batch 均支持 `--gc`。新增处理遇到透视表、VBA 或未知依赖时保守跳过并报告原因；默认保留命名样式。若保存到「下载 / 文档」等受保护目录时报拒绝访问，通常是安全软件拦截了未签名或 Debug 版本写入；请改用项目目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单。实现、安全边界与验证记录见 [`docs/excel-style-optimizer.md`](docs/excel-style-optimizer.md)。
+三个命令均支持上表中的模式开关。保留 `.xlsx` / `.xlsm` 输入扩展名；宏二进制保留不代表宏行为已验证。遇到拒绝访问、跳过或无明显缩减时，按 [故障排查与验收](docs/excel-style-optimizer.md#故障排查) 检查原因，不要关闭系统保护来强行写入。
 
 ## 验证
 
@@ -135,12 +143,12 @@ dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --ex
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel-batch-only
 # 可选：实际启动测试专用 Excel，导出并验证，然后关闭该测试实例
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --excel
-# 可选：真实 Greenshot 截图链路、鼠标与按键透传、切换、异常退出、关闭清理
+# 可选：真实 Greenshot 截图链路、切换、异常退出、关闭清理
 # 需要没有其他 Greenshot 正在运行；测试恢复鼠标原位置，只清理自己的进程
 dotnet run --project tests/RelaxCat.App.SmokeTests -c Release --no-build -- --greenshot --excel
 ```
 
-Core 测试包含 Excel 样式分析、去重映射、包保留、合并单元格与批量扫描/继续处理的用例；无界面冒烟测试覆盖单文件与批量页面的分析、样式渲染、优化、失败继续、同文件拒绝和中日文刷新。直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`，Excel 样式优化记录为 `docs/excel-style-optimizer.md`。
+以上是验证命令，不是本分支全部通过的声明。Core 测试包含 Excel 样式分析、去重映射、包保留、合并单元格与批量扫描/继续处理的用例；无界面冒烟测试用于检查页面与模型流程，不能代替 Windows 桌面与 Excel 实测。版本化验证记录见 [样式引用图验证](docs/excel-style-graph-validation.md) 和 [有损模式验证](docs/destructive-style-cleanup.md#verification-performed)。直接集成 Windows 原生截图工具及更多图片格式仍待后续实现。产品意图入口为 `.singularity/README.md`，截图集成验证记录为 `docs/capture-validation.md`，Excel 样式优化记录为 `docs/excel-style-optimizer.md`。
 
 ## 许可证
 
@@ -148,4 +156,4 @@ Core 测试包含 Excel 样式分析、去重映射、包保留、合并单元�
 
 随应用分发的 Greenshot 是独立的第三方程序，遵循 **GPL v3**，不受上述授权影响。分发时须保留其许可证与对应的未修改源码，详见 [`vendor/greenshot/README.md`](vendor/greenshot/README.md)。界面与图像处理依赖（Avalonia、SkiaSharp 等）以 MIT 许可发布，具体版本与许可声明见各自的 NuGet 包。
 
-界面翻译维护在外部 `Localization/zh-CN.json` 与 `ja-JP.json`，构建/发布时复制到应用目录。语言包格式、回退行为及校验命令见 [本地化说明](docs/localization.md)。
+界面翻译维护在 `src/RelaxCat.App/Localization/` 下的 `zh-CN.json`、`ja-JP.json`、`en-US.json`、`ko-KR.json`，构建/发布时复制到应用目录。语言包格式、回退行为及校验命令见 [本地化说明](docs/localization.md)。

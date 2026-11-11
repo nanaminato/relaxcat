@@ -1,13 +1,13 @@
 # 外部 JSON 本地化
 
-参考 RelaxKonOS 的稳定键、外部语言包、语言切换通知及回退方式，RelaxCat 将文案维护在：
+RelaxCat 使用稳定资源键和外部 JSON 语言包，文案维护在：
 
 - `src/RelaxCat.App/Localization/zh-CN.json`：简体中文基线。
 - `src/RelaxCat.App/Localization/ja-JP.json`：日文。
 - `src/RelaxCat.App/Localization/en-US.json`：English（英语）。
 - `src/RelaxCat.App/Localization/ko-KR.json`：한국어（韩语）。
 
-四份语言包均包含完整的 281 个翻译键，覆盖图片工作区、设置、截图监控、Excel 单文件/批量优化和诊断结果。设置页按中文、日文、英语、韩语顺序显示。
+四份语言包使用相同键集，具体数量以当前资源校验结果为准，覆盖图片工作区、设置、截图监控、Excel 单文件/批量优化和诊断结果。设置页按中文、日文、英语、韩语顺序显示。
 
 应用启动时扫描 `Localization/*.json`，语言列表完全由文件内容决定。每个文件使用 UTF-8，结构如下（例如 `ko-KR.json`）：
 
@@ -23,7 +23,7 @@
 }
 ```
 
-`culture` 必须是有效语言代码并与文件名对应；`displayName` 是设置页显示的语言自称；可选 `sortOrder` 默认为 100，按数值、语言代码排序。完整语言包可复制现有 `zh-CN.json`，修改元数据并翻译 `strings` 内的值。添加英语则创建 `en-US.json`，指定 `displayName: "English"`。将文件放到应用目录的 `Localization` 下并重启，设置页会自动出现该语言，无需修改 C# 或 XAML。源码目录中新加的 JSON 也会自动进入构建/发布输出。
+`culture` 必须是有效语言代码并与文件名对应；`displayName` 是设置页显示的语言自称；可选 `sortOrder` 默认为 100，按数值、语言代码排序。完整语言包可复制现有 `zh-CN.json`，修改元数据并翻译 `strings` 内的值。请为新增语言选择未使用的语言代码；已有语言请编辑对应文件。将文件放到应用目录的 `Localization` 下并重启，设置页会自动出现该语言，无需修改 C# 或 XAML。源码目录中新加的 JSON 也会自动进入构建/发布输出。
 
 运行时允许部分翻译，缺失项回退到中文；正式随项目分发的语言包应补全所有键，以通过完整性校验。保持已有稳定键，新增文案时更新所有语言文件。占位符编号（例如 `{0}`、`{1}`）必须对应，顺序可以不同。工作表名称、文件路径等用户数据不翻译。
 

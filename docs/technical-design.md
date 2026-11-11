@@ -1,6 +1,6 @@
 # RelaxCat Technical Design
 
-> Status: Initial design / living document
+> Status: Historical design with implementation notes. Current usage and supported behavior are documented in [README](../README.md). Proposals below are not a shipped-feature list.
 
 > Phase-one implementation now follows D-PHASE-001 in `.singularity/decisions/architecture.md`.
 > See `README.md` for the runnable workflow and `docs/phase-one-validation.md` for verified scope.
@@ -19,7 +19,7 @@
 
 ## 1. Overview
 
-RelaxCat is a Windows-first screenshot collection and Excel image layout tool. It is intended as a clean, more extensible reimplementation of an earlier internal tool, without reusing the original source code.
+RelaxCat is a Windows-first screenshot collection and Excel image layout tool with an offline workbook-style analysis and optimization feature.
 
 The application collects screenshots or manually imported images, calculates a display scale according to configurable rules, and exports the images into Microsoft Excel with deterministic layout and sizing.
 
@@ -28,6 +28,8 @@ Avalonia is used for the desktop UI. Windows-specific integrations such as globa
 ## 2. Primary workflow
 
 ### 2.1 Screenshot capture
+
+The keyboard interception and automatic mouse movement described in the original proposal below were retired. Current capture integration manages Greenshot and monitors its output folder; see [capture validation](capture-validation.md) and the README for supported behavior.
 
 1. User selects a capture provider.
 2. If the Greenshot provider is selected, RelaxCat starts the bundled `Greenshot.exe` and manages its lifecycle.

@@ -1,5 +1,7 @@
 # Style graph regression validation
 
+This record describes the conservative graph and named-identity implementation through `75c42cb426337c38cd6bbd67fc3698e563256333`. Test counts and environment observations below belong to that revision; later lossy-mode coverage is recorded separately in [destructive-style-cleanup.md](destructive-style-cleanup.md).
+
 The `GraphStyleTests` suite creates synthetic OOXML packages in a per-test temporary directory and deletes them after the test. No user workbook, Excel installation, or network connection is required at test runtime.
 
 Run:
@@ -45,7 +47,7 @@ when their current formatting is identical. Unowned bases merge only with unowne
 bases; index-zero preservation still applies. Semantic duplicate counts describe
 formatting equality and can exceed safely removable counts.
 
-Published `v0.4.1-preview.1` and `v0.4.1-preview.2` predate this correction. Their
+Historical `v0.4.1-preview.1` and `v0.4.1-preview.2` predate this correction. Their
 optimization output should not be relied on for production use. Analysis is read-only;
 unknown-extension/VBA-blocked packages were not remapped. Original files remain intact.
 This fix does not imply any real Excel round-trip test has passed.
@@ -66,7 +68,7 @@ The graph covers the remappable `cellStyles → cellStyleXfs ← cellXfs ← wor
 - Four-language key/placeholder validation: passed. Desktop cleanup controls and smoke-test assertions compile.
 - CLI `analyze --json --remove-copied-named-styles` and `optimize --remove-copied-named-styles --gc`: exercised end-to-end on a separate synthetic `Revenue`/`Revenue_1` fixture. Candidate reporting, warning emission and output verification passed.
 - Desktop runtime smoke was attempted but stopped in the pre-existing localization window test before the Excel checks: this Linux environment cannot create the Windows `Segoe UI` composite glyph typeface. This is a blocked runtime check, not a passing UI test.
-- Microsoft Excel is not available here. No real Excel open/save/reopen test or Excel 2007/2016/2024 rendering/repair claim is made. All workbooks used were generated test fixtures, not company documents.
+- Microsoft Excel is not available here. No real Excel open/save/reopen test or Excel 2007/2016/2024 rendering/repair claim is made. The validation recorded in this section used generated test fixtures.
 
 ## Local extension type diagnosis
 

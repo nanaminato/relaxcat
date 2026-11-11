@@ -1,229 +1,144 @@
-> Experimental exception: the independent `--destructive-styles` option intentionally does not preserve named-style identity, inheritance, or future behavior. The equivalence guarantees below describe the default optimizer only. Destructive verification is explicitly weaker and is not an Excel-open guarantee. See [destructive-style-cleanup.md](destructive-style-cleanup.md) for policy, measurements and known limits.
+# Excel 样式优化指南
 
-# Excel 样式优化（Excel / OOXML 样式去重）
+适用于本分支的桌面应用和 `tools/RelaxCat.ExcelTool`。本指南以可操作流程、数据边界和验收标准描述能力，不将自动化测试视为生产兼容性认证。发布包的功能以其对应提交为准。
 
-> Status: Implemented
->
-> 设计来源：[nanaminato/todolist PR #2](https://github.com/nanaminato/todolist/pull/2) 的
-> `ideas/excel-style-deduplicator.md`，按 RelaxCat 的架构落地为 Core 库、桌面页和 CLI。
->
-> 产品意图：`S-EXCEL-009`、`S-EXCEL-011`；派生架构决策：`D-EXCEL-OPT-001`、`D-EXCEL-OPT-002`。
+## 支持范围
 
-## 背景
+- 输入：未加密的 `.xlsx` / `.xlsm` OOXML 工作簿；不支持二进制 `.xls`。
+- 分析、优化和批量处理均在本地执行，不需要 Excel，也不自动上传工作簿。
+- 源路径与输出路径必须不同，扩展名必须一致。非目标包部件按原字节复制，工作表仅改写计划中的样式索引。
+- 保留 VBA 二进制不等于验证了宏行为。默认模式遇到 VBA 或未覆盖的包依赖会阻止索引变化；有损模式的明确例外见下文。
+- 这是样式表处理工具，不会自动删除图片、合并单元格、条件格式或业务数据，也不保证所有工作簿都能缩小。
 
-长期编辑、跨工作簿复制粘贴或由某些工具生成的 Excel 文件，可能积累大量重复的单元格格式
-（`xl/styles.xml` 中的 `cellXfs`），导致文件异常膨胀、保存和编辑卡顿。实际案例中一个使用
-区域很小的工作簿，`styles.xml` 解压后接近 10 MB。后续检查发现主要膨胀可能位于 `cellStyleXfs`，而非 `cellXfs`；必须以分区诊断为准。
+## 建议流程
 
-该问题适合完全本地、离线的诊断和修复。RelaxCat 将其作为独立功能提供，不依赖 Excel COM，
-也不要求打开 Excel。
+1. 保留原件，在独立输出目录处理副本。关闭可能占用输出文件的应用。
+2. 用将要实际执行的模式进行只读分析，检查各分区、预计输出数量、警告及跳过原因。
+3. 先优化一份文件，检查输出后的实际指标。单文件输出若已存在会被替换；CLI 不会再次询问，请选新文件名。
+4. 在目标 Microsoft Excel 版本中打开、保存并重新打开输出，检查修复提示、外观、公式、打印与依赖该文件的流程。
+5. 单文件验收通过后再批量处理。保留原件和独立结果目录，按文件检查失败、跳过和警告记录。
 
-## 工作流
+优化先写入目标目录中的 `*.partial` 临时文件，校验通过后移动到输出路径。失败或取消时尝试清理临时文件；若文件被锁定或删除被系统拒绝，可能残留临时文件。工具不提供自动备份或回滚。
 
-```text
-选择工作簿 -> 分析（只读） -> 查看各工作表样式与可优化空间
-           -> 优化并另存为（新文件） -> 自动校验 -> 重新分析新文件并展示处理效果
-```
+## 模式与风险
 
-分析阶段只读取 OOXML 部件，不写入任何文件。优化阶段先把结果写入同目录的临时文件，全部校验
-通过后才移动/替换为用户选择的新文件；失败或取消时不会留下输出文件。
+### 默认优化
 
-## 进度与性能
+默认启用已知引用图内的组件与格式去重，GC 和名称删除均关闭。合并依据是实现所覆盖的等价规则及引用身份，不是预览图看起来相同：
 
-处理以**工作表（worksheet part）**为单位；Excel 的“打印页/分页”是打印和显示概念，不是
-文件中的处理单位。一个工作表再大也还是一个处理单元，因此界面在单表内部补充行级进度：
+- 字体、填充、边框和自定义数字格式先合并等价定义，再更新相关引用。
+- 基础 XF 与单元格 XF 的合并保留命名样式所属关系。不同保留名称不能共享同一个基础 XF，关联不同名称的单元格格式不能仅因当前外观相同而合并。
+- 保留默认/保留槽及未引用的唯一项。诊断中的语义重复数可以大于实际可删除数。
+- 缺失与显式为 false 的 `apply*` 标志不会混为一谈；有限的等价规范化不代表能证明所有 Excel 行为。
+- 未知扩展、未覆盖部件或引用使索引改写跳过，而不是退回不完整的去重。跳过原因通过 `AdvancedOptimizationSkipReason` 返回。
 
-- 分析：`读取样式表` → 逐工作表流式扫描 → `计算优化后大小`。扫描工作表时状态栏显示
-  「分析工作表 · 工作表名 (i/N) · 已扫描 x 行」，每 500 行刷新一次；`dimension` 存在时
-  进度条会按行数在 10%–90% 之间推进。
-- 优化：`读取工作簿` → `逐工作表更新引用 (i/N)` → `重建样式表` → `逐工作表校验 (i/N)` →
-  `写入新工作簿`。每一张工作表重写和校验完成后都会推进计数。
-- 分析/校验使用 `XmlReader` 流式扫描，不构建整张工作表的 XML 树，因此大表不会因为 DOM
-  常驻内存而膨胀；优化重写仍以单个工作表 XML 为单位载入，超大单表在重写阶段仍可能占用较多
-  内存。
+### 未引用样式回收（`--gc`）
 
-本机实测（2026-11-01，不含进程启动时间，Release）：
+默认关闭。保留单元格、行、列的显式/有效样式引用与 `cellXfs[0]`，沿基础 XF 和组件引用回收其余不可达定义。所有保留命名样式仍是根；`cellStyleXfs[0]`、`fonts[0]`、`borders[0]`、`fills[0..1]` 等保留项受保护。
 
-| 场景 | 分析 | 优化 | 托管内存 / 峰值工作集 |
-| --- | --- | --- | --- |
-| 60,000 个 `cellXfs`（rich），`styles.xml` 10.25 MB，10,000 单元格 | 0.64 s | — | 99 MB / 178 MB |
-| 48,845 个 `cellXfs`，200,000 单元格 | 0.49 s | 0.91 s | 61 MB / 112 MB（分析） |
+差分格式、表格样式和索引颜色不作为可随意清理的全局组件。差分格式包含内联自定义数字格式时，全局 `numFmts` 保留。无法证明引用覆盖时，不将“未引用”解释为“可以删除”。
 
-以上为旧版算法的历史基线，不代表新增引用审计、GC 和语义校验的耗时；工作簿越大，瓶颈通常是
-样式表解析和单个超大工作表的 XML 重写，而不是单元格数量本身。
+### 复制名称清理（`--remove-copied-named-styles`）
 
-## 批量处理
+默认关闭，独立于 GC。仅考虑具有既存无后缀自定义名称、格式等价、没有额外元数据且未被保留 cell XF 引用的 `Name_正整数` 候选。内置、隐藏、带元数据及有歧义的名称保留。启用 GC 时先处理不可达 cell XF，再判断候选。
 
-左侧「批量优化」页面处理整个文件夹：
+先运行 `analyze --json --remove-copied-named-styles`，审核 `NamedStyleCleanupCandidates`。**名称模式不能证明外部程序或模板没有引用该名称。** 该选项可能破坏外部名称依赖，即使 API 的 `IsLossy` 字段仍为 false；目前该字段专门标识破坏性模式。桌面单文件和批量页面也提供默认关闭的选项。
 
-- 输入文件夹默认递归扫描 `.xlsx` / `.xlsm`；不跟随重解析点（junction/symlink），跳过 `~$` 临时文件和
-  以 `-optimized` 结尾的文件。
-- 输出文件夹可以不存在，处理时自动创建；输出名为 `<原名>-optimized.<ext>`，并保留相对子目录结构。
-  如果输出文件夹位于输入文件夹内部，扫描时会排除该子树，避免重复处理。
-- 默认跳过已经存在的输出；勾选「覆盖已存在的输出」后才覆盖。
-- 单个文件失败（损坏、被占用、权限不足等）会记录为失败并继续处理其余文件；状态栏显示当前文件与
-  整体进度，取消会在当前文件完成后停止，并保留已完成的结果。
-- 结果列表逐文件显示完成/跳过/失败、`cellXfs` 与文件大小变化、校验状态；原文件始终不修改。
+### 破坏性样式清理（`--destructive-styles`）
 
-CLI 也支持同样的文件夹批处理：
+默认关闭的有损实验功能。保留一个 Normal 身份，将 cell XF 绑定到它并显式启用直接格式，删除其他命名样式和基础 XF，强制执行组件合并与未引用定义回收，无需再加 `--gc`。
 
-```powershell
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output
-# 可选：--no-recursive、--overwrite
-```
+它不尝试完整重建被继承的格式，可能改变外观、保护、打印、宏、模板和后续编辑行为。普通 VBA 部件可作为明确行为风险保留；部分 Office 元数据按 [限定结构](destructive-compatibility-validation.md) 识别并保留，存在注音字体引用时整张字体表保持不变。未知依赖与签名等结构性限制仍可阻止优化。详见 [有损模式算法与验证](destructive-style-cleanup.md)。
 
-## 分析内容
+## 分析指标
 
-工作簿级：
+- 整个工作簿字节数、`styles.xml` 实际未压缩字节数、ZIP 条目压缩字节数分别报告。
+- 分区的 `SerializedBytes` 是解析后独立 UTF-8 序列化大小，可能包含独立命名空间声明，不是源 XML 的精确字节区间。
+- `ProjectedCellXfCount`、`ProjectedCellStyleXfCount` 和 `TableChanges` 描述实际计划；唯一数、重复数、未引用数是诊断，不能直接当作节省量。
+- `TableChanges` 区分重复删除、未引用回收和有损删除。预计 ZIP 大小是估算，最终以输出实际大小为准。
+- 工作表报告包含名称、隐藏状态、范围、单元格计数与样式使用计数。保留样式的空白单元格也会影响这些指标。
+- 样式预览用于识别格式，不是 Excel 渲染器。主题色、渐变、图案填充及字体渲染可能与 Excel 不同。
 
-- 文件大小、`styles.xml` 解压后大小，以及重建后的预计大小；
-- `fonts`、`fills`、`borders`、`cellStyleXfs`、`cellXfs` 数量；
-- 唯一单元格格式数、完全重复的格式数；
-- 被工作表引用的格式数、未被工作表引用的格式数；
-- 是否含宏（`.xlsm` 或包含 `xl/vbaProject.bin`）。
+分析和校验逐工作表流式扫描，进度包含工作表与已扫描行数。优化重写会载入单个工作表 XML，超大单表仍可能占用较多内存。性能受样式数量、XML 大小、硬件和启用选项影响；历史人工样本耗时不能用于承诺任意文件的速度。
 
-工作表级（逐个工作表）：
+## 输出校验的含义
 
-- 工作表名称、是否隐藏、`dimension` 使用范围、单元格数量、实际使用的不同样式数量；
-- 每种实际使用样式的外观预览：填充色、字体（名称/字号/粗体/斜体/下划线）、字体颜色、边框
-  边与颜色、对齐、数字格式、使用次数。
+输出在提交到目标路径前检查计划一致性、已知引用、工作表结构、未修改部件和输出包：
 
-样式预览会解析主题色（`xl/theme/theme1.xml`）、索引色与 `tint`，因此显示的填充/字体颜色
-与 Excel 中的实际效果一致。报告和界面都不读取、不输出单元格值、公式或批注。
-
-## 优化规则
-
-只做可以证明等价的合并：
-
-1. 对每个 `cellXfs/xf` 生成规范化结构键（属性排序、忽略无意义空白）。**仅当规范化 XML
-   完全一致时才视为同一格式**；看起来相似但定义不同的格式保持原样。
-2. 保留每个唯一格式第一次出现的位置，重建 `cellXfs` 并更新 `count` 属性。
-3. 同步更新工作表内的样式引用：
-   - `<c s="...">`（单元格样式）
-   - `<row s="...">`（整行样式，包含未显式设置样式的单元格继承）
-   - `<col style="...">`（列样式）
-4. 默认保留未被引用的唯一格式；显式启用 GC 且依赖审计通过时，才删除不可达项（详见后文）。
-5. 其它 OOXML 部件（含 `xl/vbaProject.bin`、图片、批注、数据透视表、外部链接等）按字节原样
-   复制；`.xlsm` 必须继续输出 `.xlsm`，`.xlsx` 必须继续输出 `.xlsx`。
-6. 没有任何可执行的去重/GC 变化时，`styles.xml` 保持原字节，仍验证新输出包。
-7. 永不覆盖原文件：输出路径与输入相同时直接拒绝。
-
-以上 XF 合并规则与后文组件去重/可选 GC 共同执行；未知依赖会使新增处理阶段保守跳过。
-
-加载 `styles.xml` 时会校验 `CT_Stylesheet` 的分区顺序（`numFmts` → `fonts` → … → `extLst`）。
-顺序错误的文件 Excel 会当作损坏并修复；RelaxCat 直接拒绝处理这类文件，避免在不可靠的输入上
-继续去重。
-
-## 写入后校验
-
-优化结果必须通过以下检查才允许发布；任一失败都会删除临时输出并报错：
-
-| 检查 | 内容 |
+| 检查键 | 检查内容 |
 | --- | --- |
-| `stylesSections` | 输出样式分区规范化后与组件/XF/GC 重写计划一致 |
-| `cellXfs` | 输出 `cellXfs` 与去重计划完全一致，`count` 属性与子元素数量一致 |
-| `references` | 每个工作表的单元格数、使用范围、实际样式使用次数（按规范化格式键聚合）、`c/row/col` 原始样式引用次数、合并区域列表都与输入一致 |
-| `parts` | 所有未修改的包部件存在、长度不变且 SHA-256 一致（VBA、图片等） |
+| `stylesSections` | 样式分区与计划一致 |
+| `cellXfs` | cell XF 内容与声明数量符合计划 |
+| `references` | 工作表样式引用、计数、范围和合并区域符合对应校验规则 |
+| `parts` | 未修改部件存在且长度和 SHA-256 一致 |
 | `package` | 输出文件存在且非空 |
 
-此外，所有保留 cell XF 和命名样式的展开组件/基础 XF 结构必须与原定义一致；工作表引用数按展开后的样式键比较，
-因此漏改、错改或遗留的越界 `s` 值都会被发现。工作表重写只修改样式索引，`mergeCells`、公式、
-值、批注、条件格式等非样式内容原样保留；校验会额外比较每个工作表的合并区域列表。
+默认模式的 `VerificationScope=SemanticEquivalenceAndPackageIntegrity` 指已实现模型覆盖的格式等价与包完整性。它不检查外部模板依赖，也不运行 Microsoft Excel。
 
-## 界面
-
-左侧导航新增「Excel 优化」独立页面（不占用首页设置），以及单独的「批量优化」页面：
-
-- 工作簿选择、分析、优化并另存为；
-- 概要指标卡：文件大小、`styles.xml`、`cellXfs`、唯一格式、可去重格式、工作表未引用格式、
-  字体/填充/边框、工作表数量；
-- 「处理效果」：`cellXfs` 与 `styles.xml` 在优化前后的预计值，以及可减少比例；
-- 右侧工作表标签（含隐藏标记）和样式样本卡：直接渲染填充、字体、边框、对齐；
-- 优化完成后：结果卡显示输出文件、实际文件大小/格式/样式表变化、逐项校验结果，并可打开所在
-  文件夹；同时自动分析输出文件，右侧样式样本切换为处理后的工作簿。
-
-页面支持明亮/黑暗主题和简体中文/日本語；切换语言会就地重建指标、对比和样式详情，无需重新
-分析。运行在全局忙碌状态中，可使用状态栏的「取消」；分析/优化都在后台线程执行。
+有损模式的 `IsLossy=true`，范围为 `KnownStructureAndContentOnly_NotVisualOrSemanticEquivalence`。此时 `Verified=true` **不表示**原格式语义或外观保持不变。调用者应同时检查 `Warnings`、`VerificationScope`、`TableChanges` 和跳过原因，不能只看 `Verified`。
 
 ## CLI
 
-`tools/RelaxCat.ExcelTool` 复用同一 Core API：
+从仓库根目录运行，使用 `global.json` 指定的 .NET SDK。以下路径为示例：
 
 ```powershell
-# 只读分析（人类可读）
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book.xlsx
+# 分析，不生成优化文件
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze input.xlsx --json
 
-# 机器可读 JSON
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze path\to\book.xlsx --json
+# 默认优化，输出目录必须已存在
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize input.xlsx --output output.xlsx --json
 
-# 优化到新文件
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize path\to\book.xlsx --output path\to\book.optimized.xlsx
+# 在已知引用图内回收
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize input.xlsx --output output-gc.xlsx --gc
 
-# 批量优化文件夹
-dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch path\to\input --output-dir path\to\output [--no-recursive] [--overwrite]
+# 先审核有损计划，再输出独立文件
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- analyze input.xlsx --destructive-styles --json
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- optimize input.xlsx --output output-lossy.xlsx --destructive-styles --json
+
+# 批量处理；可选 --no-recursive、--overwrite
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- batch input-folder --output-dir output-folder --json
+
+# 只输出有范围限制的扩展类型诊断
+dotnet run --project tools/RelaxCat.ExcelTool -c Release -- extensions input.xlsx
 ```
 
-退出码：`0` 成功，`1` 失败，`2` 用法错误。CLI 输出为英文，便于脚本处理；桌面界面仍遵循
-简体中文/日本語的本地化要求。
+`analyze`、`optimize`、`batch` 均接受 `--gc`、`--remove-copied-named-styles`、`--destructive-styles`。`--json` 写到标准输出；警告可能写到标准错误，调用方应分别保存。
 
-## 限制与非目标
+退出码：`0` 表示命令完成；`1` 表示处理失败、取消或参数解析异常；`2` 用于缺少命令或未知命令。批量退出码不能替代逐文件结果检查，也不代表每个文件都发生了缩减。
 
-- 只支持 OOXML 工作簿 `.xlsx` / `.xlsm`；`.xls`（BIFF 二进制）不支持。
-- 合并 `cellXfs` 及可证明引用完整的 `cellStyleXfs` 完全重复项；基础 XF 的两种引用（`cellXfs.xfId` / `cellStyles.xfId`）同步重映射。存在未知扩展时保留基础 XF。不做“语义等价但 XML 不同”的归一化（例如把不同写法但效果
-  相同的边框强行合并）。
-- 样式预览用于辨认格式：渐变填充取第一个色标，主题 `tint` 使用标准 HLS 近似，渐变/图案填充
-  的显示可能与 Excel 有细微差异；优化本身不改变任何颜色或格式定义。
-- 不解密受密码保护的文件；分析会以“不是有效包”的错误结束。
-- 分析/校验是流式扫描；优化重写按单个工作表载入 XML，超大单表在重写阶段可能占用较多内存。
-- 批量扫描会跳过以 `-optimized` 结尾的输入文件；需要处理这类文件时请先重命名。
-- 不修改原工作簿，也不做自动备份/恢复；单文件通过“另存为”选择输出位置，批量写入指定输出文件夹。
-- Excel 的单元格格式上限（65,490）只作为诊断信息展示；优化会减少格式数量，但不处理上限以外
-  的数据模型问题。
-- 目标文件夹必须允许应用写入。优化会先在目标文件夹创建临时文件；安全软件（腾讯电脑管家、Windows Defender
-  受控文件夹访问等）可能拦截未签名或 Debug 版本向「下载 / 文档」等受保护目录写入，即使当前用户对目录有
-  完全控制权限。请改用项目/工作区目录，或将 `RelaxCat.App.exe` 加入安全软件信任名单后重试。
+## 批量处理
 
-### 保存时报“拒绝访问”
+- 默认递归发现 `.xlsx` / `.xlsm`；不跟随重解析点，跳过 `~$` 临时文件和名称以 `-optimized` 结尾的输入。
+- 输出目录自动创建，保留相对子目录，文件名追加 `-optimized`。输出位于输入目录内时，扫描排除该输出子树。
+- 已有输出默认跳过；只有指定 `--overwrite` 或勾选对应选项才覆盖。输入文件仍保留。
+- 单个文件失败会继续处理其他文件。取消时终止后续处理并保留已完成结果；应检查结果中的完成、跳过、失败和取消状态。
 
-这是目标目录的写入被系统或安全软件拦截，不是工作簿内容问题。工具会立即失败，不会修改原文件，也不会
-留下完成的输出；若临时文件删除也被拦截，最多留下一个 `*.partial` 临时文件，可手动删除。排查顺序：
+## 隐私与问题报告
 
-1. 先保存到普通工作目录（例如项目下的 `artifacts`）确认功能正常；
-2. 若只有「下载 / 文档 / 桌面」失败，检查安全软件的保护/信任设置，或临时关闭文档保护；
-3. 仍失败时检查目标目录 ACL 与磁盘可用空间。
+分析和样式预览不展示单元格值、公式或批注，但完整 JSON、日志与截图可能包含路径、工作表名、命名样式名、格式代码和扩展标识。清空单元格内容不会自动清除这些信息或文档属性。
 
-## 验证记录
+公开问题报告请优先使用人工生成的最小复现文件。开发和测试仅使用合成数据或用户明确提供并授权使用的样本；不要从“看起来空白”推断可以使用或公开其余内容。
 
-2026-11-01：
+`extensions` 命令只报告有数量/长度限制的类型元数据，不输出普通属性值和正文，但 URI、命名空间、元素名也可能含有敏感标识。该命令不是脱敏保证或安全证明。分享前仍需检查输出，详情见 [扩展诊断范围](excel-style-graph-validation.md#local-extension-type-diagnosis)。
 
-- Core 单元测试 74 个全部通过，其中 16 个覆盖样式分析、预览解析、去重映射（含列样式继承）、合并单元格、批量扫描/继续处理、包保留、拒绝不安全
-  目标、取消清理和越界样式引用。
-- 无界面冒烟测试覆盖：分析指标与工作表列表、样式样本渲染、优化写入与校验、同文件拒绝、
-  损坏文件报错、明暗主题与中日文切换；截图保存在 `artifacts/`。
-- 真实 Excel 校验（本机 Excel 16.0，Office 2016 及以上）：
-  - 1,200 个 `cellXfs`（仅 10 个唯一）的样例优化为 10 个，输出文件可被 Excel 正常打开；
-  - 优化前后各取 30 个单元格，填充色、粗体、字体色等一致；
-  - 由 Excel 自身生成的含公式、日期、边框和数字格式的工作簿，优化后逐项校验通过；用 COM
-    对比 482 个单元格的公式/值、字体、填充、边框、对齐和数字格式，全部一致。
+## 故障排查
 
-2026-11-03：加入分区诊断、独立 ZIP 压缩大小、基础 XF 引用图和完全重复去重。详细大小口径、保守边界及 85 个核心用例/桌面冒烟验证见 [改进实施记录](excel-style-optimizer-improvements.md#实施记录2026-11-03)。未开启 GC 时保留未引用唯一项；公司侧 Excel/TestHelper round-trip 尚待验证。
+- **没有明显缩减**：先查看膨胀分区。大量保留命名样式会使基础 XF 继续可达；ZIP 压缩变小不等于样式定义减少。再检查跳过原因。
+- **`unsupportedParts` / 扩展或引用跳过**：当前审计没有覆盖相关依赖。不要手动删除 XML 部件来绕过检查；提交经审核的最小复现或类型诊断。
+- **输入无效**：索引越界、重复名称/所属基础 XF、分区顺序错误等会被拒绝。不要把失败输出当作修复结果。
+- **拒绝访问或文件被占用**：确认输出目录存在且可写，关闭占用输出的应用，检查磁盘空间。尝试普通工作目录；如安全软件拦截，按系统提示审查应用来源和权限，不要关闭整体防护。
+- **取消或失败后残留 `.partial`**：确认任务结束且文件不再被使用，再删除残留临时文件；原件不应受影响。
+- **Excel 要求修复或外观变化**：停止使用该输出，回到原件。记录工具提交/版本、模式、Excel 版本及修复摘要；审核敏感信息后再提交问题。
 
-## 组件去重与 GC
+## 验收与验证记录
 
-组件去重默认启用：对 `fonts`、`fills`、`borders` 的完全相同定义建立旧索引到新索引的映射，重映射 cellXfs 与 cellStyleXfs；对自定义 `numFmts` 比较除 `numFmtId` 外的全部结构，保留首个实际 ID（它不是数组下标），更新 XF 引用。之后继续合并完全相同的基础 XF 与单元格 XF；不做视觉相似合并。规范化键以长度分隔字段，避免格式代码中的标点形成键碰撞。
+正式使用前，至少检查：Excel 无修复提示；值、公式与关键格式符合预期；合并、行列布局、保护、打印、宏及模板依赖适用时正常；Excel 保存再打开后样式数量与未压缩大小没有异常回涨。
 
-勾选「清理未引用样式（GC）」后重新分析，可预览并清理可证明不可达的定义。默认不勾选；单文件页切换该选项会清除旧预测，批量页有独立开关。CLI 三种命令均支持 `--gc`，例如：
+历史记录中的 2026-11-01 Excel COM 样例校验只覆盖当时的单元格 XF 优化，不覆盖后续基础 XF、GC、名称清理或有损模式。当前分支的自动化覆盖和明确未验证项以以下记录为准：
 
-```powershell
-dotnet run --project tools/RelaxCat.ExcelTool -- analyze input.xlsx --gc --json
-dotnet run --project tools/RelaxCat.ExcelTool -- optimize input.xlsx --output output.xlsx --gc
-dotnet run --project tools/RelaxCat.ExcelTool -- batch input-folder --output-dir output-folder --gc
-```
+- [样式引用图与命名身份验证](excel-style-graph-validation.md)
+- [有损模式的合成基准与验证](destructive-style-cleanup.md)
+- [Office 元数据兼容与授权样本验证](destructive-compatibility-validation.md)
+- [优化设计与验收标准](excel-style-optimizer-improvements.md)
 
-GC 按依赖顺序执行：保留工作表单元格/行/列的原始及有效样式引用、cellXfs[0]，再保留这些 XF 与全部命名样式引用的基础 XF，以及 cellStyleXfs[0]；最后保留存活 XF 所引用的组件。fonts[0]、borders[0]、fills[0..1] 是额外保留根。命名样式、差分样式、表格样式、索引颜色不会清理或合并。差分样式含独立内联 numFmt 时，整个全局 numFmts 分区保留。
-
-新增处理采用保守包清单：支持标准工作簿、普通工作表、共享字符串、主题、计算链及文档属性等核心部件。含透视表、表格、图形、VBA、自定义部件或未知扩展/引用时，新增组件去重与 GC 跳过，UI/CLI/批量逐文件结果给出原因；原有完全重复 XF 去重仍可执行。因此 `.xlsm` 的 VBA 保留，但目前不启用新增组件/GC 阶段。跳过不是宣称这些部件一定有依赖，而是当前尚未覆盖其完整依赖。
-
-`TableChanges` 提供各表处理前后数量、完全重复移除数和未引用移除数；`ProjectedCellXfCount`/`ProjectedCellStyleXfCount` 是实际预计输出数，与唯一数量分开。未压缩字节减少量仍是主要体积指标。输出前对保留的每个 cell XF 和每个命名样式比较展开后的组件/基础 XF 结构，并验证引用范围及非目标部件 SHA-256。源文件始终保持不变。
-
-参考：[Microsoft CellFormat 文档](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.spreadsheet.cellformat)定义 `fontId` 等组件索引及 `xfId` 基础样式引用；实际保守支持边界由本项目引用审计实现决定。
+这些记录不能替代目标 Excel 版本及实际工作流的验收。Windows 发布包打包成功也不等于在 Windows 启动或在 Excel 完成了打开/保存测试。
