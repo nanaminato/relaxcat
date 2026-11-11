@@ -41,7 +41,9 @@ public sealed class ExcelStyleOptimizer
             var inputStylesBytes = package.LengthOf("xl/styles.xml");
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.Reading, 0, worksheets.Count));
             cancellationToken.ThrowIfCancellationRequested();
-            var context = StyleOptimizationContext.Read(package, styles, worksheets, cancellationToken);
+            var destructive = options?.DestructiveStyleCleanup == true;
+            var context = StyleOptimizationContext.Read(package, styles, worksheets, cancellationToken,
+                allowMacroBehaviorLoss: destructive);
             var plan = StyleDeduplicationPlan.Build(styles, context: context, options: options, cancellationToken: cancellationToken);
             var inputKeys = plan.OriginalKeys;
             var outputKeys = plan.OutputKeys;
@@ -70,9 +72,13 @@ public sealed class ExcelStyleOptimizer
             }
             progress?.Report(new ExcelOptimizationProgress(ExcelOptimizationPhase.RewritingStyles, worksheets.Count, worksheets.Count));
 
-            using (var outputStream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
-            using (var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create))
+            // A second destructive pass must not merely recompress unchanged worksheet data.
+            // Keep the entire ZIP byte-identical when the selected plan has no more changes.
+            if (destructive && !hasDuplicates) File.Copy(input, temporary, overwrite: false);
+            else
             {
+                using var outputStream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                using var outputArchive = new ZipArchive(outputStream, ZipArchiveMode.Create);
                 foreach (var entry in package.Archive.Entries)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -111,6 +117,9 @@ public sealed class ExcelStyleOptimizer
                 styles.CellXfs.Count, plan.KeptCount, inputStylesBytes, outputStylesBytes,
                 remapped, worksheets.Count, checks, true)
             {
+                IsLossy = destructive,
+                VerificationScope = destructive ? ExcelStyleOptimizationOptions.DestructiveVerificationScope : "SemanticEquivalenceAndPackageIntegrity",
+                Warnings = destructive ? [ExcelStyleOptimizationOptions.DestructiveStyleRisk] : [],
                 CellXfMap = plan.Map,
                 CellStyleXfMap = plan.BaseMap,
                 NamedStyleMap = plan.NamedMap,

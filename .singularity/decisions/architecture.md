@@ -375,3 +375,15 @@ Decision: Extend D-I18N-001 with automatic discovery of Localization/*.json. Eac
 Reason: The human requested JSON-only extensibility after discussing adding English/Korean. No complete extra language translations are implied by implementing discovery; they can be added independently as JSON packs.
 
 Evidence: `docs/localization.md`, `src/RelaxCat.App/Models/UiText.cs`, `src/RelaxCat.App/Models/SettingsStore.cs`, `tests/RelaxCat.App.SmokeTests/LocalizationChecks.cs` (temporary English/Korean packs and real settings selector).
+
+## D-EXCEL-DESTRUCTIVE-001
+
+Status: Active (experimental opt-in only)
+
+Upstream: S-EXCEL-009, S-EXCEL-011, S-EXCEL-012
+
+Decision: Add a separate default-off destructive GUI/API/CLI option. Keep one built-in Normal identity and its base definition, drop every other named style/base identity, retain the cell XF's own direct formatting, set all apply flags, rebind it to the single base, then run reachability collection and exact component/cell merging. The Normal base is identified by builtinId=0 rather than English spelling and preserves its font/column metrics. Missing cell components are not guessed from a base. Unknown structural dependencies continue to block index changes; VBA alone is admitted only with explicit loss-of-behavior disclosure. Verification checks the chosen plan and package contents rather than original semantic equivalence.
+
+Reason: Name ownership was keeping tens of thousands of equivalent base formats alive. Deleting the identities is intentional loss and avoids invalid Office output containing many names sharing a base. The independent mode provides large reductions without weakening the default optimizer.
+
+Evidence: `docs/destructive-style-cleanup.md`, `tests/RelaxCat.Core.Tests/DestructiveStyleTests.cs`.

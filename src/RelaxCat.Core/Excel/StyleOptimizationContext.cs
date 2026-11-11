@@ -6,7 +6,8 @@ namespace RelaxCat.Core.Excel;
 internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, string? SkipReason)
 {
     internal static StyleOptimizationContext Read(OoxmlPackage package, StyleSheetDocument styles,
-        IReadOnlyList<WorkbookSheet> worksheets, CancellationToken token, HashSet<int>? knownReferences = null)
+        IReadOnlyList<WorkbookSheet> worksheets, CancellationToken token, HashSet<int>? knownReferences = null,
+        bool allowMacroBehaviorLoss = false)
     {
         var references = knownReferences ?? new HashSet<int>();
         references.Add(0); // Excel's implicit/default cell format is always a root.
@@ -37,6 +38,9 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
             "xl/styles.xml", "xl/sharedStrings.xml", "xl/calcChain.xml", "xl/theme/theme1.xml",
             "docProps/core.xml", "docProps/app.xml", "docProps/custom.xml"
         };
+        // Explicit lossy policy may break macro name/index assumptions. Preserve VBA bytes,
+        // but do not allow signed packages, unknown XML consumers, controls or other parts.
+        if (allowMacroBehaviorLoss) parts.Add("xl/vbaProject.bin");
         foreach (var entry in package.Archive.Entries)
         {
             token.ThrowIfCancellationRequested();

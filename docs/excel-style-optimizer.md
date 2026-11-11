@@ -1,3 +1,5 @@
+> Experimental exception: the independent `--destructive-styles` option intentionally does not preserve named-style identity, inheritance, or future behavior. The equivalence guarantees below describe the default optimizer only. Destructive verification is explicitly weaker and is not an Excel-open guarantee. See [destructive-style-cleanup.md](destructive-style-cleanup.md) for policy, measurements and known limits.
+
 # Excel 样式优化（Excel / OOXML 样式去重）
 
 > Status: Implemented

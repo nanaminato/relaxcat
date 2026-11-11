@@ -65,6 +65,9 @@ static int Analyze(string[] args)
     {
         Console.WriteLine(JsonSerializer.Serialize(new
         {
+            analysis.IsLossy,
+            analysis.VerificationScope,
+            analysis.Warnings,
             analysis.Path,
             analysis.FileSize,
             analysis.MacroEnabled,
@@ -109,6 +112,8 @@ static int Analyze(string[] args)
     Console.WriteLine(ExtensionTypeDiagnostics.PrivacyWarning);
     foreach (var entry in analysis.ExtensionDiagnostics.Entries) Console.WriteLine($"Extension {entry.Kind}: {entry.Name} ({entry.Count})");
     if (analysis.ExtensionDiagnostics.Truncated) Console.WriteLine("Extension metadata truncated; counts may be partial.");
+    Console.WriteLine("Verification scope: " + analysis.VerificationScope);
+    Console.WriteLine("Lossy mode: " + analysis.IsLossy);
     Console.WriteLine("Workbook:   " + analysis.Path);
     Console.WriteLine("File size:  " + Bytes(analysis.FileSize));
     Console.WriteLine("styles.xml: " + Bytes(analysis.StylesXmlBytes) + "  (projected " + Bytes(analysis.ProjectedStylesXmlBytes) + ")");
@@ -120,7 +125,7 @@ static int Analyze(string[] args)
     foreach (var section in analysis.Sections)
         Console.WriteLine($"  {section.Name}: {section.Count:N0}, {Bytes(section.SerializedBytes)}, {Percent(section.SerializedShare)}, exact duplicates {section.DuplicateCount:N0}, semantic duplicates (including exact) {section.SemanticDuplicateCount:N0}, safe merges {section.SafeDuplicateRemovalCount:N0}, safe GC {section.SafeUnusedRemovalCount:N0}, conditional name removals {section.ConditionalNamedStyleRemovalCount:N0}, referenced {section.ReferencedCount?.ToString() ?? "?"}, unreferenced {section.UnreferencedCount?.ToString() ?? "?"}");
     foreach (var change in analysis.TableChanges)
-        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; {(change.Name == "cellStyles" ? "conditional copied-name removals" : "duplicates")} {change.DuplicatesRemoved}, collected {change.UnusedRemoved}");
+        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; {(change.Name == "cellStyles" ? (analysis.IsLossy ? "named-style removals" : "conditional copied-name removals") : "duplicates")} {change.DuplicatesRemoved}, destructive removals {change.DestructiveRemoved}, collected {change.UnusedRemoved}");
     if (analysis.AdvancedOptimizationSkipReason is { } reason) Console.WriteLine("Style remapping skipped: " + reason);
     foreach (var name in analysis.NamedStyleCleanupCandidates) Console.WriteLine("  Conditional named-style removal: " + name);
     Console.WriteLine("Macros:     " + (analysis.MacroEnabled ? "yes" : "no"));
@@ -155,13 +160,20 @@ static int Optimize(string[] args)
             if (++index >= args.Length) throw new ArgumentException("--output requires a path.");
             output = args[index];
         }
-        else if (argument is "--gc" or "--remove-copied-named-styles") { }
+        else if (argument is "--gc" or "--remove-copied-named-styles" or "--destructive-styles" or "--json") { }
         else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
         else positional.Add(argument);
     }
     if (positional.Count != 1) throw new ArgumentException("optimize requires exactly one input workbook.");
     if (output is null) throw new ArgumentException("optimize requires --output <path>.");
     var result = new ExcelStyleOptimizer().Optimize(positional[0], output, options: Options(args));
+    if (args.Contains("--json"))
+    {
+        Console.WriteLine(JsonSerializer.Serialize(result, new JsonSerializerOptions { WriteIndented = true }));
+        return result.Verified ? 0 : 1;
+    }
+    Console.WriteLine("Lossy mode: " + result.IsLossy);
+    Console.WriteLine("Verification scope: " + result.VerificationScope);
     Console.WriteLine("Output: " + result.OutputPath);
     Console.WriteLine("File size:  " + Bytes(result.InputFileSize) + " -> " + Bytes(result.OutputFileSize) + "  (" + Percent(result.ReductionRatio) + " fewer cell formats)");
     Console.WriteLine("cellStyleXfs: " + Count(result.InputCellStyleXfCount) + " -> " + Count(result.OutputCellStyleXfCount));
@@ -169,7 +181,7 @@ static int Optimize(string[] args)
     Console.WriteLine("cellXfs:    " + Count(result.InputCellXfCount) + " -> " + Count(result.OutputCellXfCount));
     Console.WriteLine("styles.xml: " + Bytes(result.InputStylesXmlBytes) + " -> " + Bytes(result.OutputStylesXmlBytes));
     foreach (var change in result.TableChanges)
-        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; {(change.Name == "cellStyles" ? "conditional copied-name removals" : "duplicates")} {change.DuplicatesRemoved}, collected {change.UnusedRemoved}");
+        Console.WriteLine($"  {change.Name}: {change.Before} -> {change.After}; {(change.Name == "cellStyles" ? (result.IsLossy ? "named-style removals" : "conditional copied-name removals") : "duplicates")} {change.DuplicatesRemoved}, destructive removals {change.DestructiveRemoved}, collected {change.UnusedRemoved}");
     if (result.AdvancedOptimizationSkipReason is { } reason) Console.WriteLine("Style remapping skipped: " + reason);
     Console.WriteLine("References remapped: " + Count(result.RemappedReferences) + " across " + Count(result.WorksheetCount) + " worksheet(s)");
     Console.WriteLine();
@@ -201,19 +213,26 @@ static int Batch(string[] args)
         }
         else if (argument == "--no-recursive") recursive = false;
         else if (argument == "--overwrite") overwrite = true;
-        else if (argument is "--gc" or "--remove-copied-named-styles") { }
+        else if (argument is "--gc" or "--remove-copied-named-styles" or "--destructive-styles" or "--json") { }
         else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
         else if (input is null) input = argument;
         else throw new ArgumentException("batch accepts one input folder.");
     }
     if (input is null) throw new ArgumentException("batch requires an input folder.");
     if (output is null) throw new ArgumentException("batch requires --output-dir <folder>.");
+    var options = Options(args);
+    var json = args.Contains("--json");
     var discovery = ExcelWorkbookFinder.Find(input, recursive, output);
-    Console.WriteLine($"Found {discovery.Files.Count:N0} workbook(s) in {Path.GetFullPath(input)}");
-    foreach (var issue in discovery.Issues) Console.WriteLine("  warning: cannot read " + issue);
-    if (discovery.Files.Count == 0) return 0;
+    if (!json) Console.WriteLine($"Found {discovery.Files.Count:N0} workbook(s) in {Path.GetFullPath(input)}");
+    foreach (var issue in discovery.Issues) Console.Error.WriteLine("  warning: cannot read " + issue);
+
     var progress = new ConsoleBatchProgress();
-    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, progress, options: Options(args));
+    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, json ? null : progress, options: options);
+    if (json)
+    {
+        Console.WriteLine(JsonSerializer.Serialize(outcome, new JsonSerializerOptions { WriteIndented = true }));
+        return outcome.Results.Any(result => result.Status == ExcelBatchItemStatus.Failed) || outcome.Cancelled ? 1 : 0;
+    }
     Console.WriteLine();
     Console.WriteLine($"Completed: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Completed):N0}, " +
                       $"skipped: {outcome.Results.Count(result => result.Status == ExcelBatchItemStatus.Skipped):N0}, " +
@@ -226,7 +245,10 @@ static ExcelStyleOptimizationOptions Options(string[] args)
 {
     var cleanup = args.Contains("--remove-copied-named-styles");
     if (cleanup) Console.Error.WriteLine("WARNING: " + ExcelStyleOptimizationOptions.CopiedNamedStyleRisk);
-    return new ExcelStyleOptimizationOptions(CollectUnusedStyles: args.Contains("--gc"), RemoveCopiedNamedStyles: cleanup);
+    var destructive = args.Contains("--destructive-styles");
+    if (destructive) Console.Error.WriteLine("WARNING: " + ExcelStyleOptimizationOptions.DestructiveStyleRisk);
+    return new ExcelStyleOptimizationOptions(CollectUnusedStyles: args.Contains("--gc"), RemoveCopiedNamedStyles: cleanup,
+        DestructiveStyleCleanup: destructive);
 }
 
 static int Unknown(string command)
@@ -243,18 +265,25 @@ static void PrintUsage()
         RelaxCat Excel style tool
 
         Usage:
-          RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json] [--gc] [--remove-copied-named-styles]
-          RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm> [--gc] [--remove-copied-named-styles]
-          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--no-recursive] [--overwrite] [--gc] [--remove-copied-named-styles]
+          RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
+          RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
+          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--json] [--no-recursive] [--overwrite] [--gc] [--remove-copied-named-styles] [--destructive-styles]
 
         analyze   Read-only report of the style table, duplicate cell formats and worksheet styles.
         optimize  Merge provably equivalent cell formats into a NEW workbook. The input is never modified.
                   The output keeps the input's extension; .xlsm files keep their VBA project and all
                   other package parts byte-for-byte. Every result is verified before it is published.
+                  Destructive mode verifies structure, not visual or behavioral equivalence.
         batch     Optimize every .xlsx/.xlsm found in a folder (recursive by default). Outputs are
                   written as <name>-optimized.<ext> under --output-dir, preserving subdirectories.
                   Existing outputs are skipped unless --overwrite is given; per-file failures continue.
 
+        --destructive-styles
+                  DANGEROUS, LOSSY opt-in: collapse all named/base styles to Normal, flatten direct
+                  formatting best-effort, collect unused definitions and merge duplicates. Names,
+                  inheritance, visual formatting and automation can break. VBA is retained, not guaranteed
+                  to behave identically. Unknown structural dependencies still block remapping.
+                  Verification is STRUCTURAL ONLY, not visual/behavioral equivalence. Keep the source.
         --remove-copied-named-styles
                   Aggressive opt-in: remove metadata-free CustomName_N candidates only when an existing
                   custom CustomName has identical formatting. NOT proof of disuse: external programs
@@ -293,6 +322,8 @@ internal sealed class ConsoleBatchProgress : IProgress<ExcelBatchProgress>
         };
         if (result.AdvancedOptimizationSkipReason is { } reason)
             status += " (component merging/GC skipped: " + reason + ")";
+        if (result.Status == ExcelBatchItemStatus.Completed)
+            Console.WriteLine("  Verification scope: " + result.VerificationScope + "; lossy: " + result.IsLossy);
         Console.WriteLine($"  [{value.Completed}/{value.Total}] {result.RelativePath}: {status}" +
                           (result.Error is null ? "" : " - " + result.Error));
     }

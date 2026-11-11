@@ -38,6 +38,14 @@
               <TextBlock x:Name="BatchNamedStyleCleanupWarning" Classes="muted" FontSize="11"
                          Text="{Binding Text[RemoveCopiedNamedStylesHint]}" TextWrapping="Wrap"
                          IsVisible="{Binding ExcelTool.Batch.RemoveCopiedNamedStyles}" />
+              <CheckBox x:Name="BatchDestructiveStyleCleanupOption"
+                        IsChecked="{Binding ExcelTool.Batch.DestructiveStyleCleanup, Mode=TwoWay}"
+                        ToolTip.Tip="{Binding Text[DestructiveStyleCleanupHint]}">
+                <TextBlock Text="{Binding Text[DestructiveStyleCleanup]}" TextWrapping="Wrap" />
+              </CheckBox>
+              <TextBlock x:Name="BatchDestructiveStyleCleanupWarning" FontSize="11"
+                         Text="{Binding Text[DestructiveStyleCleanupHint]}" TextWrapping="Wrap"
+                         IsVisible="{Binding ExcelTool.Batch.DestructiveStyleCleanup}" />
               <CheckBox x:Name="BatchOverwriteOption" Content="{Binding Text[BatchOverwrite]}" IsChecked="{Binding ExcelTool.Batch.Overwrite, Mode=TwoWay}" />
               <TextBlock Classes="muted" Text="{Binding Text[BatchOutputHint]}" TextWrapping="Wrap" FontSize="10" />
               <StackPanel Orientation="Horizontal" Spacing="8">

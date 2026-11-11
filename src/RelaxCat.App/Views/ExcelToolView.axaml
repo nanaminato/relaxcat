@@ -68,6 +68,14 @@
               <TextBlock x:Name="NamedStyleCleanupWarning" Classes="muted" FontSize="11"
                          Text="{Binding Text[RemoveCopiedNamedStylesHint]}" TextWrapping="Wrap"
                          IsVisible="{Binding ExcelTool.RemoveCopiedNamedStyles}" />
+              <CheckBox x:Name="DestructiveStyleCleanupOption"
+                        IsChecked="{Binding ExcelTool.DestructiveStyleCleanup, Mode=TwoWay}"
+                        ToolTip.Tip="{Binding Text[DestructiveStyleCleanupHint]}">
+                <TextBlock Text="{Binding Text[DestructiveStyleCleanup]}" TextWrapping="Wrap" />
+              </CheckBox>
+              <TextBlock x:Name="DestructiveStyleCleanupWarning" FontSize="11"
+                         Text="{Binding Text[DestructiveStyleCleanupHint]}" TextWrapping="Wrap"
+                         IsVisible="{Binding ExcelTool.DestructiveStyleCleanup}" />
               <TextBlock Classes="muted" Text="{Binding Text[AnalyzeHint]}" TextWrapping="Wrap" />
             </StackPanel>
           </Border>

@@ -67,7 +67,9 @@ public sealed class ExcelStyleAnalyzer
         }
 
         progress?.Report(new ExcelAnalysisProgress(ExcelAnalysisPhase.Projecting, 0, 1));
-        var context = StyleOptimizationContext.Read(package, styles, sheetDefinitions, cancellationToken, new HashSet<int>(referenced));
+        var destructive = options?.DestructiveStyleCleanup == true;
+        var context = StyleOptimizationContext.Read(package, styles, sheetDefinitions, cancellationToken, new HashSet<int>(referenced),
+            allowMacroBehaviorLoss: destructive);
         var plan = StyleDeduplicationPlan.Build(styles, retainOriginalKeys: false, context: context, options: options,
             cancellationToken: cancellationToken);
         // Equivalence diagnostics are independent of whether unknown consumers prevent edits.
@@ -83,6 +85,9 @@ public sealed class ExcelStyleAnalyzer
             styles.CellXfs.Count, uniqueCount, referenced.Count,
             originalStylesBytes, projectedStylesBytes, summaries)
         {
+            IsLossy = destructive,
+            VerificationScope = destructive ? ExcelStyleOptimizationOptions.DestructiveVerificationScope : "SemanticEquivalenceAndPackageIntegrity",
+            Warnings = destructive ? [ExcelStyleOptimizationOptions.DestructiveStyleRisk] : [],
             ReferenceGraph = graph,
             ExtensionDiagnostics = ExtensionTypeScanner.Read(package, sheetDefinitions, styles.Root.Name.NamespaceName, cancellationToken),
             NamedStyleCleanupCandidates = (OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
@@ -93,8 +98,9 @@ public sealed class ExcelStyleAnalyzer
             TableChanges = plan.Changes,
             AdvancedOptimizationSkipReason = context.SkipReason,
             StylesXmlCompressedBytes = package.Require("xl/styles.xml").CompressedLength,
-            BaseStyleReferences = StyleDiagnostics.References(styles),
-            Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles), context.CellReferences, plan.Changes, context.SkipReason is null),
+            BaseStyleReferences = StyleDiagnostics.References(styles, destructive),
+            Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles, destructive), context.CellReferences,
+                plan.Changes, context.SkipReason is null && !destructive),
             UniqueCellStyleXfCount = styles.CellStyleXfs.Select(xf => StyleTableOptimizer.SemanticKey(styles, xf)).Distinct(StringComparer.Ordinal).Count(),
             CanDeduplicateBaseStyles = context.SkipReason is null
         };

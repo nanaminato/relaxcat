@@ -18,6 +18,9 @@ public sealed record ExcelBatchItemResult(
     bool Verified,
     string? Error)
 {
+    public bool IsLossy { get; init; }
+    public string VerificationScope { get; init; } = "SemanticEquivalenceAndPackageIntegrity";
+    public IReadOnlyList<string> Warnings { get; init; } = [];
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = [];
     public string? AdvancedOptimizationSkipReason { get; init; }
     public bool Succeeded => Status == ExcelBatchItemStatus.Completed;
@@ -158,7 +161,10 @@ public sealed class ExcelBatchOptimizer
                 result = new ExcelBatchItemResult(file.Path, file.RelativePath, output, ExcelBatchItemStatus.Completed,
                     optimized.InputCellXfCount, optimized.OutputCellXfCount,
                     optimized.InputFileSize, optimized.OutputFileSize, optimized.Verified, null)
-                { TableChanges = optimized.TableChanges, AdvancedOptimizationSkipReason = optimized.AdvancedOptimizationSkipReason };
+                {
+                    TableChanges = optimized.TableChanges, AdvancedOptimizationSkipReason = optimized.AdvancedOptimizationSkipReason,
+                    IsLossy = optimized.IsLossy, VerificationScope = optimized.VerificationScope, Warnings = optimized.Warnings
+                };
             }
             catch (OperationCanceledException)
             {

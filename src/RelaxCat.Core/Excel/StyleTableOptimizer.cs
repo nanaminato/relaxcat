@@ -27,7 +27,9 @@ internal sealed class StyleTableOptimizer
         var advanced = context is { SkipReason: null };
         // Even exact merges renumber IDs. Unknown consumers can therefore make them unsafe.
         if (!advanced) return;
-        var gc = advanced && options.CollectUnusedStyles;
+        if (options.DestructiveStyleCleanup) CollapseNamedStyles();
+        var gc = options.CollectUnusedStyles || options.DestructiveStyleCleanup;
+        var deduplicate = options.DeduplicateComponents || options.DestructiveStyleCleanup;
         if (gc)
         {
             // Preserve cellXfs[0] even for an empty workbook and preserve raw row/column refs.
@@ -35,14 +37,14 @@ internal sealed class StyleTableOptimizer
         }
         // When GC is selected, decide name liveness after collecting unused cell formats.
         // This keeps the combined plan idempotent without deleting any live association.
-        if (options.RemoveCopiedNamedStyles) RemoveCopiedNames();
+        if (options.RemoveCopiedNamedStyles && !options.DestructiveStyleCleanup) RemoveCopiedNames();
         if (gc)
         {
             var bases = References(Styles.CellXfs, "xfId");
             bases.UnionWith(References(OoxmlXml.Child(Styles.Root, "cellStyles")?.Elements() ?? [], "xfId"));
             RewriteTable("cellStyleXfs", "xf", bases, false, [0]);
         }
-        if (advanced && (options.DeduplicateComponents || gc))
+        if (deduplicate || gc)
         {
             foreach (var (table, item, attribute, reserved) in new[]
             {
@@ -52,13 +54,63 @@ internal sealed class StyleTableOptimizer
             })
             {
                 var used = gc ? References(Styles.CellXfs.Concat(Styles.CellStyleXfs), attribute) : null;
-                RewriteTable(table, item, used, options.DeduplicateComponents, reserved, attribute);
+                RewriteTable(table, item, used, deduplicate, reserved, attribute);
             }
-            OptimizeNumberFormats(gc, options.DeduplicateComponents);
+            OptimizeNumberFormats(gc, deduplicate);
         }
         if (StyleDeduplicationPlan.CanMergeBaseStyles(Styles))
             RewriteTable("cellStyleXfs", "xf", null, true, [0]);
         RewriteTable("cellXfs", "xf", null, true, [0]);
+    }
+
+    // Deliberately destroys named identity and future propagation. This is NOT SemanticKey
+    // equivalence. Office uses the cell XF for current display; do not copy base components
+    // over explicit cell components when apply*=false. Missing values stay missing rather
+    // than inventing inheritance. Normal's base/font survives because it affects column metrics.
+    private void CollapseNamedStyles()
+    {
+        var document = new XDocument(Styles.Document);
+        var root = document.Root!;
+        var ns = root.Name.Namespace;
+        var names = OoxmlXml.Child(root, "cellStyles")?.Elements().ToArray() ?? [];
+        var normalIndex = Array.FindIndex(names, n => OoxmlXml.IntAttribute(n, "builtinId") == 0);
+        var normal = normalIndex >= 0 ? new XElement(names[normalIndex]) :
+            new XElement(ns + "cellStyle", new XAttribute("name", "Normal"), new XAttribute("builtinId", 0));
+        var baseId = normalIndex >= 0 ? OoxmlXml.IntAttribute(normal, "xfId")!.Value : 0;
+        var normalBase = Styles.CellStyleXfs.Count > 0 ? new XElement(Styles.CellStyleXfs[baseId]) :
+            new XElement(ns + "xf"); // Component tables and their attributes are optional together.
+        normal.SetAttributeValue("xfId", 0);
+        var cells = OoxmlXml.Child(root, "cellXfs")!;
+        foreach (var xf in cells.Elements())
+        {
+            token.ThrowIfCancellationRequested();
+            xf.SetAttributeValue("xfId", 0);
+            foreach (var flag in new[] { "applyNumberFormat", "applyFont", "applyFill", "applyBorder", "applyAlignment", "applyProtection" })
+                xf.SetAttributeValue(flag, "1");
+            NormalizeBooleanLexemes(xf);
+        }
+        ReplaceOrInsert("cellStyleXfs", new XElement(ns + "cellStyleXfs", new XAttribute("count", 1), normalBase), before: true);
+        ReplaceOrInsert("cellStyles", new XElement(ns + "cellStyles", new XAttribute("count", 1), normal), before: false);
+        // Compact only the style part in this explicit destructive mode. Other parts remain byte-preserved.
+        foreach (var whitespace in root.DescendantNodes().OfType<XText>().Where(t => string.IsNullOrWhiteSpace(t.Value)).ToArray())
+            whitespace.Remove();
+        var bytes = OoxmlXml.Serialize(document);
+        BaseMap = Enumerable.Range(0, BaseMap.Length).Select(i => i == baseId ? 0 : -1).ToArray();
+        NamedMap = Enumerable.Range(0, names.Length).Select(i => i == normalIndex ? 0 : -1).ToArray();
+        if (Styles.OriginalXml.AsSpan().SequenceEqual(bytes)) return;
+        Changes.Add(new StyleTableChange("cellStyles", names.Length, 1, 0, 0)
+            { DestructiveRemoved = names.Length - (normalIndex >= 0 ? 1 : 0) });
+        Changes.Add(new StyleTableChange("cellStyleXfs", Styles.CellStyleXfs.Count, 1, 0, 0)
+            { DestructiveRemoved = Math.Max(0, Styles.CellStyleXfs.Count - 1) });
+        Changes.Add(new StyleTableChange("cellXfs", Styles.CellXfs.Count, Styles.CellXfs.Count, 0, 0));
+        Styles = Styles.WithXml(bytes);
+
+        void ReplaceOrInsert(string name, XElement replacement, bool before)
+        {
+            if (OoxmlXml.Child(root, name) is { } old) old.ReplaceWith(replacement);
+            else if (before) cells.AddBeforeSelf(replacement);
+            else cells.AddAfterSelf(replacement);
+        }
     }
 
     // Opt-in heuristic, never claimed to prove that an external program does not use a name.

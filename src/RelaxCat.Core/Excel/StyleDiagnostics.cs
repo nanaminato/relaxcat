@@ -5,7 +5,7 @@ namespace RelaxCat.Core.Excel;
 
 internal static class StyleDiagnostics
 {
-    internal static IReadOnlyList<BaseStyleReference> References(StyleSheetDocument styles)
+    internal static IReadOnlyList<BaseStyleReference> References(StyleSheetDocument styles, bool allowDuplicateNamedIdentities = false)
     {
         var numberFormats = OoxmlXml.Child(styles.Root, "numFmts")?.Elements().ToArray() ?? [];
         var ids = new HashSet<int>();
@@ -34,9 +34,9 @@ internal static class StyleDiagnostics
         foreach (var style in OoxmlXml.Child(styles.Root, "cellStyles")?.Elements() ?? [])
         {
             if (OoxmlXml.IntAttribute(style, "xfId") is not { } baseId || baseId < 0 ||
-                baseId >= styles.CellStyleXfs.Count || !namedBases.Add(baseId))
+                baseId >= styles.CellStyleXfs.Count || (!namedBases.Add(baseId) && !allowDuplicateNamedIdentities))
                 throw new InvalidDataException("Named styles require valid, distinct base-format references for Office compatibility.");
-            if (style.Attribute("name") is not { } name || string.IsNullOrEmpty(name.Value) || !namedNames.Add(name.Value))
+            if (!allowDuplicateNamedIdentities && (style.Attribute("name") is not { } name || string.IsNullOrEmpty(name.Value) || !namedNames.Add(name.Value)))
                 throw new InvalidDataException("Named styles require nonempty, distinct names for Office compatibility.");
         }
         var cells = new int[styles.CellStyleXfs.Count];

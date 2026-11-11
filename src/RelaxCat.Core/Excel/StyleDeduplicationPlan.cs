@@ -45,7 +45,8 @@ internal sealed class StyleDeduplicationPlan
         StyleOptimizationContext? context = null, ExcelStyleOptimizationOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        StyleDiagnostics.References(styles);
+        var destructive = options?.DestructiveStyleCleanup == true;
+        StyleDiagnostics.References(styles, allowDuplicateNamedIdentities: destructive);
         var inputKeys = retainOriginalKeys
             ? styles.CellXfs.Select(xf => StyleTableOptimizer.SemanticKey(styles, xf)).ToArray()
             : Array.Empty<string>();
@@ -54,7 +55,7 @@ internal sealed class StyleDeduplicationPlan
         var output = optimizer.Styles;
         StyleDiagnostics.References(output);
         var outputKeys = retainOriginalKeys ? output.CellXfs.Select(xf => StyleTableOptimizer.SemanticKey(output, xf)).ToArray() : [];
-        if (retainOriginalKeys)
+        if (retainOriginalKeys && !destructive)
         {
             for (var i = 0; i < optimizer.CellMap.Length; i++)
             {
@@ -71,13 +72,20 @@ internal sealed class StyleDeduplicationPlan
                 if (optimizer.NamedMap[i] >= 0 && NamedKey(styles, oldNames[i]) != NamedKey(output, newNames[optimizer.NamedMap[i]]))
                     throw new InvalidDataException("A named style changed meaning during table optimization.");
         }
+        if (retainOriginalKeys && destructive)
+        {
+            // Verify the selected old-to-new rewrite, NOT equivalence to original formatting.
+            // The public result exposes this weaker scope and the intentional loss explicitly.
+            inputKeys = optimizer.CellMap.Select((mapped, index) => mapped >= 0 ? outputKeys[mapped] : "removed:" + index).ToArray();
+        }
         return new StyleDeduplicationPlan(optimizer.CellMap, output.CellXfs, inputKeys, output.Document, output.OriginalXml)
         {
             Changed = optimizer.Changes.Count > 0,
             BaseMap = optimizer.BaseMap,
             NamedMap = optimizer.NamedMap,
             Changes = optimizer.Changes.GroupBy(change => change.Name).Select(group => new StyleTableChange(
-                group.Key, group.First().Before, group.Last().After, group.Sum(c => c.DuplicatesRemoved), group.Sum(c => c.UnusedRemoved))).ToArray(),
+                group.Key, group.First().Before, group.Last().After, group.Sum(c => c.DuplicatesRemoved), group.Sum(c => c.UnusedRemoved))
+                { DestructiveRemoved = group.Sum(c => c.DestructiveRemoved) }).ToArray(),
             OutputKeys = outputKeys
         };
     }

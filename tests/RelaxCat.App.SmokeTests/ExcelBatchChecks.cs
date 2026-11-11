@@ -24,6 +24,10 @@ internal static class ExcelBatchChecks
         Check(window.Workspace.HomeOpen == false, "Batch navigation did not open its page");
 
         var batch = window.Workspace.ExcelTool.Batch;
+        var destructiveOption = page.FindControl<CheckBox>("BatchDestructiveStyleCleanupOption")!;
+        var destructiveWarning = page.FindControl<TextBlock>("BatchDestructiveStyleCleanupWarning")!;
+        Check(destructiveOption.IsChecked == false && !batch.OptimizationOptions.DestructiveStyleCleanup &&
+              !destructiveWarning.IsVisible, "Batch destructive mode must default to disabled");
         var copiedNamesOption = page.FindControl<CheckBox>("BatchRemoveCopiedNamedStylesOption")!;
         var copiedNamesWarning = page.FindControl<TextBlock>("BatchNamedStyleCleanupWarning")!;
         Check(copiedNamesOption.IsChecked == false && !batch.RemoveCopiedNamedStyles &&
@@ -116,6 +120,19 @@ internal static class ExcelBatchChecks
         Dispatcher.UIThread.RunJobs();
         Check(!copiedNamesWarning.IsVisible && batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
             "Disabling batch copied-name cleanup left stale results visible");
+        destructiveOption.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(batch.OptimizationOptions.DestructiveStyleCleanup && !batch.RemoveCopiedNamedStyles && destructiveWarning.IsVisible &&
+              batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
+            "Batch destructive option did not clear results or show warning");
+        complete(window.RunExcelBatchAsync());
+        Check(batch.Items.Single(item => item.RelativePath == "a.xlsx").DetailText.Contains(window.Workspace.Text["DestructiveVerification"]),
+            "Destructive batch result must identify structural-only verification");
+        capture("excel-batch-destructive-result-light.png");
+        destructiveOption.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Check(!destructiveWarning.IsVisible && batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
+            "Disabling batch destructive mode must clear stale results");
         batch.Overwrite = false;
 
         Click(window.FindControl<Button>("HomeButton")!);

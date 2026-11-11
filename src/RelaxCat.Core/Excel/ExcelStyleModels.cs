@@ -58,6 +58,9 @@ public sealed record ExcelStyleAnalysis(
     long ProjectedStylesXmlBytes,
     IReadOnlyList<WorksheetStyleSummary> Worksheets)
 {
+    public bool IsLossy { get; init; }
+    public string VerificationScope { get; init; } = "SemanticEquivalenceAndPackageIntegrity";
+    public IReadOnlyList<string> Warnings { get; init; } = [];
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
     public IReadOnlyList<StyleReferenceEdge> ReferenceGraph { get; init; } = [];
@@ -119,6 +122,10 @@ public sealed record ExcelOptimizationResult(
     IReadOnlyList<OptimizationCheck> Checks,
     bool Verified)
 {
+    /// <summary>True for the explicitly destructive policy, even when a structural gate prevents edits.</summary>
+    public bool IsLossy { get; init; }
+    public string VerificationScope { get; init; } = "SemanticEquivalenceAndPackageIntegrity";
+    public IReadOnlyList<string> Warnings { get; init; } = [];
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
     /// <summary>Complete original-to-output mappings; -1 denotes an opt-in GC removal.</summary>
@@ -153,10 +160,20 @@ public sealed record BaseStyleReference(int Index, int CellXfReferences, int Nam
 
 /// <summary>Exact component merging is enabled by default; unreachable-definition removal is opt-in.</summary>
 public sealed record ExcelStyleOptimizationOptions(bool DeduplicateComponents = true, bool CollectUnusedStyles = false,
-    bool RemoveCopiedNamedStyles = false)
+    bool RemoveCopiedNamedStyles = false, bool DestructiveStyleCleanup = false)
 {
+    public const string DestructiveStyleRisk = "DESTRUCTIVE / LOSSY: discard all named styles except Normal, " +
+        "disconnect named-style inheritance, force direct cell formatting, and collect unused definitions. " +
+        "Formatting, future edits, protection, macros and external name/index-based automation may change or break. " +
+        "VBA bytes are retained, not macro behavior. Verification checks the chosen rewrite, known references and " +
+        "package contents only; it does not prove visual equivalence or that Microsoft Excel opens without repair. " +
+        "Unknown structural dependencies still block rewriting. Use disposable copies and retain the original.";
+    public const string DestructiveVerificationScope = "KnownStructureAndContentOnly_NotVisualOrSemanticEquivalence";
     public const string CopiedNamedStyleRisk = "Copied-name cleanup may remove names used by external programs or templates. " +
         "A suffix is only a candidate heuristic, not proof of disuse. Built-ins, metadata-bearing styles and names referenced by any retained cell format are retained; " +
         "VBA, extensions and unknown dependencies disable cleanup. Review the analysis and retain the original workbook.";
 }
-public sealed record StyleTableChange(string Name, int Before, int After, int DuplicatesRemoved, int UnusedRemoved);
+public sealed record StyleTableChange(string Name, int Before, int After, int DuplicatesRemoved, int UnusedRemoved)
+{
+    public int DestructiveRemoved { get; init; }
+}

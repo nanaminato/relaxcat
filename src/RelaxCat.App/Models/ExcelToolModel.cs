@@ -43,8 +43,14 @@ public sealed class ExcelToolModel : ObservableModel
         get => removeCopiedNamedStyles;
         set { if (Set(ref removeCopiedNamedStyles, value)) Clear(); }
     }
+    private bool destructiveStyleCleanup;
+    public bool DestructiveStyleCleanup
+    {
+        get => destructiveStyleCleanup;
+        set { if (Set(ref destructiveStyleCleanup, value)) Clear(); }
+    }
     internal ExcelStyleOptimizationOptions OptimizationOptions => new(CollectUnusedStyles: CollectUnusedStyles,
-        RemoveCopiedNamedStyles: RemoveCopiedNamedStyles);
+        RemoveCopiedNamedStyles: RemoveCopiedNamedStyles, DestructiveStyleCleanup: DestructiveStyleCleanup);
 
     public string FilePath
     {
@@ -200,12 +206,14 @@ public sealed class ExcelToolModel : ObservableModel
                 $"{Count(section.Count)} · {Bytes(section.SerializedBytes)} · {Percent(section.SerializedShare)}\n" +
                 $"{text["DuplicateFormats"]}: {Count(section.DuplicateCount)} · {text["KnownReferences"]}: {section.ReferencedCount?.ToString("N0") ?? "?"} · {text["UnreferencedFormats"]}: {section.UnreferencedCount?.ToString("N0") ?? "?"}"
             )).Concat(value.TableChanges.Select(change => new ExcelMetric(change.Name + " · " + text["TableChange"],
-                $"{Count(change.Before)} → {Count(change.After)} · {text[change.Name == "cellStyles" ? "ConditionalNamedStyleRemovals" : "DuplicateFormats"]}: {Count(change.DuplicatesRemoved)} · {text["UnusedRemoved"]}: {Count(change.UnusedRemoved)}")))
-                .Append(new ExcelMetric(text["ConditionalNamedStyleRemovals"],
-                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => change.Before - change.After))))
+                $"{Count(change.Before)} → {Count(change.After)} · {text[change.Name == "cellStyles" ? (value.IsLossy ? "DestructiveNamedStyleRemovals" : "ConditionalNamedStyleRemovals") : "DuplicateFormats"]}: {Count(change.DuplicatesRemoved)} · {text["DestructiveRemoved"]}: {Count(change.DestructiveRemoved)} · {text["UnusedRemoved"]}: {Count(change.UnusedRemoved)}")))
+                .Append(new ExcelMetric(text[value.IsLossy ? "DestructiveNamedStyleRemovals" : "ConditionalNamedStyleRemovals"],
+                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => value.IsLossy ? change.DestructiveRemoved : change.Before - change.After))))
                 .Concat(BuildNamedStyleCandidates(value.NamedStyleCleanupCandidates))
                 .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
                     ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason]))
+                .Concat(value.IsLossy ? new[] { new ExcelMetric(text["DestructiveLoss"], text["DestructiveStyleCleanupHint"]),
+                    new ExcelMetric(text["Verification"], text["DestructiveVerificationScope"]) } : Array.Empty<ExcelMetric>())
                 .Concat(BuildExtensionDiagnostics(value.ExtensionDiagnostics)).ToList()
         };
     }
@@ -258,14 +266,14 @@ public sealed class ExcelToolModel : ObservableModel
                 new("cellStyleXfs", Count(value.InputCellStyleXfCount) + " → " + Count(value.OutputCellStyleXfCount)),
                 new(text["StyleDataReduction"], Percent(value.StylesXmlReductionRatio)),
                 new(text["UnusedRemoved"], Count(value.TableChanges.Sum(change => change.UnusedRemoved))),
-                new(text["ConditionalNamedStyleRemovals"],
-                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => change.Before - change.After)))
+                new(text[value.IsLossy ? "DestructiveNamedStyleRemovals" : "ConditionalNamedStyleRemovals"],
+                    Count(value.TableChanges.Where(change => change.Name == "cellStyles").Sum(change => value.IsLossy ? change.DestructiveRemoved : change.Before - change.After)))
             }.Concat(value.TableChanges.Where(change => change.Name is not ("cellXfs" or "cellStyleXfs"))
                 .Select(change => new ExcelMetric(change.Name, Count(change.Before) + " → " + Count(change.After))))
              .Append(new ExcelMetric(text["AdvancedOptimization"], value.AdvancedOptimizationSkipReason is null
                  ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason])).ToList(),
             checks,
-            value.Verified ? string.Format(CultureInfo.CurrentCulture, text["VerificationPassed"], checks.Count) : text["VerificationFailed"],
+            value.Verified ? (value.IsLossy ? text["DestructiveVerification"] : string.Format(CultureInfo.CurrentCulture, text["VerificationPassed"], checks.Count)) : text["VerificationFailed"],
             value.Verified);
     }
 

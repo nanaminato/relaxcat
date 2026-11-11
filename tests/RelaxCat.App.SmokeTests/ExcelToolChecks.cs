@@ -27,6 +27,10 @@ internal static class ExcelToolChecks
 
         var excelPage = window.FindControl<RelaxCat.App.Views.ExcelToolView>("ExcelToolPage") ??
                         throw new Exception("Missing Excel tool page");
+        var destructiveOption = excelPage.FindControl<CheckBox>("DestructiveStyleCleanupOption")!;
+        var destructiveWarning = excelPage.FindControl<TextBlock>("DestructiveStyleCleanupWarning")!;
+        Check(destructiveOption.IsChecked == false && !window.Workspace.ExcelTool.OptimizationOptions.DestructiveStyleCleanup &&
+              !destructiveWarning.IsVisible, "Destructive mode must default to disabled");
         var copiedNamesOption = excelPage.FindControl<CheckBox>("RemoveCopiedNamedStylesOption")!;
         var copiedNamesWarning = excelPage.FindControl<TextBlock>("NamedStyleCleanupWarning")!;
         Check(copiedNamesOption.IsChecked == false && !window.Workspace.ExcelTool.RemoveCopiedNamedStyles &&
@@ -114,6 +118,8 @@ internal static class ExcelToolChecks
             Check(tool.Summary!.Metrics.Any(metric => metric.Label == text["FileSize"]), "Metric labels did not refresh: " + languageOption.Culture);
             Check(tool.SelectedSheet!.Styles[0].Details.Contains(text["FontLabel"]), "Style details did not refresh: " + languageOption.Culture);
             Check(Label(excelPage.FindControl<Button>("OptimizeButton")!) == text["OptimizeSaveAs"], "Action label did not refresh: " + languageOption.Culture);
+            Check(((TextBlock)destructiveOption.Content!).Text == text["DestructiveStyleCleanup"] &&
+                  destructiveWarning.Text == text["DestructiveStyleCleanupHint"], "Destructive warning localization did not refresh");
             Check(((TextBlock)copiedNamesOption.Content!).Text == text["RemoveCopiedNamedStyles"] &&
                   copiedNamesWarning.Text == text["RemoveCopiedNamedStylesHint"],
                 "Copied-name option and risk warning did not refresh: " + languageOption.Culture);
@@ -189,6 +195,25 @@ internal static class ExcelToolChecks
         Dispatcher.UIThread.RunJobs();
         Check(!tool.HasSummary && !tool.HasResult && !tool.CanOptimize && !copiedNamesWarning.IsVisible,
             "Disabling copied-name cleanup left obsolete results visible");
+
+        complete(window.AnalyzeExcelWorkbookAsync(namedInput));
+        destructiveOption.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(tool.DestructiveStyleCleanup && tool.OptimizationOptions.DestructiveStyleCleanup &&
+              !tool.RemoveCopiedNamedStyles && !tool.HasSummary && !tool.CanOptimize && destructiveWarning.IsVisible,
+            "Destructive option must invalidate analysis and stay separate from copied-name cleanup");
+        complete(window.AnalyzeExcelWorkbookAsync(namedInput));
+        Check(tool.CanOptimize && tool.Summary!.Diagnostics.Any(row => row.Label == window.Workspace.Text["DestructiveLoss"]),
+            "Destructive analysis did not expose loss warnings");
+        var destructiveOutput = Path.GetFullPath("artifacts/excel-tool-destructive.xlsx");
+        complete(window.OptimizeExcelWorkbookAsync(namedInput, destructiveOutput));
+        Check(tool.HasResult && tool.Result!.Verified && tool.Result.VerificationText == window.Workspace.Text["DestructiveVerification"],
+            "Destructive output must report structural-only verification");
+        capture("excel-tool-destructive-result-light.png");
+        destructiveOption.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Check(!tool.HasSummary && !tool.HasResult && !tool.CanOptimize && !destructiveWarning.IsVisible,
+            "Disabling destructive mode must clear stale analysis and results");
 
         var extensionInput = Path.GetFullPath("artifacts/excel-tool-extension-types.xlsx");
         ExtensionDiagnosticsChecks.CreateWorkbook(extensionInput);
