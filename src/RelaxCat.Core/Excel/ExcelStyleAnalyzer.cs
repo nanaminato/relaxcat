@@ -99,6 +99,7 @@ public sealed class ExcelStyleAnalyzer
             TableChanges = plan.Changes,
             AdvancedOptimizationSkipReason = context.SkipReason,
             AdvancedOptimizationSkipReasons = context.SkipReasons,
+            UnsupportedPartDetails = context.UnsupportedPartDetails,
             RetainedStyleTables = (context.PreserveFontTable ? new[] { "phoneticFonts" } : Array.Empty<string>())
                 .Concat(context.PreserveNumberFormatTable ? new[] { "ancillaryNumberFormats" } : Array.Empty<string>())
                 .Concat(OoxmlXml.Child(styles.Root, "dxfs")?.Descendants().Any(e => e.Name.LocalName == "numFmt") == true

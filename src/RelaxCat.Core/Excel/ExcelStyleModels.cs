@@ -64,6 +64,7 @@ public sealed record ExcelStyleAnalysis(
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
     public IReadOnlyList<string> AdvancedOptimizationSkipReasons { get; init; } = [];
+    public IReadOnlyList<UnsupportedPartDiagnostic> UnsupportedPartDetails { get; init; } = [];
     public IReadOnlyList<string> RetainedStyleTables { get; init; } = [];
     public IReadOnlyList<StyleReferenceEdge> ReferenceGraph { get; init; } = [];
     public ExtensionTypeDiagnostics ExtensionDiagnostics { get; init; } = new([], false);

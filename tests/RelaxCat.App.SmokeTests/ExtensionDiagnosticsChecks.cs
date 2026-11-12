@@ -33,6 +33,8 @@ internal static class ExtensionDiagnosticsChecks
                     Check(rows.Any(row => row.Value == text["AdvancedSkip_" + reason]),
                         "Detected blocker missing after language refresh: " + reason);
                 var report = model.PrivateDiagnosticJson;
+                Check(report.Contains("UnsupportedPartDetails") && report.Contains("ExtensionList") &&
+                      report.Contains("Drawing"), "Unsupported-part fixed categories did not reach the GUI JSON");
                 Check(report == PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson(),
                     "Private diagnostic projection drifted after language refresh");
                 var display = report + "\n" + string.Join("\n", rows.Select(row => row.Label + " " + row.Value));
@@ -80,8 +82,10 @@ internal static class ExtensionDiagnosticsChecks
             secret="PRIVATE_ATTRIBUTE_VALUE">PRIVATE_EXTENSION_TEXT</custom:metadata></ext></extLst></styleSheet>
             """);
         entry.Delete();
-        using var writer = new StreamWriter(archive.CreateEntry("xl/styles.xml").Open(), new UTF8Encoding(false));
-        writer.Write(styles);
+        using (var writer = new StreamWriter(archive.CreateEntry("xl/styles.xml").Open(), new UTF8Encoding(false)))
+            writer.Write(styles);
+        using var drawing = new StreamWriter(archive.CreateEntry("xl/drawings/drawing1.xml").Open(), new UTF8Encoding(false));
+        drawing.Write("<wsDr xmlns='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing'><extLst><ext uri='PRIVATE_ATTRIBUTE_VALUE'/></extLst></wsDr>");
     }
 
     private static void Check(bool condition, string message)

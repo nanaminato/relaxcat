@@ -7,6 +7,7 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
 {
     internal IReadOnlyList<StyleReferenceEdge> AdditionalReferences { get; init; } = [];
     internal IReadOnlyList<string> SkipReasons { get; init; } = [];
+    internal IReadOnlyList<UnsupportedPartDiagnostic> UnsupportedPartDetails { get; init; } = [];
     internal bool PreserveNumberFormatTable => AdditionalReferences.Any(edge => edge.Target == "numFmts");
     internal bool PreserveFontTable => AdditionalReferences.Any(edge => edge.Target == "fonts");
 
@@ -18,6 +19,7 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
         var additionalReferences = new List<StyleReferenceEdge>();
         references.Add(0); // Excel's implicit/default cell format is always a root.
         var reasons = new List<string>();
+        var rejectedParts = new List<(UnsupportedPartKind Kind, UnsupportedPartReason Reason)>();
         void AddReason(string value) { if (!reasons.Contains(value)) reasons.Add(value); }
         if (!(StyleDeduplicationPlan.CanMergeBaseStyles(styles) ||
               (destructiveStyleCleanup && KnownOfficeMetadata.CanRemapStyles(styles)))) AddReason("styleExtensions");
@@ -58,7 +60,11 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
             if (entry.FullName.EndsWith('/')) continue;
             if (!parts.Contains(entry.FullName) &&
                 !(destructiveStyleCleanup && KnownOfficeMetadata.IsAncillaryPart(package, entry.FullName, worksheets)) &&
-                !AncillaryStyleParts.Accept(package, entry.FullName, styles, additionalReferences, token)) AddReason("unsupportedParts");
+                !AncillaryStyleParts.Accept(package, entry.FullName, styles, additionalReferences, token, out var reason))
+            {
+                AddReason("unsupportedParts");
+                rejectedParts.Add((UnsupportedPartDiagnostic.Classify(entry.FullName), reason));
+            }
         }
         foreach (var sheet in worksheets)
         {
@@ -117,7 +123,9 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
                 reader.MoveToElement();
             }
         }
-        return new StyleOptimizationContext(references, reasons.FirstOrDefault()) { AdditionalReferences = additionalReferences, SkipReasons = reasons };
+        return new StyleOptimizationContext(references, reasons.FirstOrDefault()) { AdditionalReferences = additionalReferences, SkipReasons = reasons,
+            UnsupportedPartDetails = rejectedParts.GroupBy(p => p).OrderBy(g => g.Key.Kind).ThenBy(g => g.Key.Reason)
+                .Select(g => new UnsupportedPartDiagnostic(g.Key.Kind, g.Key.Reason, g.Count())).ToArray() };
     }
     private static readonly HashSet<string> KnownStyleElements = new(
         ("numFmts numFmt fonts font name charset family b i strike outline shadow condense extend color sz u vertAlign scheme " +
