@@ -13,6 +13,8 @@ public sealed class SettingsModel : ObservableModel
     private string startRow = "1", startColumn = "1";
     public string StartRow { get => startRow; set => Set(ref startRow, value); }
     public string StartColumn { get => startColumn; set => Set(ref startColumn, value); }
+    private bool appendOptimizationSuffix;
+    public bool AppendOptimizationSuffix { get => appendOptimizationSuffix; set => Set(ref appendOptimizationSuffix, value); }
     private bool compact;
     private bool showGridlines = true;
     private bool selectAllPicturesAfterExport;

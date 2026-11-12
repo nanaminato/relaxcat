@@ -63,7 +63,7 @@ public sealed class ExcelBatchTests : IDisposable
         var two = CreateWorkbookAt(Path.Combine(input, "sub", "two.xlsx"));
         File.WriteAllText(Path.Combine(input, "bad.xlsx"), "not a zip package");
         Directory.CreateDirectory(output);
-        var existing = Path.Combine(output, "one-optimized.xlsx");
+        var existing = Path.Combine(output, "one.xlsx");
         File.WriteAllText(existing, "existing");
         var oneBefore = File.ReadAllBytes(one);
         var twoBefore = File.ReadAllBytes(two);
@@ -82,7 +82,7 @@ public sealed class ExcelBatchTests : IDisposable
         Assert.Equal("existing", File.ReadAllText(existing));
         Assert.Equal(oneBefore, File.ReadAllBytes(one));
         Assert.Equal(twoBefore, File.ReadAllBytes(two));
-        var twoOutput = Path.Combine(output, "sub", "two-optimized.xlsx");
+        var twoOutput = Path.Combine(output, "sub", "two.xlsx");
         Assert.True(File.Exists(twoOutput));
         Assert.Equal(1, new ExcelStyleAnalyzer().Analyze(twoOutput).CellXfCount);
         Assert.Equal(3, progress.Reports.Count(report => report.LastResult is not null));
@@ -120,6 +120,54 @@ public sealed class ExcelBatchTests : IDisposable
         var empty = new ExcelBatchOptimizer().Optimize(files, PathOf("out-cancel-2"), false, null, alreadyCancelled.Token);
         Assert.True(empty.Cancelled);
         Assert.Empty(empty.Results);
+    }
+
+    [Theory]
+    [InlineData("book.xlsx", false, "book.xlsx")]
+    [InlineData("book.xlsm", true, "book-optimized.xlsm")]
+    [InlineData("book-optimized.xlsx", true, "book-optimized.xlsx")]
+    [InlineData("book-OPTIMIZED.XLSM", true, "book-OPTIMIZED.XLSM")]
+    public void OutputFileName_IsOptionalAndDoesNotAccumulateSuffixes(string input, bool suffix, string expected)
+        => Assert.Equal(expected, ExcelBatchPaths.OutputFileName(input, suffix));
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Optimize_PreservesNamesOrAddsSuffixAndNeverChangesSource(bool suffix)
+    {
+        var input = CreateWorkbookAt(PathOf("input", "sub", "one.xlsx"));
+        var bytes = File.ReadAllBytes(input);
+        var files = ExcelWorkbookFinder.Find(PathOf("input"), true).Files;
+        var output = PathOf("out");
+        var result = new ExcelBatchOptimizer().Optimize(files, output, false, appendSuffix: suffix);
+        Assert.True(Assert.Single(result.Results).Succeeded);
+        Assert.Equal(Path.Combine(output, "sub", suffix ? "one-optimized.xlsx" : "one.xlsx"), result.Results[0].OutputPath);
+        Assert.Equal(bytes, File.ReadAllBytes(input));
+        Assert.Equal(ExcelBatchItemStatus.Skipped, Assert.Single(new ExcelBatchOptimizer()
+            .Optimize(files, output, false, appendSuffix: suffix).Results).Status);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Optimize_RejectsSourceOverwriteEvenWhenOverwriteIsEnabled(bool overwrite)
+    {
+        var input = CreateWorkbookAt(PathOf("input", "one.xlsx"));
+        var bytes = File.ReadAllBytes(input);
+        var files = ExcelWorkbookFinder.Find(PathOf("input"), true).Files;
+        Assert.Throws<ArgumentException>(() => new ExcelBatchOptimizer().Optimize(files, PathOf("input"), overwrite));
+        Assert.Equal(bytes, File.ReadAllBytes(input));
+    }
+
+    [Fact]
+    public void Optimize_RejectsCrossInputAndDuplicateOutputCollisionsBeforeWriting()
+    {
+        var one = CreateWorkbookAt(PathOf("input", "one.xlsx"));
+        var two = CreateWorkbookAt(PathOf("input", "one-optimized.xlsx"));
+        var files = new[] { new ExcelBatchFile(one, "one.xlsx", 0), new ExcelBatchFile(two, "one-optimized.xlsx", 0) };
+        Assert.Throws<ArgumentException>(() => new ExcelBatchOptimizer().Optimize(files, PathOf("input"), true, appendSuffix: true));
+        Assert.Throws<ArgumentException>(() => new ExcelBatchOptimizer().Optimize(files, PathOf("output"), true, appendSuffix: true));
+        Assert.False(Directory.Exists(PathOf("output")));
     }
 
     private sealed class ProgressCollector<T> : IProgress<T>

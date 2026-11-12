@@ -47,7 +47,7 @@ public sealed class ExcelBatchModel : ObservableModel
         set
         {
             if (!Set(ref outputFolder, value)) return;
-            ResetResults();
+            ResetScan();
             Notify(nameof(CanRun));
         }
     }

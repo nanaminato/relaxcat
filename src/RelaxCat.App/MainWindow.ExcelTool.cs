@@ -26,7 +26,7 @@ public sealed partial class MainWindow
         var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
             Title = Workspace.Text["OptimizeSaveAs"],
-            SuggestedFileName = Path.GetFileNameWithoutExtension(input) + "-optimized" + extension,
+            SuggestedFileName = ExcelBatchPaths.OutputFileName(input, Workspace.Settings.AppendOptimizationSuffix),
             DefaultExtension = extension.TrimStart('.'),
             ShowOverwritePrompt = true,
             FileTypeChoices = new[]

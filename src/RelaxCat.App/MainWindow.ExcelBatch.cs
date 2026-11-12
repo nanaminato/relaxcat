@@ -89,7 +89,7 @@ public sealed partial class MainWindow
             });
             var options = batch.OptimizationOptions;
             var result = await Task.Run(() => new ExcelBatchOptimizer()
-                .Optimize(files, batch.OutputFolder, batch.Overwrite, reporting, token, options), token);
+                .Optimize(files, batch.OutputFolder, batch.Overwrite, reporting, token, options, Workspace.Settings.AppendOptimizationSuffix), token);
             if (closed) return;
             batch.Complete(result);
             Workspace.Progress = 1;

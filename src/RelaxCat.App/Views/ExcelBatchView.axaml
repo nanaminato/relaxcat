@@ -46,6 +46,7 @@
               <TextBlock x:Name="BatchDestructiveStyleCleanupWarning" FontSize="11"
                          Text="{Binding Text[DestructiveStyleCleanupHint]}" TextWrapping="Wrap"
                          IsVisible="{Binding ExcelTool.Batch.DestructiveStyleCleanup}" />
+              <CheckBox x:Name="ExcelBatchSuffixOption" Content="{Binding Text[AppendOptimizationSuffix]}" IsChecked="{Binding Settings.AppendOptimizationSuffix, Mode=TwoWay}" ToolTip.Tip="{Binding Text[OptimizationNamingHint]}" />
               <CheckBox x:Name="BatchOverwriteOption" Content="{Binding Text[BatchOverwrite]}" IsChecked="{Binding ExcelTool.Batch.Overwrite, Mode=TwoWay}" />
               <TextBlock Classes="muted" Text="{Binding Text[BatchOutputHint]}" TextWrapping="Wrap" FontSize="10" />
               <StackPanel Orientation="Horizontal" Spacing="8">

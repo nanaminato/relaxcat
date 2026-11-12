@@ -24,6 +24,19 @@ internal static class ExcelBatchChecks
         Check(window.Workspace.HomeOpen == false, "Batch navigation did not open its page");
 
         var batch = window.Workspace.ExcelTool.Batch;
+        window.Workspace.Settings.AppendOptimizationSuffix = false;
+        Dispatcher.UIThread.RunJobs();
+        var suffix = page.FindControl<CheckBox>("ExcelBatchSuffixOption")!;
+        var singleSuffix = window.FindControl<RelaxCat.App.Views.ExcelToolView>("ExcelToolPage")!
+            .FindControl<CheckBox>("ExcelToolSuffixOption")!;
+        Check(suffix.IsChecked == false && singleSuffix.IsChecked == false, "Suffix should default to disabled");
+        suffix.IsChecked = true;
+        Dispatcher.UIThread.RunJobs();
+        Check(window.Workspace.Settings.AppendOptimizationSuffix && singleSuffix.IsChecked == true,
+            "Suffix preference must be shared across single and batch views");
+        singleSuffix.IsChecked = false;
+        Dispatcher.UIThread.RunJobs();
+        Check(suffix.IsChecked == false, "Single-workbook suffix preference must reach the batch view");
         var destructiveOption = page.FindControl<CheckBox>("BatchDestructiveStyleCleanupOption")!;
         var destructiveWarning = page.FindControl<TextBlock>("BatchDestructiveStyleCleanupWarning")!;
         Check(destructiveOption.IsChecked == false && !batch.OptimizationOptions.DestructiveStyleCleanup &&
@@ -77,10 +90,10 @@ internal static class ExcelBatchChecks
             "Failed workbook was not reported");
         Check(batch.Items.Single(item => item.RelativePath == "a.xlsx").StatusText == window.Workspace.Text["BatchCompleted"],
             "Completed workbook was not reported");
-        var firstOutput = Path.Combine(output, "a-optimized.xlsx");
-        var secondOutput = Path.Combine(output, "sub", "b-optimized.xlsx");
+        var firstOutput = Path.Combine(output, "a.xlsx");
+        var secondOutput = Path.Combine(output, "sub", "b.xlsx");
         Check(File.Exists(firstOutput) && File.Exists(secondOutput), "Batch outputs were not written");
-        Check(!File.Exists(Path.Combine(output, "bad-optimized.xlsx")), "Failed workbook produced an output");
+        Check(!File.Exists(Path.Combine(output, "bad.xlsx")), "Failed workbook produced an output");
         Check(window.Workspace.Message == batch.Summary, "Batch status bar did not report the final summary");
         capture("excel-batch-result-light.png");
 
@@ -134,6 +147,9 @@ internal static class ExcelBatchChecks
         Check(!destructiveWarning.IsVisible && batch.Items.All(item => item.StatusText == window.Workspace.Text["BatchPending"]),
             "Disabling batch destructive mode must clear stale results");
         batch.Overwrite = false;
+
+        batch.OutputFolder = Path.Combine(output, "different");
+        Check(!batch.CanRun && batch.Files.Count == 0, "Changing output root must invalidate the old scan");
 
         Click(window.FindControl<Button>("HomeButton")!);
         window.Workspace.LanguageIndex = language;

@@ -222,6 +222,7 @@ static int Batch(string[] args)
     string? input = null, output = null;
     var recursive = true;
     var overwrite = false;
+    var appendSuffix = false;
     for (var index = 0; index < args.Length; index++)
     {
         var argument = args[index];
@@ -232,6 +233,7 @@ static int Batch(string[] args)
         }
         else if (argument == "--no-recursive") recursive = false;
         else if (argument == "--overwrite") overwrite = true;
+        else if (argument == "--append-suffix") appendSuffix = true;
         else if (argument is "--gc" or "--remove-copied-named-styles" or "--destructive-styles" or "--json") { }
         else if (argument.StartsWith('-')) throw new ArgumentException("Unknown option " + argument);
         else if (input is null) input = argument;
@@ -246,7 +248,7 @@ static int Batch(string[] args)
     foreach (var issue in discovery.Issues) Console.Error.WriteLine("  warning: cannot read " + issue);
 
     var progress = new ConsoleBatchProgress();
-    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, json ? null : progress, options: options);
+    var outcome = new ExcelBatchOptimizer().Optimize(discovery.Files, output, overwrite, json ? null : progress, options: options, appendSuffix: appendSuffix);
     if (json)
     {
         Console.WriteLine(JsonSerializer.Serialize(outcome, new JsonSerializerOptions { WriteIndented = true }));
@@ -287,7 +289,7 @@ static void PrintUsage()
           RelaxCat.ExcelTool diagnostics <workbook.xlsx|workbook.xlsm> [--gc] [--remove-copied-named-styles] [--destructive-styles]
           RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
           RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
-          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--json] [--no-recursive] [--overwrite] [--gc] [--remove-copied-named-styles] [--destructive-styles]
+          RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--json] [--no-recursive] [--overwrite] [--append-suffix] [--gc] [--remove-copied-named-styles] [--destructive-styles]
 
         analyze   Read-only report of the style table, duplicate cell formats and worksheet styles.
         optimize  Merge provably equivalent cell formats into a NEW workbook. The input is never modified.
@@ -295,7 +297,8 @@ static void PrintUsage()
                   other package parts byte-for-byte. Every result is verified before it is published.
                   Destructive mode verifies structure, not visual or behavioral equivalence.
         batch     Optimize every .xlsx/.xlsm found in a folder (recursive by default). Outputs are
-                  written as <name>-optimized.<ext> under --output-dir, preserving subdirectories.
+                  written with their original names under --output-dir, preserving subdirectories.
+                  --append-suffix adds -optimized once. Output paths must not replace any input.
                   Existing outputs are skipped unless --overwrite is given; per-file failures continue.
 
         --destructive-styles

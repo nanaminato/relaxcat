@@ -39,10 +39,17 @@ public static class ExcelBatchPaths
 {
     public const string OutputSuffix = "-optimized";
 
-    public static string OutputPathFor(string outputRoot, ExcelBatchFile file)
+    public static string OutputFileName(string input, bool appendSuffix = false)
+    {
+        var stem = Path.GetFileNameWithoutExtension(input);
+        if (appendSuffix && !stem.EndsWith(OutputSuffix, StringComparison.OrdinalIgnoreCase)) stem += OutputSuffix;
+        return stem + Path.GetExtension(input);
+    }
+
+    public static string OutputPathFor(string outputRoot, ExcelBatchFile file, bool appendSuffix = false)
     {
         var directory = Path.Combine(outputRoot, Path.GetDirectoryName(file.RelativePath) ?? "");
-        var name = Path.GetFileNameWithoutExtension(file.Path) + OutputSuffix + Path.GetExtension(file.Path);
+        var name = OutputFileName(file.Path, appendSuffix);
         return Path.Combine(directory, name);
     }
 }
@@ -129,18 +136,29 @@ public sealed class ExcelBatchOptimizer
 {
     public ExcelBatchOutcome Optimize(IReadOnlyList<ExcelBatchFile> files, string outputRoot, bool overwrite,
         IProgress<ExcelBatchProgress>? progress = null, CancellationToken cancellationToken = default,
-        ExcelStyleOptimizationOptions? options = null)
+        ExcelStyleOptimizationOptions? options = null, bool appendSuffix = false)
     {
         if (string.IsNullOrWhiteSpace(outputRoot))
             throw new ArgumentException("An output folder is required.", nameof(outputRoot));
         var root = Path.GetFullPath(outputRoot);
+        // Validate the whole destination set before writing: an output must never replace any input.
+        var sourcePaths = files.Select(file => Path.GetFullPath(file.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var outputPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in files)
+        {
+            var output = Path.GetFullPath(ExcelBatchPaths.OutputPathFor(root, file, appendSuffix));
+            if (sourcePaths.Contains(output))
+                throw new ArgumentException("Choose a different output folder: an output would overwrite an input workbook.");
+            if (!outputPaths.Add(output))
+                throw new ArgumentException("Multiple input workbooks map to the same output path.");
+        }
         var results = new List<ExcelBatchItemResult>(files.Count);
         if (cancellationToken.IsCancellationRequested) return new ExcelBatchOutcome(results, true, files.Count);
         for (var index = 0; index < files.Count; index++)
         {
             if (cancellationToken.IsCancellationRequested) return new ExcelBatchOutcome(results, true, files.Count);
             var file = files[index];
-            var output = ExcelBatchPaths.OutputPathFor(root, file);
+            var output = ExcelBatchPaths.OutputPathFor(root, file, appendSuffix);
             ExcelBatchItemResult result;
             if (!overwrite && File.Exists(output))
             {
