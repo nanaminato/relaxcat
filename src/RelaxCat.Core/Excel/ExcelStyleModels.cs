@@ -63,6 +63,8 @@ public sealed record ExcelStyleAnalysis(
     public IReadOnlyList<string> Warnings { get; init; } = [];
     public IReadOnlyList<StyleTableChange> TableChanges { get; init; } = Array.Empty<StyleTableChange>();
     public string? AdvancedOptimizationSkipReason { get; init; }
+    public IReadOnlyList<string> AdvancedOptimizationSkipReasons { get; init; } = [];
+    public IReadOnlyList<string> RetainedStyleTables { get; init; } = [];
     public IReadOnlyList<StyleReferenceEdge> ReferenceGraph { get; init; } = [];
     public ExtensionTypeDiagnostics ExtensionDiagnostics { get; init; } = new([], false);
     public IReadOnlyList<string> NamedStyleCleanupCandidates { get; init; } = [];

@@ -140,6 +140,12 @@
                              Foreground="{DynamicResource AccentInkBrush}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
+              <Expander x:Name="PrivateDiagnosticsExpander" Header="{Binding Text[PrivateDiagnosticsTitle]}">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="{Binding Text[PrivateDiagnosticsHint]}" TextWrapping="Wrap" />
+                  <TextBox Text="{Binding ExcelTool.PrivateDiagnosticJson, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" />
+                </StackPanel>
+              </Expander>
               <Expander x:Name="StyleDiagnosticsExpander" Header="{Binding Text[SectionDiagnostics]}" HorizontalAlignment="Stretch">
                 <StackPanel Spacing="8">
                   <TextBlock Text="{Binding Text[SectionDiagnosticHint]}" Classes="muted" FontSize="10" TextWrapping="Wrap" />

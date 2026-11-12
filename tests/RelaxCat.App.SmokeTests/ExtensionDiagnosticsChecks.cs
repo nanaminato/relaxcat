@@ -25,41 +25,48 @@ internal static class ExtensionDiagnosticsChecks
             {
                 text.CurrentCulture = language.Culture;
                 model.RefreshLanguage();
-                var rows = ExtensionRows(model, text);
-                Check(rows.Any(row => row.Label == text["ExtensionDiagnosticsTitle"] && row.Value == text["ExtensionDiagnosticsHint"]),
-                    "Local extension metadata warning did not refresh: " + language.Culture);
-                Check(rows.Any(row => row.Label == text["ExtensionDiagnosticsScope"] && row.Value == text["ExtensionDiagnosticsScopeHint"]),
-                    "Extension diagnostic scope did not refresh: " + language.Culture);
-                Check(rows.Any(row => row.Label.StartsWith(text["ExtensionDiagnosticUri"]) && row.Value == "urn:relaxcat:diagnostic-test"),
-                    "Extension URI type was not shown: " + language.Culture);
-                foreach (var entry in analysis.ExtensionDiagnostics.Entries)
-                    Check(rows.Any(row => row.Value == entry.Name), "Collected type missing from diagnostics: " + entry.Kind);
-                var display = string.Join("\n", rows.Select(row => row.Label + " " + row.Value));
-                Check(!display.Contains("PRIVATE_ATTRIBUTE_VALUE") && !display.Contains("PRIVATE_EXTENSION_TEXT") &&
-                      !display.Contains(path) && !display.Contains("Normal"),
-                    "Extension diagnostic display included payload text, paths or style names");
+                var rows = model.Summary!.Diagnostics;
+                Check(text["PrivateDiagnosticsTitle"] != "PrivateDiagnosticsTitle" &&
+                      text["PrivateDiagnosticsHint"] != "PrivateDiagnosticsHint",
+                    "Private diagnostic localization missing: " + language.Culture);
+                foreach (var reason in analysis.AdvancedOptimizationSkipReasons)
+                    Check(rows.Any(row => row.Value == text["AdvancedSkip_" + reason]),
+                        "Detected blocker missing after language refresh: " + reason);
+                var report = model.PrivateDiagnosticJson;
+                Check(report == PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson(),
+                    "Private diagnostic projection drifted after language refresh");
+                var display = report + "\n" + string.Join("\n", rows.Select(row => row.Label + " " + row.Value));
+                foreach (var secret in new[] { "PRIVATE_ATTRIBUTE_VALUE", "PRIVATE_EXTENSION_TEXT", path,
+                    "urn:relaxcat:diagnostic-test", "urn:relaxcat:custom-test" })
+                    Check(!display.Contains(secret), "Private diagnostics included raw metadata or payload");
                 Check(!model.CanOptimize, "Changing diagnostic language relaxed the unknown-extension block");
             }
 
             var bounded = Enumerable.Range(0, 64).Select(index =>
                 new ExtensionTypeEntry("element", new string('x', 125) + index.ToString("D3"), index + 1)).ToArray();
             model.ApplyAnalysis(analysis with { ExtensionDiagnostics = new(bounded, true) });
-            var boundedRows = ExtensionRows(model, text);
-            Check(boundedRows.Any(row => row.Label == text["ExtensionDiagnosticsLimit"] && row.Value == text["ExtensionDiagnosticsTruncated"]),
-                "Truncated extension metadata did not warn that counts may be partial");
-            Check(boundedRows.Count(row => row.Label.StartsWith(text["ExtensionDiagnosticElement"])) == 64 &&
-                  boundedRows.Count(row => row.Value.Length == 128) >= 64,
-                "Bounded extension metadata did not preserve all displayed type entries");
+            Check(model.PrivateDiagnosticJson == PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson(),
+                "Arbitrary extension metadata leaked into the private report");
+            Check(!model.Summary!.Diagnostics.Any(row => row.Value.Contains(new string('x', 125))),
+                "Raw extension names were displayed by default");
             model.ApplyAnalysis(analysis with { ExtensionDiagnostics = new([], false) });
-            Check(ExtensionRows(model, text).Any(row => row.Value == text["ExtensionDiagnosticsEmpty"]),
-                "Empty diagnostic scope was not distinguished from complete package coverage");
-            Console.WriteLine("PASS: local extension diagnostics, four-language privacy/scope warnings, partial counts and preserved optimization block.");
+            Check(model.PrivateDiagnosticJson == PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson(),
+                "Empty raw metadata incorrectly changed gate diagnostics");
+            model.Clear();
+            Check(model.PrivateDiagnosticJson.Length == 0 && !model.HasSummary,
+                "Clearing the model retained a stale diagnostic report");
+            model.ApplyAnalysis(analysis);
+            model.DestructiveStyleCleanup = true;
+            Check(model.PrivateDiagnosticJson.Length == 0 && !model.HasSummary,
+                "Changing mode retained diagnostics for the previous policy");
+            model.ApplyAnalysis(analysis);
+            model.FilePath = path + ".different.xlsx";
+            Check(model.PrivateDiagnosticJson.Length == 0 && !model.HasSummary,
+                "Changing input retained another workbook's diagnostics");
+            Console.WriteLine("PASS: private diagnostics, four-language blockers, raw metadata exclusion and stale-report invalidation.");
         }
         finally { File.Delete(path); }
     }
-
-    private static ExcelMetric[] ExtensionRows(ExcelToolModel model, UiText text) =>
-        model.Summary!.Diagnostics.SkipWhile(row => row.Label != text["ExtensionDiagnosticsTitle"]).ToArray();
 
     internal static void CreateWorkbook(string path)
     {

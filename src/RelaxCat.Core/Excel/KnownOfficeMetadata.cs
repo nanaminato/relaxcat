@@ -63,8 +63,11 @@ internal static class KnownOfficeMetadata
 
     internal static bool IsAttribute(string element, string ns, string name) =>
         (ns == Mc && name == "Ignorable" && element is "styleSheet" or "workbook" or "worksheet" or "externalLink") ||
-        (ns == Xr && name == "uid" && element is "cellStyle" or "worksheet" or "dataValidation") ||
-        (ns == Xr2 && name == "uid" && element == "workbookView");
+        (ns == Xr && name == "uid" && element is "cellStyle" or "worksheet" or "dataValidation" or "table" or "tableColumn" or "autoFilter") ||
+        (ns == "http://schemas.microsoft.com/office/spreadsheetml/2016/revision3" && name == "uid" && element == "tableColumn") ||
+        (ns == Xr2 && name == "uid" && element == "workbookView") ||
+        (ns == "http://schemas.microsoft.com/office/spreadsheetml/2009/9/ac" &&
+            ((name == "knownFonts" && element == "fonts") || (name == "dyDescent" && element is "row" or "sheetFormatPr")));
 
     // Called only for a foreign element/extLst encountered by the streaming scanner.
     // Disposing the subtree reader advances its parent to the matching end element.

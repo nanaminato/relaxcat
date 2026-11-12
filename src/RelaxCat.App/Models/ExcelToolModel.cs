@@ -68,6 +68,7 @@ public sealed class ExcelToolModel : ObservableModel
                               ExcelStyleAnalyzer.IsSupported(filePath);
     public bool CanOptimize => CanAnalyze && analysis?.HasStyleChanges == true;
     public bool HasSummary => summary is not null;
+    public string PrivateDiagnosticJson => analysis is null ? "" : PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson();
     public bool HasResult => result is not null;
     public bool HasSheets => Sheets.Count > 0;
     public bool HasSelectedSheet => selectedSheet is not null;
@@ -100,6 +101,7 @@ public sealed class ExcelToolModel : ObservableModel
         RebuildSheets(value, SelectedSheet?.Name);
         Notify(nameof(Summary));
         Notify(nameof(HasSummary));
+        Notify(nameof(PrivateDiagnosticJson));
         Notify(nameof(CanAnalyze));
         Notify(nameof(CanOptimize));
     }
@@ -122,6 +124,7 @@ public sealed class ExcelToolModel : ObservableModel
         SelectedSheet = null;
         Notify(nameof(Summary));
         Notify(nameof(HasSummary));
+        Notify(nameof(PrivateDiagnosticJson));
         Notify(nameof(Result));
         Notify(nameof(HasResult));
         Notify(nameof(HasSheets));
@@ -139,6 +142,7 @@ public sealed class ExcelToolModel : ObservableModel
         if (optimization is not null) result = BuildResult(optimization);
         Notify(nameof(Summary));
         Notify(nameof(HasSummary));
+        Notify(nameof(PrivateDiagnosticJson));
         Notify(nameof(Result));
         Notify(nameof(HasResult));
         Notify(nameof(HasSheets));
@@ -214,7 +218,7 @@ public sealed class ExcelToolModel : ObservableModel
                     ? text["AdvancedAvailable"] : text["AdvancedSkip_" + value.AdvancedOptimizationSkipReason]))
                 .Concat(value.IsLossy ? new[] { new ExcelMetric(text["DestructiveLoss"], text["DestructiveStyleCleanupHint"]),
                     new ExcelMetric(text["Verification"], text["DestructiveVerificationScope"]) } : Array.Empty<ExcelMetric>())
-                .Concat(BuildExtensionDiagnostics(value.ExtensionDiagnostics)).ToList()
+                .Concat(value.AdvancedOptimizationSkipReasons.Select(reason => new ExcelMetric(text["AdvancedOptimization"], text["AdvancedSkip_" + reason]))).ToList()
         };
     }
 

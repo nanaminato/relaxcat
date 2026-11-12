@@ -308,6 +308,8 @@
     "ExcelPhaseRewriting": "워크시트 참조 갱신 중",
     "ExcelPhaseStyles": "스타일 테이블 재구성 중",
     "ExcelPhaseVerifying": "최적화 결과 검증 중",
-    "ExcelPhaseWriting": "새 통합 문서 저장 중"
+    "ExcelPhaseWriting": "새 통합 문서 저장 중",
+    "PrivateDiagnosticsTitle": "비식별 진단 요약",
+    "PrivateDiagnosticsHint": "감지된 모든 제한 범주입니다. 아래 JSON을 선택하여 복사할 수 있습니다. 경로, 이름, 내용은 제외되지만 집계 수와 크기도 기밀일 수 있습니다."
   }
 }

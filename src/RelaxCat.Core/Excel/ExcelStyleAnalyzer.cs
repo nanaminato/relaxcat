@@ -98,6 +98,11 @@ public sealed class ExcelStyleAnalyzer
             ProjectedCellStyleXfCount = OoxmlXml.Child(plan.Document.Root, "cellStyleXfs")?.Elements().Count() ?? 0,
             TableChanges = plan.Changes,
             AdvancedOptimizationSkipReason = context.SkipReason,
+            AdvancedOptimizationSkipReasons = context.SkipReasons,
+            RetainedStyleTables = (context.PreserveFontTable ? new[] { "phoneticFonts" } : Array.Empty<string>())
+                .Concat(context.PreserveNumberFormatTable ? new[] { "ancillaryNumberFormats" } : Array.Empty<string>())
+                .Concat(OoxmlXml.Child(styles.Root, "dxfs")?.Descendants().Any(e => e.Name.LocalName == "numFmt") == true
+                    ? new[] { "differentialNumberFormats" } : Array.Empty<string>()).ToArray(),
             StylesXmlCompressedBytes = package.Require("xl/styles.xml").CompressedLength,
             BaseStyleReferences = StyleDiagnostics.References(styles, destructive),
             Sections = StyleDiagnostics.Sections(styles, StyleDiagnostics.References(styles, destructive), context.CellReferences,

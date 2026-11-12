@@ -308,6 +308,8 @@
     "ExcelPhaseRewriting": "シートの参照を更新中",
     "ExcelPhaseStyles": "スタイルシートを再構築中",
     "ExcelPhaseVerifying": "最適化結果を検証中",
-    "ExcelPhaseWriting": "新しいブックを書き込み中"
+    "ExcelPhaseWriting": "新しいブックを書き込み中",
+    "PrivateDiagnosticsTitle": "匿名化診断概要",
+    "PrivateDiagnosticsHint": "検出されたすべての制限カテゴリです。下の JSON を選択してコピーできます。パス、名前、内容は含みませんが、集計数やサイズにも機密性があり得ます。"
   }
 }

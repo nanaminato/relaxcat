@@ -6,6 +6,8 @@ namespace RelaxCat.Core.Excel;
 internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, string? SkipReason)
 {
     internal IReadOnlyList<StyleReferenceEdge> AdditionalReferences { get; init; } = [];
+    internal IReadOnlyList<string> SkipReasons { get; init; } = [];
+    internal bool PreserveNumberFormatTable => AdditionalReferences.Any(edge => edge.Target == "numFmts");
     internal bool PreserveFontTable => AdditionalReferences.Any(edge => edge.Target == "fonts");
 
     internal static StyleOptimizationContext Read(OoxmlPackage package, StyleSheetDocument styles,
@@ -15,14 +17,16 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
         var references = knownReferences ?? new HashSet<int>();
         var additionalReferences = new List<StyleReferenceEdge>();
         references.Add(0); // Excel's implicit/default cell format is always a root.
-        string? reason = StyleDeduplicationPlan.CanMergeBaseStyles(styles) ||
-                         (destructiveStyleCleanup && KnownOfficeMetadata.CanRemapStyles(styles)) ? null : "styleExtensions";
+        var reasons = new List<string>();
+        void AddReason(string value) { if (!reasons.Contains(value)) reasons.Add(value); }
+        if (!(StyleDeduplicationPlan.CanMergeBaseStyles(styles) ||
+              (destructiveStyleCleanup && KnownOfficeMetadata.CanRemapStyles(styles)))) AddReason("styleExtensions");
         foreach (var element in styles.Root.Descendants())
         {
             token.ThrowIfCancellationRequested();
             if (destructiveStyleCleanup && KnownOfficeMetadata.IsStyleExtension(element)) continue;
             var parent = element.Parent?.Name.LocalName;
-            if (!KnownFormat(element, styles.Root.Name.NamespaceName, destructiveStyleCleanup)) reason ??= "unsupportedReferences";
+            if (!KnownFormat(element, styles.Root.Name.NamespaceName, destructiveStyleCleanup)) AddReason("unsupportedReferences");
             var xf = element.Name.LocalName == "xf" && parent is "cellXfs" or "cellStyleXfs";
             foreach (var attribute in element.Attributes().Where(a => !a.IsNamespaceDeclaration))
             {
@@ -35,7 +39,7 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
                         (parent == "numFmts" || element.Ancestors().Any(a => a.Name.LocalName == "dxfs"))),
                     _ => true
                 };
-                if (!allowed) reason ??= "unsupportedReferences";
+                if (!allowed) AddReason("unsupportedReferences");
             }
         }
         var parts = new HashSet<string>(worksheets.Select(s => s.PartName), StringComparer.OrdinalIgnoreCase)
@@ -52,8 +56,9 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
         {
             token.ThrowIfCancellationRequested();
             if (entry.FullName.EndsWith('/')) continue;
-            if (!parts.Contains(entry.FullName) && !(destructiveStyleCleanup &&
-                KnownOfficeMetadata.IsAncillaryPart(package, entry.FullName, worksheets))) reason ??= "unsupportedParts";
+            if (!parts.Contains(entry.FullName) &&
+                !(destructiveStyleCleanup && KnownOfficeMetadata.IsAncillaryPart(package, entry.FullName, worksheets)) &&
+                !AncillaryStyleParts.Accept(package, entry.FullName, styles, additionalReferences, token)) AddReason("unsupportedParts");
         }
         foreach (var sheet in worksheets)
         {
@@ -83,7 +88,7 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
                 if (reader.NamespaceURI != styles.Root.Name.NamespaceName || reader.LocalName == "extLst")
                 {
                     if (destructiveStyleCleanup && KnownOfficeMetadata.ReadPackageElement(reader, name)) continue;
-                    reason ??= "packageExtensions";
+                    AddReason("packageExtensions");
                     continue;
                 }
                 var elementName = reader.LocalName;
@@ -102,17 +107,17 @@ internal sealed record StyleOptimizationContext(HashSet<int> CellReferences, str
                          "http://schemas.openxmlformats.org/officeDocument/2006/relationships" or
                          "http://purl.oclc.org/ooxml/officeDocument/relationships") &&
                         !(destructiveStyleCleanup && KnownOfficeMetadata.IsAttribute(elementName, reader.NamespaceURI, reader.LocalName)))
-                        reason ??= "packageExtensions";
+                        AddReason("packageExtensions");
                     if ((reader.LocalName is "fontId" or "fillId" or "borderId" or "numFmtId" or "xfId" &&
                          !(phoneticFont && reader.LocalName == "fontId" && reader.NamespaceURI.Length == 0)) ||
                         (reader.LocalName == "s" && elementName is not ("c" or "row")) ||
                         (reader.LocalName == "style" && elementName != "col"))
-                        reason ??= "unsupportedReferences";
+                        AddReason("unsupportedReferences");
                 }
                 reader.MoveToElement();
             }
         }
-        return new StyleOptimizationContext(references, reason) { AdditionalReferences = additionalReferences };
+        return new StyleOptimizationContext(references, reasons.FirstOrDefault()) { AdditionalReferences = additionalReferences, SkipReasons = reasons };
     }
     private static readonly HashSet<string> KnownStyleElements = new(
         ("numFmts numFmt fonts font name charset family b i strike outline shadow condense extend color sz u vertAlign scheme " +

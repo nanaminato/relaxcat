@@ -18,6 +18,7 @@ static int Run(string[] args)
         {
             "analyze" => Analyze(args[1..]),
             "extensions" => Extensions(args[1..]),
+            "diagnostics" => Diagnostics(args[1..]),
             "optimize" => Optimize(args[1..]),
             "batch" => Batch(args[1..]),
             _ => Unknown(command)
@@ -31,6 +32,22 @@ static int Run(string[] args)
     catch (Exception error)
     {
         Console.Error.WriteLine("error: " + error.Message);
+        return 1;
+    }
+}
+
+static int Diagnostics(string[] args)
+{
+    try
+    {
+        var analysis = new ExcelStyleAnalyzer().Analyze(Positional(args), options: Options(args));
+        Console.WriteLine(PrivateStyleDiagnostics.FromAnalysis(analysis).ToJson());
+        return 0;
+    }
+    catch (Exception)
+    {
+        // Exception messages may contain private paths, XML content or names.
+        Console.Error.WriteLine("Diagnostic analysis failed. No document details were emitted. Inspect locally.");
         return 1;
     }
 }
@@ -82,6 +99,7 @@ static int Analyze(string[] args)
             analysis.ProjectedCellXfCount,
             analysis.ProjectedCellStyleXfCount,
             analysis.AdvancedOptimizationSkipReason,
+            analysis.AdvancedOptimizationSkipReasons,
             analysis.BaseStyleReferences,
             analysis.UniqueCellStyleXfCount,
             analysis.CanDeduplicateBaseStyles,
@@ -112,6 +130,7 @@ static int Analyze(string[] args)
     Console.WriteLine(ExtensionTypeDiagnostics.PrivacyWarning);
     foreach (var entry in analysis.ExtensionDiagnostics.Entries) Console.WriteLine($"Extension {entry.Kind}: {entry.Name} ({entry.Count})");
     if (analysis.ExtensionDiagnostics.Truncated) Console.WriteLine("Extension metadata truncated; counts may be partial.");
+    Console.WriteLine("All detected blocker categories: " + string.Join(", ", analysis.AdvancedOptimizationSkipReasons));
     Console.WriteLine("Verification scope: " + analysis.VerificationScope);
     Console.WriteLine("Lossy mode: " + analysis.IsLossy);
     Console.WriteLine("Workbook:   " + analysis.Path);
@@ -265,6 +284,7 @@ static void PrintUsage()
         RelaxCat Excel style tool
 
         Usage:
+          RelaxCat.ExcelTool diagnostics <workbook.xlsx|workbook.xlsm> [--gc] [--remove-copied-named-styles] [--destructive-styles]
           RelaxCat.ExcelTool analyze <workbook.xlsx|workbook.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
           RelaxCat.ExcelTool optimize <workbook.xlsx|workbook.xlsm> --output <copy.xlsx|copy.xlsm> [--json] [--gc] [--remove-copied-named-styles] [--destructive-styles]
           RelaxCat.ExcelTool batch <input-folder> --output-dir <folder> [--json] [--no-recursive] [--overwrite] [--gc] [--remove-copied-named-styles] [--destructive-styles]

@@ -59,7 +59,7 @@ internal sealed class StyleTableOptimizer
                 var used = gc ? References(Styles.CellXfs.Concat(Styles.CellStyleXfs), attribute) : null;
                 RewriteTable(table, item, used, deduplicate, reserved, attribute);
             }
-            OptimizeNumberFormats(gc, deduplicate);
+            if (!context!.PreserveNumberFormatTable) OptimizeNumberFormats(gc, deduplicate);
         }
         if (StyleDeduplicationPlan.CanMergeBaseStyles(Styles))
             RewriteTable("cellStyleXfs", "xf", null, true, [0]);

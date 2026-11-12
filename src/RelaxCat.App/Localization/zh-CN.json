@@ -308,6 +308,8 @@
     "ExcelPhaseRewriting": "更新工作表引用",
     "ExcelPhaseStyles": "重建样式表",
     "ExcelPhaseVerifying": "校验优化结果",
-    "ExcelPhaseWriting": "写入新工作簿"
+    "ExcelPhaseWriting": "写入新工作簿",
+    "PrivateDiagnosticsTitle": "脱敏诊断汇总",
+    "PrivateDiagnosticsHint": "列出所有已检测到的阻碍类别，不只第一项。可选中并复制下方 JSON。不含工作簿路径、名称或内容；汇总数量及大小仍可能属于敏感信息。"
   }
 }

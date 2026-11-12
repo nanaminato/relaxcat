@@ -308,6 +308,8 @@
     "ExcelPhaseRewriting": "Updating worksheet references",
     "ExcelPhaseStyles": "Rebuilding style table",
     "ExcelPhaseVerifying": "Verifying results",
-    "ExcelPhaseWriting": "Writing new workbook"
+    "ExcelPhaseWriting": "Writing new workbook",
+    "PrivateDiagnosticsTitle": "Shareable diagnostic summary",
+    "PrivateDiagnosticsHint": "All detected blocker categories, not just the first. Select and copy the JSON below. No workbook paths, names or contents are included; aggregate counts and sizes may still be confidential."
   }
 }
