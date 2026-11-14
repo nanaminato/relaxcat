@@ -2,9 +2,9 @@
 
 Protocol version: 0.3.0
 
-Protocol source: https://github.com/nanaminato/singularity/tree/0f63c6428e8cb61afa8b0e9d1c040b3d092ceba7
+Protocol source: https://github.com/nanaminato/singularity/tree/1348ea9a8c7467d97c0f81e68407372d7cb26eab
 
-Specification: https://github.com/nanaminato/singularity/blob/0f63c6428e8cb61afa8b0e9d1c040b3d092ceba7/SPEC.md
+Specification: https://github.com/nanaminato/singularity/blob/1348ea9a8c7467d97c0f81e68407372d7cb26eab/SPEC.md
 
 Protocol status: Draft
 
