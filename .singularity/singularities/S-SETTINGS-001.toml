@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-SETTINGS-001"
+status = "Confirmed"
+statement = "RelaxCat 的设置在应用重启后仍然保留，包括单元格间距单位和所选的截图提供程序。"
+reason = "确认依据：2026-10-20，用户纠正，用户指出设置似乎未能保存。"
+decisions = ["D-UI-004", "D-I18N-001", "D-I18N-002"]

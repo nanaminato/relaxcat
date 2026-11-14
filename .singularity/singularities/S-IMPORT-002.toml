@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-IMPORT-002"
+status = "Confirmed"
+statement = "首页逐张显示导入的图片。每张图片都可以单独移除和复制，并有一个复选框控制是否将其纳入导出。提供优雅的图片预览体验。"
+reason = "确认依据：2026-10-20，用户指示：“主页时显示的图片，每一个都能显示出来并且对单个的可以进行移除和复制，同时包含一个checkbox，他会决定是否会出现到导出中，预览时提供优雅的预览效果”。"
+decisions = ["D-UI-002", "D-GALLERY-001", "D-PREVIEW-001", "D-EXCEL-SELECTION-001", "D-PHASE-002", "D-CAPTURE-MONITOR-001"]

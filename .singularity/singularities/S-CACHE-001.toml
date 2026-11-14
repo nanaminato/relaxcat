@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-CACHE-001"
+status = "Confirmed"
+statement = "缩放倍率应可缓存，因为给定有效图像尺寸和尺寸配置，通常可以确定唯一的缩放倍率。缓存用于避免重复计算。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-CACHE-001", "D-PHASE-001"]

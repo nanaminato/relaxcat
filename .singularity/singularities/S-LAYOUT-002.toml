@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-LAYOUT-002"
+status = "Confirmed"
+statement = "图片的横向和纵向间距也支持以单元格为单位。"
+reason = "确认依据：2026-10-20，用户指示：“横向和纵向间隔添加 单元格单位”。"
+decisions = ["D-UNITS-002"]

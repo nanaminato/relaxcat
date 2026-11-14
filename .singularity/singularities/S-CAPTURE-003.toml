@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-CAPTURE-003"
+status = "Confirmed"
+statement = "内置 Greenshot 截图提供程序面向 Windows 10 及以上版本，使用 Greenshot 上游项目在 GitHub 发布的最新适用 Windows 便携预发行版本，无需在系统中安装 Greenshot。具体采用的上游版本属于打包依赖，可独立更新，且无需更改此意图。"
+reason = "确认依据：2026-10-20，用户指示。"
+decisions = ["D-PHASE-002", "D-GREENSHOT-001", "D-GREENSHOT-LIFECYCLE-001"]

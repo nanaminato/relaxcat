@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-LAYOUT-001"
+status = "Confirmed"
+statement = "默认 Excel 布局每行放一张图片。节省空间模式下，每行仍有根据设计尺寸和设计缩放倍率推导出的最大可用宽度。较小的图片按配置的间距继续横向排列，直到下一张图片无法放入当前行，再从下一行继续排布。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-LAYOUT-001", "D-PHASE-001", "D-UNITS-001", "D-UNITS-002"]

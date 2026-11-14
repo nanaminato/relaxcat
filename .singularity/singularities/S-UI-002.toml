@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-UI-002"
+status = "Confirmed"
+statement = "桌面视图使用 XAML 和 C# 实现。首页仅提供少量常用设置，更详细的设置放在独立的设置页面。"
+reason = "确认依据：2026-10-20，用户指示：“使用xaml+cs，而不是纯cs，另外首页不要放置太多设置，放置部分即可。同时更多的细节使用单独的页来设置”。"
+decisions = ["D-UI-002", "D-PHASE-002", "D-EXCEL-OPT-002"]

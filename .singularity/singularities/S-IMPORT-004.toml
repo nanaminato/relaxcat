@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-IMPORT-004"
+status = "Confirmed"
+statement = "支持按时间自动排序，包括导入后自动对图片排序。"
+reason = "确认依据：2026-10-20，用户指示。"
+decisions = ["D-WORKSPACE-ORDER-001"]

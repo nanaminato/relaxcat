@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-010"
+status = "Confirmed"
+statement = "RelaxCat 支持批量处理 Excel 工作簿。它扫描指定文件夹，可选择包含子文件夹，将每个工作簿的优化结果写入输出文件夹，保持源工作簿不变。单个文件处理失败后继续处理其他文件，并显示每个文件的进度和结果。"
+reason = "确认依据：2026-11-01，用户指示：“添加批量处理功能”。"
+decisions = ["D-EXCEL-OPT-003", "D-EXCEL-OPT-004", "D-EXCEL-OPT-005"]

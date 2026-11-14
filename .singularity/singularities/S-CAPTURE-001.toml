@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-CAPTURE-001"
+status = "Confirmed"
+statement = "RelaxCat 支持选择截图提供程序。Greenshot 是随应用附带的可执行程序。选用 Greenshot 时，RelaxCat 在启动、切换截图提供程序和退出时管理其进程。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-ARCH-001", "D-PHASE-002", "D-GREENSHOT-001", "D-GREENSHOT-LIFECYCLE-001", "D-CAPTURE-MONITOR-001", "D-CAPTURE-KEYBOARD-001"]

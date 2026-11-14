@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-002"
+status = "Confirmed"
+statement = "导出图片前，RelaxCat 按配置规范化目标工作表，包括设置行高和列宽。新建和已有的文档都要执行这一步。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-EXCEL-001", "D-PHASE-001", "D-UNITS-002", "D-ASPECT-001"]
