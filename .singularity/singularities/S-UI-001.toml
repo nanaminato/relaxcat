@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-UI-001"
+status = "Confirmed"
+statement = "RelaxCat 的桌面界面采用 IntelliJ IDEA 风格的视觉和交互方向。这是产品层面的设计方向，无需逐像素复刻 JetBrains 界面。可按需推导实现细节、控件、主题和平台适配，同时保留易于辨认的 IDEA 风格桌面工具特征。"
+reason = "确认依据：2026-10-20，用户指示。"
+decisions = ["D-PHASE-001", "D-UI-001", "D-UI-002", "D-PREVIEW-001", "D-UI-003", "D-EXCEL-OPT-002", "D-UI-005"]

@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-UI-003"
+status = "Confirmed"
+statement = "提供明亮和黑暗两种界面主题。"
+reason = "确认依据：2026-10-20，用户指示：“同时添加明亮和黑暗主题”。"
+decisions = ["D-UI-002", "D-PREVIEW-001", "D-UI-003", "D-UI-004", "D-EXCEL-OPT-002"]

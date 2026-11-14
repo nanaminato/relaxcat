@@ -11,6 +11,19 @@ For each task:
 5. Expose real conflicts and pause only the part that depends on the unresolved choice.
 6. When confirmed intent changes, reevaluate downstream decisions and affected artifacts.
 
-Project intent starts in [singularities](singularities/core.md). Important derived architecture choices belong in [decisions](decisions/architecture.md).
+Project intent starts in [singularities](singularities/). Important derived architecture choices belong in [decisions](decisions/architecture.md).
 
 Only `Confirmed` singularities are authoritative project intent. The technical design and current implementation are downstream evidence and may be corrected when they disagree with confirmed intent.
+
+## CLI and local editor
+
+With the pinned Singularity checkout alongside RelaxCat, run these commands from the RelaxCat root:
+
+```powershell
+python ../singularity/tools/singularity.py validate
+python ../singularity/tools/singularity.py serve
+```
+
+Open the loopback address printed by the editor. Each TOML file contains one intent record. For records migrated from 0.1.0, `actor = "AI"` identifies the format migration; the original human confirmation and retirement bases are recorded in `reason`.
+
+The star map reads optional Chinese display names from [node-names.toml](node-names.toml). Edit the value for a stable ID and click 「重新加载」 in the editor to see the change. This feature uses the updated local editor.

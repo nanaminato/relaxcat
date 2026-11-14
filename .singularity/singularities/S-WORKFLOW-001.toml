@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-WORKFLOW-001"
+status = "Confirmed"
+statement = "本轮改进保留现有工作流。不得添加项目保存、仅导出未导出内容或自动导出的功能。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-WORKSPACE-ORDER-001"]

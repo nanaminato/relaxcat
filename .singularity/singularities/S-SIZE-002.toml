@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-SIZE-002"
+status = "Confirmed"
+statement = "计算图片缩放倍率时，先按顺序评估用户自定义的规则。条件为单行表达式，可用 `and` 和 `or` 组合比较条件。依次尝试各条规则，使用第一条匹配规则给出的缩放倍率。没有规则匹配时，按配置的设计尺寸和设计缩放倍率计算。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-RULE-001", "D-CACHE-001", "D-PHASE-001", "D-UNITS-001", "D-UNITS-002"]

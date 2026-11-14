@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-IMPORT-003"
+status = "Confirmed"
+statement = "提供清空操作，一次移除工作区中的所有图片。保留源文件和先前导出到 Excel 的内容。"
+reason = "确认依据：2026-10-20，用户指示，要求添加全部移除按钮，以清空工作区中的图片。"
+decisions = ["D-WORKSPACE-ORDER-001"]

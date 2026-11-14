@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-004"
+status = "Confirmed"
+statement = "Excel 自动化采用 Microsoft Office/Excel COM 互操作模型，必须继续兼容用户已验证的 Excel 2007、Excel 2016 和 Excel 2024。实现不得有意依赖仅在 Excel 2016 中有效的行为。"
+reason = "确认依据：2026-10-20，用户对兼容性的观察和指示。"
+decisions = ["D-EXCEL-001", "D-PHASE-001", "D-ASPECT-001"]

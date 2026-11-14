@@ -1,0 +1,6 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-007"
+status = "Confirmed"
+statement = "提供可持久保存的设置，用于指定首张导出图片的起始行和列。"
+reason = "确认依据：2026-10-20，用户指示。"

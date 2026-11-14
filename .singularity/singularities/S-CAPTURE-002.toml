@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-CAPTURE-002"
+status = "Retired"
+statement = "对于配置为监控的按键，RelaxCat 可以先将鼠标移到指定位置，再让同一次按键事件继续传给 Greenshot。RelaxCat 的监控不得阻止 Greenshot 处理该按键。"
+reason = "确认依据：2026-10-20，用户澄清。\n退役依据：用户反馈功能不可靠，并于 2026-10-20 同意移除。单独测试 F1 触发鼠标移动时通过，但验证 Greenshot 截图与光标移动组合行为的断言未通过，因此移除了该功能和全局键盘钩子。"
+decisions = ["D-ARCH-001", "D-PHASE-002", "D-CAPTURE-KEYBOARD-001"]

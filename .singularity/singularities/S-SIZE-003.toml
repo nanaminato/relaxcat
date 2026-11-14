@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-SIZE-003"
+status = "Confirmed"
+statement = "回退尺寸计算保持图片宽高比，使结果尽量接近由配置的设计尺寸和设计缩放倍率确定的目标，同时不超过目标宽度或高度，并限制放大倍率，避免小图片被过度放大。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-CACHE-001", "D-PHASE-001", "D-UNITS-001", "D-UNITS-002", "D-ASPECT-001"]

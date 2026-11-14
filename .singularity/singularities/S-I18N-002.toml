@@ -1,0 +1,6 @@
+format = 2
+actor = "AI"
+id = "S-I18N-002"
+status = "Confirmed"
+statement = "除简体中文和日文外，RelaxCat 还通过外部 JSON 本地化机制提供完整的英文和韩文界面语言包。"
+reason = "确认依据：2026-11-03，用户指示：“添加英语和韩语吧”。"

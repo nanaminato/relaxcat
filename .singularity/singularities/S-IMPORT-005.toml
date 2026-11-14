@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-IMPORT-005"
+status = "Confirmed"
+statement = "将图片或文件夹拖入 RelaxCat 窗口时，使用与手动导入相同的流程。拖入文件夹会一次导入该文件夹及其所有子文件夹中的图片。"
+reason = "确认依据：2026-10-21，用户指示：“拖入多张图片或者文件夹（递归子文件夹内的图片）时将图片导入到工作区”。"
+decisions = ["D-IMPORT-DROP-001"]

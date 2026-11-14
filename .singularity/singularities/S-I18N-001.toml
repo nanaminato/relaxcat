@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-I18N-001"
+status = "Confirmed"
+statement = "RelaxCat 提供简体中文和日文界面本地化。面向用户的文本必须支持将这两种语言作为产品语言长期维护，避免写死为单一语言。"
+reason = "确认依据：2026-10-20，用户指示。"
+decisions = ["D-PHASE-001", "D-UI-001", "D-UI-002", "D-PREVIEW-001", "D-EXCEL-SELECTION-001", "D-PHASE-002", "D-EXCEL-OPT-002", "D-I18N-001", "D-I18N-002"]

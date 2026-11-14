@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-001"
+status = "Confirmed"
+statement = "导出到 Excel 时，复用可用的文档或会话，直到它无法继续使用。如果没有可用文档，RelaxCat 使用配置的模板创建新文档。"
+reason = "确认依据：2026-10-20，用户对项目的描述和澄清。"
+decisions = ["D-ARCH-001", "D-EXCEL-001", "D-PHASE-001", "D-UI-002"]

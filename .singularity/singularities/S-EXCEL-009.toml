@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-009"
+status = "Confirmed"
+statement = "RelaxCat 提供本地 Excel/OOXML 样式分析与优化工具。处理前展示工作簿各工作表的样式和样式表诊断信息，仅合并能够证明完全相同的单元格格式，始终不修改源工作簿，将优化结果写入新工作簿，并在处理后展示效果。分析和优化均在离线环境中进行，报告和预览不得暴露单元格值，并保留包括 `.xlsm` 中的 VBA 项目在内的所有非样式 OOXML 部件。"
+reason = "确认依据：2026-11-01，用户指示，要求将 `nanaminato/todolist` PR #2（`ideas/excel-style-deduplicator.md`）中的设计作为工具功能引入 RelaxCat，并提供合适的界面，展示处理前的工作表样式和处理后的效果。"
+decisions = ["D-EXCEL-OPT-001", "D-EXCEL-OPT-002", "D-EXCEL-OPT-003", "D-EXCEL-OPT-004", "D-EXCEL-OPT-005", "D-UI-005"]

@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-SIZE-004"
+status = "Confirmed"
+statement = "导出时保留源图片的宽高比。RelaxCat 在计算尺寸、插入图片或规范化工作表时不得拉伸图片。"
+reason = "确认依据：2026-10-20，用户纠正：“为什么现在导出的图片的比例会发生变化，这个不应该”。这进一步明确了 S-SIZE-003 的要求，同时保留 S-EXCEL-003。"
+decisions = ["D-UNITS-002", "D-ASPECT-001"]

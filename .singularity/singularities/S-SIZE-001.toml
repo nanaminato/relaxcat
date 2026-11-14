@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-SIZE-001"
+status = "Confirmed"
+statement = "为 Excel 排版时，RelaxCat 通常不对图片像素重新采样。它调整的是图片的显示尺寸，并在计算尺寸时考虑 DPI，使 DPI 元数据不同的图片获得更一致的显示效果。"
+reason = "确认依据：2026-10-20，用户澄清。"
+decisions = ["D-ARCH-001", "D-CACHE-001", "D-PHASE-001", "D-UNITS-001", "D-GALLERY-001", "D-UNITS-002", "D-ASPECT-001"]

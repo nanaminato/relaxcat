@@ -1,0 +1,6 @@
+format = 2
+actor = "AI"
+id = "S-EXCEL-006"
+status = "Confirmed"
+statement = "提供可持久保存的设置，用于控制导出所用工作表是否显示网格线。"
+reason = "确认依据：2026-10-20，用户指示。"

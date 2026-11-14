@@ -1,0 +1,7 @@
+format = 2
+actor = "AI"
+id = "S-IMPORT-001"
+status = "Confirmed"
+statement = "通过受监控截图文件夹获取的截图和手动导入的图片，都进入 RelaxCat 的图片处理与导出流程。耗时较长的导入和导出操作应显示进度并支持取消。"
+reason = "确认依据：2026-10-20，用户对项目的描述。"
+decisions = ["D-PHASE-001", "D-UI-001", "D-UI-002", "D-GALLERY-001", "D-EXCEL-SELECTION-001", "D-PHASE-002", "D-CAPTURE-MONITOR-001", "D-IMPORT-DROP-001"]

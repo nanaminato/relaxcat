@@ -1,0 +1,6 @@
+format = 2
+actor = "AI"
+id = "S-CAPTURE-004"
+status = "Confirmed"
+statement = "Greenshot 管理自己的设置。RelaxCat 可以读取其中部分设置值，但在后续启动时必须保留这些值。选用 Greenshot 集成后，RelaxCat 启动时会自动启动 Greenshot 并开始监控。"
+reason = "确认依据：2026-10-20，用户指示。"
