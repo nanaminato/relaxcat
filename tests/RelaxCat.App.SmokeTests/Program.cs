@@ -191,6 +191,51 @@ Complete(window.ImportPathsAsync(sortPaths));
 Click(Control<Button>("RemoveAllButton"));
 Check(window.Workspace.Images.Count == 0 && !window.Workspace.CanExport && !window.Workspace.CanRemoveAll && window.Workspace.PreviewBitmap is null && sortPaths.All(File.Exists), "Clear failed or deleted source files");
 Click(Control<Button>("RemoveAllButton"));
+Complete(window.ImportPathsAsync(sortPaths));
+var batch = window.Workspace.Images.ToArray();
+var removeExported = Control<Button>("RemoveExportedButton");
+batch[1].IncludeInExport = false;
+window.Workspace.MarkExported(window.Workspace.ExportSelection());
+Dispatcher.UIThread.RunJobs();
+Check(removeExported.IsEnabled && batch.Select(item => item.IsExported).SequenceEqual(new[] { true, false, true, true }),
+    "Export status did not match the successful selection");
+batch[2].IncludeInExport = false;
+var nextExport = window.Workspace.ExportSelection();
+Check(nextExport.SequenceEqual(new[] { batch[0].Image, batch[3].Image }), "Export status changed the selection or its order");
+window.Workspace.MarkExported(nextExport);
+Check(!batch[2].IsExported, "A later successful export did not reset previous status");
+Click(removeExported);
+Check(!removeExported.IsEnabled && window.Workspace.Images.SequenceEqual(batch.Skip(1).Take(2)), "Removing exported images changed the retained queue");
+
+void ClickRangeAction(int index, int action)
+{
+    var item = window.Workspace.Images[index];
+    var button = Control<ItemsControl>("Gallery").GetVisualDescendants().OfType<Button>()
+        .Single(button => ReferenceEquals(button.DataContext, item) && button.Flyout is MenuFlyout);
+    var flyout = (MenuFlyout)button.Flyout!;
+    flyout.ShowAt(button);
+    Dispatcher.UIThread.RunJobs();
+    var entry = (MenuItem)flyout.Items[action]!;
+    Check(ReferenceEquals(entry.DataContext, item) && Equals(entry.Header, item.Text[action == 0 ? "RemoveThrough" : "RemoveFrom"]),
+        "Range menu did not bind to its image");
+    entry.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+    flyout.Hide();
+    Dispatcher.UIThread.RunJobs();
+}
+
+Complete(window.ImportPathsAsync(sortPaths.Take(2).ToArray()));
+var afterRange = window.Workspace.Images.Skip(2).ToArray();
+ClickRangeAction(1, 0);
+Check(window.Workspace.Images.SequenceEqual(afterRange), "Remove through did not include the clicked image and earlier images");
+Complete(window.ImportPathsAsync(sortPaths.Skip(2).ToArray()));
+sortSelector.SelectedIndex = 2;
+Dispatcher.UIThread.RunJobs();
+var retained = window.Workspace.Images[0];
+ClickRangeAction(1, 1);
+Check(window.Workspace.Images.SequenceEqual(new[] { retained }) && sortPaths.All(File.Exists),
+    "Remove from ignored the current order or deleted source files");
+Click(Control<Button>("RemoveAllButton"));
+Console.WriteLine("PASS: latest export marks, removal of exported images, and inclusive image range actions.");
 sortSelector.SelectedIndex = 1; Dispatcher.UIThread.RunJobs();
 Console.WriteLine("PASS: automatic time sorting across imports, stable ties, import order, retained selection and safe clear-all.");
 Complete(window.ImportPathsAsync(paths));

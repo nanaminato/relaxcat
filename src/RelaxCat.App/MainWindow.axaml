@@ -108,6 +108,10 @@
               <ComboBox x:Name="SortOrderSelector" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="0,12,0,0" ItemsSource="{Binding SortOrderChoices}" SelectedIndex="{Binding Settings.SortOrderIndex, Mode=TwoWay}" MinWidth="190" ToolTip.Tip="{Binding Text[SortTimeHint]}">
                 <ComboBox.ItemTemplate><DataTemplate x:DataType="models:LocalizedOption"><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
               </ComboBox>
+              <Button x:Name="RemoveExportedButton" Grid.Row="1" Grid.Column="3" Grid.ColumnSpan="3"
+                      HorizontalAlignment="Right" Margin="0,12,0,0" Classes="quiet" FontSize="12"
+                      IsEnabled="{Binding CanRemoveExported}" Click="RemoveExportedClicked"
+                      Content="{Binding Text[RemoveExported]}" ToolTip.Tip="{Binding Text[RemoveExportedHint]}" />
             </Grid>
           </Border>
           <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
@@ -126,9 +130,15 @@
                         </Border>
                       </Button>
                       <TextBlock Grid.Row="1" Text="{Binding Name}" FontWeight="SemiBold" Margin="14,13,14,0" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Image.Path}" />
-                      <TextBlock Grid.Row="2" Classes="muted" Text="{Binding Details}" Margin="14,5,14,10" />
+                      <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="14,5,14,10">
+                        <TextBlock Classes="muted" Text="{Binding Details}" />
+                        <Border Grid.Column="1" Background="{DynamicResource AccentSoftBrush}" CornerRadius="4"
+                                Padding="6,2" IsVisible="{Binding IsExported}">
+                          <TextBlock FontSize="11" Text="{Binding Text[ImageExported]}" />
+                        </Border>
+                      </Grid>
                       <Border Grid.Row="3" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,3">
-                        <Grid ColumnDefinitions="*,Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
                           <CheckBox Content="{Binding Text[Include]}" IsChecked="{Binding IncludeInExport, Mode=TwoWay}" FontSize="12" MinHeight="28" />
                           <Button Grid.Column="1" Classes="quiet" Padding="7,6" FontSize="12" Click="CopyImageClicked" ToolTip.Tip="{Binding Text[CopyHint]}">
                             <StackPanel Orientation="Horizontal" Spacing="5">
@@ -141,6 +151,15 @@
                               <Path Classes="glyph tiny" Data="{StaticResource IconRemove}" />
                               <TextBlock Text="{Binding Text[Remove]}" VerticalAlignment="Center" />
                             </StackPanel>
+                          </Button>
+                          <Button Grid.Column="3" Classes="quiet" Padding="7,6" Content="⋯"
+                                  AutomationProperties.Name="{Binding Text[ImageActions]}" ToolTip.Tip="{Binding Text[ImageActions]}">
+                            <Button.Flyout>
+                              <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuItem Header="{Binding Text[RemoveThrough]}" Click="RemoveThroughClicked" />
+                                <MenuItem Header="{Binding Text[RemoveFrom]}" Click="RemoveFromClicked" />
+                              </MenuFlyout>
+                            </Button.Flyout>
                           </Button>
                         </Grid>
                       </Border>

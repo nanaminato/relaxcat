@@ -218,15 +218,16 @@ internal static class ExcelToolChecks
         var extensionInput = Path.GetFullPath("artifacts/excel-tool-extension-types.xlsx");
         ExtensionDiagnosticsChecks.CreateWorkbook(extensionInput);
         complete(window.AnalyzeExcelWorkbookAsync(extensionInput));
-        Check(!tool.CanOptimize && tool.Summary!.Diagnostics.Any(row =>
-                row.Label == window.Workspace.Text["ExtensionDiagnosticsTitle"] && row.Value == window.Workspace.Text["ExtensionDiagnosticsHint"]),
-            "Extension diagnostics warning was missing or unknown-extension optimization was enabled");
-        var diagnosticsExpander = excelPage.FindControl<Expander>("StyleDiagnosticsExpander")!;
+        Check(tool.HasSummary && !tool.CanOptimize, "Unknown-extension analysis failed or allowed optimization");
+        var diagnosticsExpander = excelPage.FindControl<Expander>("PrivateDiagnosticsExpander")!;
         diagnosticsExpander.IsExpanded = true;
         Dispatcher.UIThread.RunJobs();
-        Check(excelPage.FindControl<ItemsControl>("StyleDiagnosticsList")!.GetVisualDescendants()
-                .OfType<TextBlock>().Any(block => block.Text == "urn:relaxcat:diagnostic-test"),
-            "Extension type entries were not rendered in the diagnostics list");
+        var report = diagnosticsExpander.GetVisualDescendants().OfType<TextBox>().Single();
+        Check(report.IsVisible && report.IsReadOnly && report.Text == tool.PrivateDiagnosticJson &&
+                report.Text.Contains("ExtensionList", StringComparison.Ordinal) &&
+                !report.Text.Contains("urn:relaxcat:diagnostic-test", StringComparison.Ordinal) &&
+                !report.Text.Contains("PRIVATE_EXTENSION_TEXT", StringComparison.Ordinal),
+            "The desktop diagnostics did not display the filtered extension report");
         capture("excel-tool-extension-diagnostics-light.png");
         diagnosticsExpander.IsExpanded = false;
         complete(window.AnalyzeExcelWorkbookAsync(input));

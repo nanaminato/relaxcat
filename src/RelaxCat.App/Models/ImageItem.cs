@@ -6,6 +6,7 @@ namespace RelaxCat.App.Models;
 public sealed class ImageItem : ObservableModel, IDisposable
 {
     private bool includeInExport = true;
+    private bool isExported;
     private static long nextImportOrder;
     public long ImportOrder { get; } = Interlocked.Increment(ref nextImportOrder);
     public DateTime FileTimeUtc { get; }
@@ -22,5 +23,6 @@ public sealed class ImageItem : ObservableModel, IDisposable
         set { if (Set(ref includeInExport, value)) Notify(nameof(ThumbnailOpacity)); }
     }
     public double ThumbnailOpacity => IncludeInExport ? 1 : .38;
+    public bool IsExported { get => isExported; internal set => Set(ref isExported, value); }
     public void Dispose() => Thumbnail.Dispose();
 }

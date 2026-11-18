@@ -84,12 +84,13 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         { Message = Text["SettingsSaveError"] + error.Message; }
     }
     private void ItemChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(ImageItem.IncludeInExport)) UpdateCounts(); }
-    private void UpdateCounts() { Notify(nameof(Summary)); Notify(nameof(NoImages)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(HasPrevious)); Notify(nameof(HasNext)); }
+    private void UpdateCounts() { Notify(nameof(Summary)); Notify(nameof(NoImages)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanRemoveExported)); Notify(nameof(HasPrevious)); Notify(nameof(HasNext)); }
     public string Summary => string.Format(Text["Count"], Images.Count, Images.Count(i => i.IncludeInExport));
     public bool NoImages => Images.Count == 0;
     public bool CanRemoveAll => IsIdle && Images.Count > 0;
+    public bool CanRemoveExported => IsIdle && Images.Any(i => i.IsExported);
     public bool CanExport => IsIdle && Images.Any(i => i.IncludeInExport);
-    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { if (value) DropActive = false; Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanApplyCapture)); } } }
+    public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { if (value) DropActive = false; Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanRemoveExported)); Notify(nameof(CanApplyCapture)); } } }
     public bool DropActive { get => dropActive; set => Set(ref dropActive, value); }
     public bool IsIdle => !IsBusy;
     public bool SettingsOpen { get => settingsOpen; set { if (Set(ref settingsOpen, value)) Notify(nameof(HomeOpen)); } }
@@ -146,6 +147,13 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
     public bool HasNext => PreviewItem is { } item && Images.IndexOf(item) < Images.Count - 1;
     public double PreviewZoom { get => previewZoom; set => Set(ref previewZoom, Math.Clamp(value, .5, 3)); }
     public ImportedImage[] ExportSelection() => Images.Where(i => i.IncludeInExport).Select(i => i.Image).ToArray();
+    internal void MarkExported(IEnumerable<ImportedImage> exported)
+    {
+        var ids = exported.Select(image => image.Id).ToHashSet(StringComparer.Ordinal);
+        foreach (var item in Images)
+            item.IsExported = ids.Contains(item.Image.Id);
+        Notify(nameof(CanRemoveExported));
+    }
     private int CompareImages(ImageItem left, ImageItem right)
     {
         var comparison = Settings.SortOrderIndex switch
@@ -193,6 +201,26 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         if (IsBusy || !Images.Remove(item)) return;
         if (PreviewItem == item) ClosePreview();
         item.Dispose();
+    }
+    internal void RemoveExported()
+    {
+        if (!CanRemoveExported) return;
+        foreach (var item in Images.Where(item => item.IsExported).ToArray())
+            Remove(item);
+    }
+    internal void RemoveThrough(ImageItem item)
+    {
+        var index = Images.IndexOf(item);
+        if (IsBusy || index < 0) return;
+        foreach (var image in Images.Take(index + 1).ToArray())
+            Remove(image);
+    }
+    internal void RemoveFrom(ImageItem item)
+    {
+        var index = Images.IndexOf(item);
+        if (IsBusy || index < 0) return;
+        foreach (var image in Images.Skip(index).ToArray())
+            Remove(image);
     }
     public void ClosePreview()
     {

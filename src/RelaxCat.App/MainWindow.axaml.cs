@@ -170,6 +170,7 @@ public sealed partial class MainWindow : Window
                 Workspace.Message = Workspace.Text["Exporting"] + $" {n}/{snapshot.Length}";
             });
             await excel.Run(() => exporter.Export(snapshot, options, excel, reporting, token));
+            if (!closed) Workspace.MarkExported(snapshot);
             Workspace.Message = Workspace.Text["Exported"];
         }
         catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ExportCancelled"]; }
@@ -178,6 +179,18 @@ public sealed partial class MainWindow : Window
     }
 
     private void RemoveAllClicked(object? sender, RoutedEventArgs e) { previewGeneration++; Workspace.RemoveAll(); }
+
+    private void RemoveExportedClicked(object? sender, RoutedEventArgs e) => Workspace.RemoveExported();
+
+    private void RemoveThroughClicked(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is ImageItem item) Workspace.RemoveThrough(item);
+    }
+
+    private void RemoveFromClicked(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.DataContext is ImageItem item) Workspace.RemoveFrom(item);
+    }
 
     private void RemoveImageClicked(object? sender, RoutedEventArgs e)
     {
