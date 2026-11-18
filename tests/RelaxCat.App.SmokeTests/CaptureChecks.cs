@@ -10,6 +10,15 @@ internal static class CaptureChecks
 {
     public static void CheckGreenshotBundle(Action<Task> complete)
     {
+#if DEBUG
+        var expectedStateRoot = Path.Combine(AppContext.BaseDirectory, "RelaxCat.DebugData");
+#else
+        var expectedStateRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RelaxCat");
+#endif
+        Check(GreenshotBundle.DefaultStateRoot == expectedStateRoot &&
+              new RelaxCat.App.Models.CaptureSettings().Folder == Path.Combine(expectedStateRoot, "Captures"),
+            "Default state and screenshot paths did not match the build configuration");
+
         var root = Path.GetFullPath("artifacts/greenshot-bundle-" + Guid.NewGuid().ToString("N"));
         var profile = Path.Combine(root, "GreenshotProfile");
         Directory.CreateDirectory(profile);
@@ -23,11 +32,23 @@ internal static class CaptureChecks
         Check(File.ReadAllText(fixedSettings).Contains("WelcomeShown=True", StringComparison.Ordinal),
             "Fresh bundle did not suppress the welcome wizard");
 
-        File.WriteAllText(fixedSettings, ";In this file you should add your fixed settings");
+        const string vendorPlaceholder = ";In this file you should add your fixed settings";
+        File.WriteAllText(fixedSettings, vendorPlaceholder);
         complete(GreenshotBundle.EnsureAsync(root, default));
         Check(File.ReadAllText(fixedSettings).Contains("WelcomeShown=True", StringComparison.Ordinal),
             "Previously extracted bundle did not receive the welcome setting");
         Check(File.ReadAllText(ini) == existingProfile, "Bundle startup rewrote existing Greenshot preferences");
+
+        File.WriteAllText(fixedSettings, vendorPlaceholder);
+        File.SetAttributes(fixedSettings, File.GetAttributes(fixedSettings) | FileAttributes.ReadOnly);
+        try
+        {
+            complete(GreenshotBundle.EnsureAsync(root, default));
+            Check(File.ReadAllText(fixedSettings) == vendorPlaceholder &&
+                  File.GetAttributes(fixedSettings).HasFlag(FileAttributes.ReadOnly),
+                "A read-only welcome setting should leave the bundle usable without changing file attributes");
+        }
+        finally { File.SetAttributes(fixedSettings, File.GetAttributes(fixedSettings) & ~FileAttributes.ReadOnly); }
 
         const string customFixedSettings = "[Core]\r\nLanguage=en-US\r\n";
         File.WriteAllText(fixedSettings, customFixedSettings);

@@ -10,7 +10,11 @@ public static class GreenshotBundle
     private const string VendorFixedSettings = ";In this file you should add your fixed settings";
     private const string WelcomeSetting = "[Core]\r\nWelcomeShown=True\r\n";
     private static readonly SemaphoreSlim installGate = new(1);
+#if DEBUG
+    public static string DefaultStateRoot => Path.Combine(AppContext.BaseDirectory, "RelaxCat.DebugData");
+#else
     public static string DefaultStateRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RelaxCat");
+#endif
 
     public static async Task<string> EnsureAsync(string stateRoot, CancellationToken token)
     {
@@ -37,8 +41,13 @@ public static class GreenshotBundle
                 // Greenshot reads fixed settings beside the executable, even with --ini-directory.
                 // Leave the user's profile and any customized fixed settings intact.
                 var fixedSettings = Path.Combine(folder, "greenshot-fixed.ini");
-                if (!File.Exists(fixedSettings) || File.ReadAllText(fixedSettings).Trim() == VendorFixedSettings)
-                    File.WriteAllText(fixedSettings, WelcomeSetting);
+                try
+                {
+                    if (!File.Exists(fixedSettings) || File.ReadAllText(fixedSettings).Trim() == VendorFixedSettings)
+                        File.WriteAllText(fixedSettings, WelcomeSetting);
+                }
+                catch (UnauthorizedAccessException) { /* The optional welcome override must not block capture. */ }
+                catch (IOException) { /* A busy fixed settings file can be retried at the next start. */ }
                 token.ThrowIfCancellationRequested();
                 return executable;
             }, token);
