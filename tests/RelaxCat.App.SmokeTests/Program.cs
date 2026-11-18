@@ -189,7 +189,7 @@ window.Workspace.RemoveAll();
 Check(!window.Workspace.PreviewOpen && window.Workspace.PreviewBitmap is null, "Clear left preview resources alive");
 Complete(window.ImportPathsAsync(sortPaths));
 Click(Control<Button>("RemoveAllButton"));
-Check(window.Workspace.Images.Count == 0 && !window.Workspace.CanExport && !window.Workspace.CanRemoveAll && window.Workspace.PreviewBitmap is null && sortPaths.All(File.Exists), "Clear failed or deleted source files");
+Check(window.Workspace.Images.Count == 0 && Control<Button>("ExportButton").IsEnabled && !window.Workspace.CanRemoveAll && window.Workspace.PreviewBitmap is null && sortPaths.All(File.Exists), "Clear failed, disabled blank workbook export, or deleted source files");
 Click(Control<Button>("RemoveAllButton"));
 Complete(window.ImportPathsAsync(sortPaths));
 var batch = window.Workspace.Images.ToArray();
@@ -210,16 +210,18 @@ Check(!removeExported.IsEnabled && window.Workspace.Images.SequenceEqual(batch.S
 void ClickRangeAction(int index, int action)
 {
     var item = window.Workspace.Images[index];
-    var button = Control<ItemsControl>("Gallery").GetVisualDescendants().OfType<Button>()
-        .Single(button => ReferenceEquals(button.DataContext, item) && button.Flyout is MenuFlyout);
-    var flyout = (MenuFlyout)button.Flyout!;
-    flyout.ShowAt(button);
+    var card = Control<ItemsControl>("Gallery").GetVisualDescendants().OfType<Border>()
+        .Single(border => ReferenceEquals(border.DataContext, item) && border.ContextMenu is not null);
+    var menu = card.ContextMenu!;
+    card.GetVisualDescendants().OfType<Image>().Single()
+        .RaiseEvent(new ContextRequestedEventArgs { RoutedEvent = InputElement.ContextRequestedEvent });
     Dispatcher.UIThread.RunJobs();
-    var entry = (MenuItem)flyout.Items[action]!;
-    Check(ReferenceEquals(entry.DataContext, item) && Equals(entry.Header, item.Text[action == 0 ? "RemoveThrough" : "RemoveFrom"]),
+    var entry = (MenuItem)menu.Items[action]!;
+    Check(menu.IsOpen && menu.Classes.Contains("workspaceMenu") && Equals(menu.CornerRadius, new CornerRadius(8)) &&
+          ReferenceEquals(entry.DataContext, item) && Equals(entry.Header, item.Text[action == 0 ? "RemoveThrough" : "RemoveFrom"]),
         "Range menu did not bind to its image");
     entry.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-    flyout.Hide();
+    menu.Close();
     Dispatcher.UIThread.RunJobs();
 }
 
@@ -293,8 +295,40 @@ var remove = gallery.GetVisualDescendants().OfType<Button>().First(b => b.DataCo
 Click(remove);
 Check(window.Workspace.Images.Count == paths.Length - 1 && File.Exists(last.Image.Path), "Remove deleted source or did not update gallery");
 foreach (var item in window.Workspace.Images) item.IncludeInExport = false;
+var rowHeight = window.Workspace.Settings.RowHeight;
+window.Workspace.Settings.RowHeight = "0";
 Complete(window.ExportAsync());
-Check(!window.Workspace.CanExport && window.Workspace.Message == window.Workspace.Text["NoSelection"], "Empty selection is exportable");
+Check(window.Workspace.CanExport && window.Workspace.Message ==
+      window.Workspace.Text["ExportError"] + window.Workspace.Text["NumberError"],
+    "An empty selection did not reach workbook settings validation");
+window.Workspace.Settings.RowHeight = rowHeight;
+using (var allowExcelToReturn = new ManualResetEventSlim())
+{
+    var stalledExcel = new ExcelSession();
+    var blockedCall = stalledExcel.Run(() => allowExcelToReturn.Wait());
+    var cancelWindow = new MainWindow(new RelaxCat.App.Models.SettingsStore(settingsPath + ".cancel"), stalledExcel);
+    cancelWindow.Show();
+    try
+    {
+        var pendingExport = cancelWindow.ExportAsync();
+        Check(cancelWindow.Workspace.IsBusy, "Blocked Excel export did not enter the busy state");
+        Click(cancelWindow.FindControl<Button>("CancelOperationButton")!);
+        Complete(pendingExport);
+        Check(cancelWindow.Workspace.IsIdle && !cancelWindow.Workspace.CanExport &&
+              cancelWindow.Workspace.Message == cancelWindow.Workspace.Text["ExportCancelWaiting"],
+            "Cancel did not unlock the workspace while keeping Excel exports serialized");
+        allowExcelToReturn.Set();
+        Complete(blockedCall);
+        PumpUntil(() => cancelWindow.Workspace.CanExport);
+        Check(cancelWindow.Workspace.Message == cancelWindow.Workspace.Text["ExportCancelled"],
+            "The drained Excel request did not restore the export action");
+    }
+    finally
+    {
+        allowExcelToReturn.Set();
+        cancelWindow.Close();
+    }
+}
 var corrupt = Path.GetFullPath("artifacts/corrupt.png"); File.WriteAllText(corrupt, "invalid image");
 var previousCount = window.Workspace.Images.Count; Complete(window.ImportPathsAsync(new[] { corrupt }));
 Check(window.Workspace.Images.Count == previousCount && window.Workspace.Message.StartsWith(window.Workspace.Text["ImportErrors"]), "Corrupt file handling failed");

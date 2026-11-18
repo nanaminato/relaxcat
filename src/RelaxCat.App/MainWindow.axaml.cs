@@ -14,7 +14,7 @@ namespace RelaxCat.App;
 public sealed partial class MainWindow : Window
 {
     internal WorkspaceModel Workspace { get; }
-    private readonly ExcelSession excel = new();
+    private readonly ExcelSession excel;
     private readonly ImageExporter exporter = new();
     private CancellationTokenSource? operation;
     private Bitmap? clipboardBitmap;
@@ -23,8 +23,9 @@ public sealed partial class MainWindow : Window
     private bool closed;
 
     public MainWindow() : this(null) { }
-    internal MainWindow(SettingsStore? store)
+    internal MainWindow(SettingsStore? store, ExcelSession? excelSession = null)
     {
+        excel = excelSession ?? new ExcelSession();
         Workspace = new WorkspaceModel(store);
         InitializeComponent();
         // The window covers every page, so one drop target serves the whole app; files and folders both import.
@@ -39,7 +40,8 @@ public sealed partial class MainWindow : Window
         Closed += (_, _) =>
         {
             closed = true; previewGeneration++;
-            Workspace.Dispose(); clipboardBitmap?.Dispose(); excel.Dispose();
+            Workspace.Dispose(); clipboardBitmap?.Dispose();
+            excel.Dispose(waitForWorker: !Workspace.ExcelExportPending);
         };
     }
 
@@ -156,26 +158,59 @@ public sealed partial class MainWindow : Window
     private async void ExportClicked(object? sender, RoutedEventArgs e) => await ExportAsync();
     internal async Task ExportAsync()
     {
-        if (Workspace.IsBusy) return;
+        if (!Workspace.CanExport) return;
         var snapshot = Workspace.ExportSelection();
-        if (snapshot.Length == 0) { Workspace.Message = Workspace.Text["NoSelection"]; return; }
+        Task? excelWork = null;
         try
         {
             var options = Workspace.Settings.CreateOptions(Workspace.Text);
             operation = new CancellationTokenSource(); var token = operation.Token;
             Workspace.IsBusy = true; Workspace.Progress = 0; Workspace.Message = Workspace.Text["PreparingExcel"];
+            if (snapshot.Length == 0)
+            {
+                excelWork = excel.Run(() => excel.PrepareNewWorkbook(options), token);
+                await excelWork.WaitAsync(token);
+                token.ThrowIfCancellationRequested();
+                Workspace.Progress = 1;
+                Workspace.Message = Workspace.Text["WorkbookPrepared"];
+                return;
+            }
             var reporting = new Progress<int>(n =>
             {
+                if (closed || token.IsCancellationRequested) return;
                 Workspace.Progress = (double)n / snapshot.Length;
                 Workspace.Message = Workspace.Text["Exporting"] + $" {n}/{snapshot.Length}";
             });
-            await excel.Run(() => exporter.Export(snapshot, options, excel, reporting, token));
+            excelWork = excel.Run(() => exporter.Export(snapshot, options, excel, reporting, token), token);
+            await excelWork.WaitAsync(token);
+            token.ThrowIfCancellationRequested();
             if (!closed) Workspace.MarkExported(snapshot);
             Workspace.Message = Workspace.Text["Exported"];
         }
-        catch (OperationCanceledException) { Workspace.Message = Workspace.Text["ExportCancelled"]; }
+        catch (OperationCanceledException)
+        {
+            if (excelWork is not null)
+            {
+                Workspace.ExcelExportPending = true;
+                Workspace.Message = Workspace.Text["ExportCancelWaiting"];
+                _ = ObserveCancelledExcelAsync(excelWork);
+            }
+            else Workspace.Message = Workspace.Text["ExportCancelled"];
+        }
+        catch (ExcelExportException error) { Workspace.Message = Workspace.Text["ExportError"] + error.Describe(key => Workspace.Text[key]); }
         catch (Exception error) { Workspace.Message = Workspace.Text["ExportError"] + error.Message; }
         finally { operation?.Dispose(); operation = null; Workspace.IsBusy = false; }
+    }
+
+    private async Task ObserveCancelledExcelAsync(Task pending)
+    {
+        var waitingMessage = Workspace.Message;
+        try { await pending; }
+        catch (Exception) { /* The user has already cancelled this export. */ }
+        if (closed) return;
+        Workspace.ExcelExportPending = false;
+        if (Workspace.Message == waitingMessage)
+            Workspace.Message = Workspace.Text["ExportCancelled"];
     }
 
     private void RemoveAllClicked(object? sender, RoutedEventArgs e) { previewGeneration++; Workspace.RemoveAll(); }

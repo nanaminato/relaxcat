@@ -8,9 +8,12 @@ namespace RelaxCat.App;
 // All RCWs, including their cleanup, stay on this single STA thread.
 public sealed class ExcelSession : IExcelTarget, IDisposable
 {
+    private const int ExcelApplicationError = unchecked((int)0x800A03EC);
+    private const int XlWbatWorksheet = -4167;
     private readonly BlockingCollection<Action> work = new();
     private readonly Thread thread;
     private dynamic? app, workbook, sheet;
+    private CancellationToken activeCancellation;
     private double nextTop;
     public double NextTop => nextTop;
     public ExcelCellSize CellSize { get; private set; }
@@ -23,44 +26,137 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
         thread.Start();
     }
 
-    public Task Run(Action action)
+    public Task Run(Action action, CancellationToken cancellationToken = default)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        work.Add(() => { try { action(); completion.SetResult(); } catch (Exception e) { completion.SetException(e); } });
+        work.Add(() =>
+        {
+            activeCancellation = cancellationToken;
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                action();
+                cancellationToken.ThrowIfCancellationRequested();
+                completion.SetResult();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            { completion.SetCanceled(cancellationToken); }
+            catch (Exception e) { completion.SetException(e); }
+            finally { activeCancellation = default; }
+        });
         return completion.Task;
     }
 
-    public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true)
+    public void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines = true) =>
+        Prepare(templatePath, rowHeight, columnWidth, showGridlines, createNew: false);
+
+    internal void PrepareNewWorkbook(ExportOptions options) =>
+        Prepare(options.TemplatePath, options.RowHeight, options.ColumnWidth, options.ShowGridlines, createNew: true);
+
+    private void Prepare(string? templatePath, double rowHeight, double columnWidth, bool showGridlines, bool createNew)
     {
         if (Thread.CurrentThread != thread) throw new InvalidOperationException("Excel requires its STA worker.");
         if (!double.IsFinite(rowHeight) || rowHeight <= 0 || rowHeight > 409 ||
             !double.IsFinite(columnWidth) || columnWidth <= 0 || columnWidth > 255)
             throw new ArgumentOutOfRangeException(nameof(rowHeight));
+        PrepareWorkbook(templatePath, createNew);
+        activeCancellation.ThrowIfCancellationRequested();
+        try { PrepareWorksheet(rowHeight, columnWidth, showGridlines); }
+        catch (Exception error) when (error is not OperationCanceledException)
+        { throw new ExcelExportException("ExportStageWorksheet", error); }
+    }
+
+    private void PrepareWorkbook(string? templatePath, bool createNew)
+    {
         var usable = false;
-        try { if (workbook is not null && sheet is not null) { _ = workbook.Name; _ = sheet.Name; usable = true; } }
+        try { if (!createNew && workbook is not null && sheet is not null) { _ = workbook.Name; _ = sheet.Name; usable = true; } }
         catch (COMException) { }
         if (!usable)
         {
             if (!string.IsNullOrWhiteSpace(templatePath) && !File.Exists(templatePath))
                 throw new FileNotFoundException("Excel template", templatePath);
-            Release(sheet); sheet = null; Release(workbook); workbook = null;
+            if (!createNew)
+            {
+                Release(sheet); sheet = null;
+                Release(workbook); workbook = null;
+            }
             try { if (app is not null) _ = app.Version; }
-            catch (COMException) { Release(app); app = null; }
-            app ??= Activator.CreateInstance(Type.GetTypeFromProgID("Excel.Application")
-                ?? throw new InvalidOperationException("Microsoft Excel COM is unavailable."));
-            object? books = null, sheets = null;
+            catch (COMException)
+            {
+                Release(sheet); sheet = null;
+                Release(workbook); workbook = null;
+                Release(app); app = null;
+            }
+            try
+            {
+                app ??= Activator.CreateInstance(Type.GetTypeFromProgID("Excel.Application")
+                    ?? throw new InvalidOperationException("Microsoft Excel COM is unavailable."));
+            }
+            catch (Exception error) { throw new ExcelExportException("ExportStageStartExcel", error); }
+            object? books = null, sheets = null, newWorkbook = null;
+            var stage = "ExportStageWorkbook";
             try
             {
                 books = app!.Workbooks;
-                workbook = string.IsNullOrWhiteSpace(templatePath)
-                    ? ((dynamic)books).Add() : ((dynamic)books).Add(Path.GetFullPath(templatePath));
-                sheets = workbook.Worksheets;
-                sheet = ((dynamic)sheets)[1];
+                newWorkbook = CreateWorkbook(books, templatePath);
+                activeCancellation.ThrowIfCancellationRequested();
+                stage = "ExportStageWorksheet";
+                sheets = ((dynamic)newWorkbook).Worksheets;
+                object newSheet = ((dynamic)sheets)[1];
+                Release(sheet); Release(workbook);
+                sheet = newSheet;
+                workbook = newWorkbook; newWorkbook = null;
                 nextTop = 0;
             }
-            finally { Release(sheets); Release(books); }
+            catch (Exception error)
+            {
+                if (activeCancellation.IsCancellationRequested && newWorkbook is not null)
+                {
+                    try { ((dynamic)newWorkbook).Close(false); }
+                    catch (Exception) { /* Keep the cancellation result. */ }
+                }
+                if (workbook is null) ReleaseFailedStartup(books);
+                activeCancellation.ThrowIfCancellationRequested();
+                throw new ExcelExportException(stage, error);
+            }
+            finally { Release(sheets); Release(newWorkbook); Release(books); }
         }
+    }
+
+    private object CreateWorkbook(object books, string? templatePath)
+    {
+        activeCancellation.ThrowIfCancellationRequested();
+        dynamic workbooks = books;
+        if (!string.IsNullOrWhiteSpace(templatePath))
+            return workbooks.Add(Path.GetFullPath(templatePath));
+
+        try { return workbooks.Add(); }
+        catch (COMException error) when (error.HResult == ExcelApplicationError)
+        {
+            activeCancellation.ThrowIfCancellationRequested();
+            // Only the default blank-workbook path may fall back to a single worksheet.
+            return workbooks.Add(XlWbatWorksheet);
+        }
+    }
+
+    private void ReleaseFailedStartup(object? books)
+    {
+        try
+        {
+            object? failedApp = app;
+            if (failedApp is null || books is null) return;
+            dynamic instance = failedApp;
+            if ((int)((dynamic)books).Count == 0 && instance.UserControl == false)
+                instance.Quit();
+        }
+        catch (Exception) { /* Keep the workbook creation failure. */ }
+        finally { Release(app); app = null; }
+    }
+
+    private void PrepareWorksheet(double rowHeight, double columnWidth, bool showGridlines)
+    {
         NormalizePreservingPictures(rowHeight, columnWidth);
+        activeCancellation.ThrowIfCancellationRequested();
         object? cells = null, cell = null;
         try
         {
@@ -111,6 +207,7 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             cells = sheet.Cells; cell = ((dynamic)cells)[row, column];
             return new ExcelCellPosition((double)((dynamic)cell).Left, (double)((dynamic)cell).Top);
         }
+        catch (Exception error) { throw new ExcelExportException("ExportStageWorksheet", error); }
         finally { Release(cell); Release(cells); Release(rows); Release(columns); }
     }
 
@@ -121,26 +218,32 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
     {
         var saved = new List<PictureGeometry>();
         object? shapes = null, rows = null, columns = null;
+        var normalized = false;
         try
         {
             shapes = sheet!.Shapes;
             for (var i = 1; i <= (int)((dynamic)shapes).Count; i++)
             {
+                activeCancellation.ThrowIfCancellationRequested();
                 object? shape = ((dynamic)shapes).Item(i);
                 try
                 {
                     if (!IsPicture(shape)) continue;
                     dynamic picture = shape;
-                    saved.Add(new PictureGeometry(shape, (double)picture.Left, (double)picture.Top,
-                        (double)picture.Width, (double)picture.Height, (int)picture.Placement, (int)picture.LockAspectRatio));
-                    shape = null; // The snapshot owns this RCW until restoration.
+                    var geometry = new PictureGeometry(shape, (double)picture.Left, (double)picture.Top,
+                        (double)picture.Width, (double)picture.Height, (int)picture.Placement, (int)picture.LockAspectRatio);
                     picture.Placement = 3; // Temporarily xlFreeFloating, only during our normalization.
+                    saved.Add(geometry);
+                    shape = null; // The snapshot owns this RCW until restoration.
                 }
                 finally { Release(shape); }
             }
+            activeCancellation.ThrowIfCancellationRequested();
             rows = sheet.Rows; columns = sheet.Columns;
             ((dynamic)rows).RowHeight = rowHeight;
+            activeCancellation.ThrowIfCancellationRequested();
             ((dynamic)columns).ColumnWidth = columnWidth;
+            normalized = true;
         }
         finally
         {
@@ -166,7 +269,8 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
                 catch (Exception error) { failure ??= error; }
                 finally { Release(geometry.Shape); }
             }
-            if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            if (normalized && failure is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 
@@ -179,6 +283,7 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             shapes = sheet!.Shapes;
             for (var i = (int)((dynamic)shapes).Count; i >= 1; i--)
             {
+                activeCancellation.ThrowIfCancellationRequested();
                 object? shape = null;
                 try
                 {
@@ -189,6 +294,8 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             }
             nextTop = 0;
         }
+        catch (Exception error) when (error is not OperationCanceledException)
+        { throw new ExcelExportException("ExportStageClearPictures", error); }
         finally { Release(shapes); }
     }
 
@@ -206,10 +313,11 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             ((dynamic)shape).Placement = 1; // xlMoveAndSize, available since Excel 2007.
             nextTop = Math.Max(nextTop, points.Y + points.Height);
         }
-        catch
+        catch (Exception error)
         {
-            if (shape is not null) ((dynamic)shape).Delete();
-            throw;
+            try { if (shape is not null) ((dynamic)shape).Delete(); }
+            catch (Exception) { /* Keep the original Excel failure. */ }
+            throw new ExcelExportException("ExportStageInsertPicture", error, Path.GetFileName(path));
         }
         finally { Release(shape); Release(shapes); }
     }
@@ -232,11 +340,14 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             range = ((dynamic)shapes).Range(names.ToArray());
             ((dynamic)range).Select();
         }
+        catch (Exception error) { throw new ExcelExportException("ExportStageSelectPictures", error); }
         finally { Release(range); Release(shapes); }
     }
 
     private static void Release(object? value) { if (value is not null && Marshal.IsComObject(value)) Marshal.ReleaseComObject(value); }
-    public void Dispose()
+    public void Dispose() => Dispose(waitForWorker: true);
+
+    internal void Dispose(bool waitForWorker)
     {
         work.Add(() =>
         {
@@ -254,6 +365,6 @@ public sealed class ExcelSession : IExcelTarget, IDisposable
             finally { Release(sheet); Release(workbook); Release(app); sheet = workbook = app = null; }
         });
         work.CompleteAdding(); // Leave visible Excel documents open for the user to save.
-        thread.Join(TimeSpan.FromSeconds(2));
+        if (waitForWorker) thread.Join(TimeSpan.FromSeconds(2));
     }
 }

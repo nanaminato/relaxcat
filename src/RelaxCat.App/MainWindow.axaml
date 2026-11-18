@@ -122,6 +122,12 @@
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="models:ImageItem">
                   <Border Classes="card" Width="272" Margin="8,0,8,18" ClipToBounds="True">
+                    <Border.ContextMenu>
+                      <ContextMenu Classes="workspaceMenu">
+                        <MenuItem Classes="workspaceMenuItem" Header="{Binding Text[RemoveThrough]}" Click="RemoveThroughClicked" />
+                        <MenuItem Classes="workspaceMenuItem" Header="{Binding Text[RemoveFrom]}" Click="RemoveFromClicked" />
+                      </ContextMenu>
+                    </Border.ContextMenu>
                     <Grid RowDefinitions="170,Auto,Auto,Auto">
                       <Button Classes="quiet" Padding="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
                               Click="ImagePreviewClicked" ToolTip.Tip="{Binding Text[Preview]}">
@@ -138,7 +144,7 @@
                         </Border>
                       </Grid>
                       <Border Grid.Row="3" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="10,3">
-                        <Grid ColumnDefinitions="*,Auto,Auto,Auto">
+                        <Grid ColumnDefinitions="*,Auto,Auto">
                           <CheckBox Content="{Binding Text[Include]}" IsChecked="{Binding IncludeInExport, Mode=TwoWay}" FontSize="12" MinHeight="28" />
                           <Button Grid.Column="1" Classes="quiet" Padding="7,6" FontSize="12" Click="CopyImageClicked" ToolTip.Tip="{Binding Text[CopyHint]}">
                             <StackPanel Orientation="Horizontal" Spacing="5">
@@ -151,15 +157,6 @@
                               <Path Classes="glyph tiny" Data="{StaticResource IconRemove}" />
                               <TextBlock Text="{Binding Text[Remove]}" VerticalAlignment="Center" />
                             </StackPanel>
-                          </Button>
-                          <Button Grid.Column="3" Classes="quiet" Padding="7,6" Content="⋯"
-                                  AutomationProperties.Name="{Binding Text[ImageActions]}" ToolTip.Tip="{Binding Text[ImageActions]}">
-                            <Button.Flyout>
-                              <MenuFlyout Placement="BottomEdgeAlignedRight">
-                                <MenuItem Header="{Binding Text[RemoveThrough]}" Click="RemoveThroughClicked" />
-                                <MenuItem Header="{Binding Text[RemoveFrom]}" Click="RemoveFromClicked" />
-                              </MenuFlyout>
-                            </Button.Flyout>
                           </Button>
                         </Grid>
                       </Border>
@@ -196,7 +193,7 @@
     <Border Grid.Row="2" Background="{DynamicResource SurfaceBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="20,8">
       <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
         <TextBlock x:Name="StatusLabel" Text="{Binding Message}" TextWrapping="Wrap" MaxHeight="58" VerticalAlignment="Center" FontSize="12" />
-        <Button Grid.Column="1" Content="{Binding Text[Cancel]}" Click="CancelClicked" IsVisible="{Binding IsBusy}" Padding="12,5" Margin="12,0,0,0" />
+        <Button x:Name="CancelOperationButton" Grid.Column="1" Content="{Binding Text[Cancel]}" Click="CancelClicked" IsVisible="{Binding IsBusy}" Padding="12,5" Margin="12,0,0,0" />
         <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Height="3" Margin="0,7,0,0" Minimum="0" Maximum="1" Value="{Binding Progress}" IsVisible="{Binding IsBusy}" />
       </Grid>
     </Border>

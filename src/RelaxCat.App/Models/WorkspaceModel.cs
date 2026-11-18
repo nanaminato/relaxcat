@@ -84,12 +84,18 @@ public sealed class WorkspaceModel : ObservableModel, IDisposable
         { Message = Text["SettingsSaveError"] + error.Message; }
     }
     private void ItemChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(ImageItem.IncludeInExport)) UpdateCounts(); }
-    private void UpdateCounts() { Notify(nameof(Summary)); Notify(nameof(NoImages)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanRemoveExported)); Notify(nameof(HasPrevious)); Notify(nameof(HasNext)); }
+    private void UpdateCounts() { Notify(nameof(Summary)); Notify(nameof(NoImages)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanRemoveExported)); Notify(nameof(HasPrevious)); Notify(nameof(HasNext)); }
     public string Summary => string.Format(Text["Count"], Images.Count, Images.Count(i => i.IncludeInExport));
     public bool NoImages => Images.Count == 0;
     public bool CanRemoveAll => IsIdle && Images.Count > 0;
     public bool CanRemoveExported => IsIdle && Images.Any(i => i.IsExported);
-    public bool CanExport => IsIdle && Images.Any(i => i.IncludeInExport);
+    private bool excelExportPending;
+    internal bool ExcelExportPending
+    {
+        get => excelExportPending;
+        set { if (Set(ref excelExportPending, value)) Notify(nameof(CanExport)); }
+    }
+    public bool CanExport => IsIdle && !ExcelExportPending;
     public bool IsBusy { get => busy; set { if (Set(ref busy, value)) { if (value) DropActive = false; Notify(nameof(IsIdle)); Notify(nameof(CanExport)); Notify(nameof(CanRemoveAll)); Notify(nameof(CanRemoveExported)); Notify(nameof(CanApplyCapture)); } } }
     public bool DropActive { get => dropActive; set => Set(ref dropActive, value); }
     public bool IsIdle => !IsBusy;
