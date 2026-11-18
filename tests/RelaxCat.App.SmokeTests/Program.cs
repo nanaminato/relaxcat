@@ -332,6 +332,7 @@ Check(window.Workspace.Images.Count == beforeDrop + 3 && window.Workspace.Messag
 window.Workspace.IsBusy = false;
 Console.WriteLine("PASS: dropped images and folders import recursively, with deduplication, drop feedback, and busy/missing feedback.");
 CaptureChecks.RunFolder(window, Complete, PumpUntil);
+CaptureChecks.CheckGreenshotBundle(Complete);
 int? ownedGreenshot = args.Contains("--greenshot") ? CaptureChecks.RunGreenshot(window, Complete, PumpUntil) : null;
 settings.OpenCapturePage(); Capture("settings-capture.png");
 window.Workspace.ThemeIndex = 0; Dispatcher.UIThread.RunJobs(); Capture("settings-capture-dark.png");

@@ -7,6 +7,8 @@ public static class GreenshotBundle
 {
     public const string Version = "1.4.371-g78211b16d9";
     public const string Sha256 = "b915f7bc8dfde4cdfa271f2731bdc1db9c262a3723e6898efe5c8b3e6385103c";
+    private const string VendorFixedSettings = ";In this file you should add your fixed settings";
+    private const string WelcomeSetting = "[Core]\r\nWelcomeShown=True\r\n";
     private static readonly SemaphoreSlim installGate = new(1);
     public static string DefaultStateRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RelaxCat");
 
@@ -32,6 +34,11 @@ public static class GreenshotBundle
                     ZipFile.ExtractToDirectory(archive, folder, true);
                     File.WriteAllText(marker, Sha256);
                 }
+                // Greenshot reads fixed settings beside the executable, even with --ini-directory.
+                // Leave the user's profile and any customized fixed settings intact.
+                var fixedSettings = Path.Combine(folder, "greenshot-fixed.ini");
+                if (!File.Exists(fixedSettings) || File.ReadAllText(fixedSettings).Trim() == VendorFixedSettings)
+                    File.WriteAllText(fixedSettings, WelcomeSetting);
                 token.ThrowIfCancellationRequested();
                 return executable;
             }, token);

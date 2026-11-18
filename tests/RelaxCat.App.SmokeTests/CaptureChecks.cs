@@ -8,6 +8,34 @@ using RelaxCat.App.Views;
 
 internal static class CaptureChecks
 {
+    public static void CheckGreenshotBundle(Action<Task> complete)
+    {
+        var root = Path.GetFullPath("artifacts/greenshot-bundle-" + Guid.NewGuid().ToString("N"));
+        var profile = Path.Combine(root, "GreenshotProfile");
+        Directory.CreateDirectory(profile);
+        var ini = Path.Combine(profile, "greenshot.ini");
+        const string existingProfile = "[Core]\r\nWelcomeShown=False\r\nRegionHotkey=F22\r\n";
+        File.WriteAllText(ini, existingProfile);
+
+        var install = GreenshotBundle.EnsureAsync(root, default);
+        complete(install);
+        var fixedSettings = Path.Combine(Path.GetDirectoryName(install.GetAwaiter().GetResult())!, "greenshot-fixed.ini");
+        Check(File.ReadAllText(fixedSettings).Contains("WelcomeShown=True", StringComparison.Ordinal),
+            "Fresh bundle did not suppress the welcome wizard");
+
+        File.WriteAllText(fixedSettings, ";In this file you should add your fixed settings");
+        complete(GreenshotBundle.EnsureAsync(root, default));
+        Check(File.ReadAllText(fixedSettings).Contains("WelcomeShown=True", StringComparison.Ordinal),
+            "Previously extracted bundle did not receive the welcome setting");
+        Check(File.ReadAllText(ini) == existingProfile, "Bundle startup rewrote existing Greenshot preferences");
+
+        const string customFixedSettings = "[Core]\r\nLanguage=en-US\r\n";
+        File.WriteAllText(fixedSettings, customFixedSettings);
+        complete(GreenshotBundle.EnsureAsync(root, default));
+        Check(File.ReadAllText(fixedSettings) == customFixedSettings, "Bundle startup rewrote customized fixed settings");
+        Console.WriteLine("PASS: bundled Greenshot welcome setting for fresh and cached installs, with existing settings preserved.");
+    }
+
     public static void RunFolder(MainWindow window, Action<Task> complete, Action<Func<bool>> until)
     {
         var folder = Path.GetFullPath("artifacts/监控 文件夹-" + Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
